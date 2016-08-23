@@ -1,13 +1,19 @@
 # git-journal
 The Git Commit Message Framework
 
-## Targets
-Target of the project is to provide a Python based framework to write more sensible commit messages. Single commit messages should contain one logical change of the project which is described in a standardized way. This results in a much cleaner git history and provides contributors more information about the actual change.
+[![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)
 
-To gain very clean commit message history it is neccesary to use git rebase, squashed and amended commits. git-journal will simplify these development approaches by providing sensible conventions and strong defaults.
+## Targets
+Target of the project is to provide a Rust based framework to write more sensible commit messages. Single commit
+messages should contain one logical change of the project which is described in a standardized way. This results in a
+much cleaner git history and provides contributors more information about the actual change.
+
+To gain very clean commit message history it is necessary to use git rebase, squashed and amended commits. git-journal
+will simplify these development approaches by providing sensible conventions and strong defaults.
 
 ## Features
-The base project will be developed as a python based git extension which can be installed via pip. These features are planned for the initial release:
+The base project will be developed as a git extension written in Rust. These features are planned for the initial
+release:
 
 * Commit Message templating and validation
     * Provide a meaningful template for a commit message
