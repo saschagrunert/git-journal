@@ -1,7 +1,5 @@
-# git-journal
+# git-journal [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)
 The Git Commit Message Framework
-
-[![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)
 
 ## Targets
 Target of the project is to provide a Rust based framework to write more sensible commit messages. Single commit
