@@ -1,0 +1,17 @@
+name: git-journal
+version: 0.1.0
+author: Sascha Grunert <mail@saschagrunert.de>
+about: The Git Commit Message Framework
+
+args:
+  - path:
+      short: p
+      long: path
+      value_name: PATH
+      default_value: .
+      help: Sets a custom working path.
+  - revision_range:
+      index: 1
+      value_name: revision range
+      default_value: HEAD
+      help: Specifies the revision range to be processed.
