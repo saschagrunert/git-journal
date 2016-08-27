@@ -11,8 +11,10 @@ use clap::App;
 fn main() {
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
-    let path = matches.value_of("path").unwrap();
-    let revision_range = matches.value_of("revision_range").unwrap();
+    let path = matches.value_of("path")
+                      .expect("Could not parse 'path' parameter.");
+    let revision_range = matches.value_of("revision_range")
+                                .expect("Could not parse 'revision range' parameter.");
     match get_log_vector(path, revision_range) {
         Ok(()) => println!("Done."),
         Err(e) => panic!("Can't parse git log: {}", e),
