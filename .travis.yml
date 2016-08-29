@@ -9,3 +9,10 @@ os:
 matrix:
   allow_failures:
     - rust: nightly
+notifications:
+  email:
+    on_success: never
+addons:
+  packages:
+    - cmake
+    - libcurl14-openssl-dev
