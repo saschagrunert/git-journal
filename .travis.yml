@@ -3,6 +3,19 @@ rust:
   - stable
   - beta
   - nightly
+before_script:
+  - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+script:
+  - export CARGO_TARGET_DIR=`pwd`/target
+  - cargo build
+  # - cargo test
+  # - rustdoc --test README.md -L target
+  # - cargo run --manifest-path systest/Cargo.toml
+  # - cargo doc --no-deps
+  # - cargo doc --no-deps --manifest-path libssh2-sys/Cargo.toml
+# after_success:
+  # - travis-cargo --only nightly doc-upload
+  # - travis-cargo coveralls --no-sudo
 os:
   - linux
   - osx
@@ -16,3 +29,5 @@ addons:
   packages:
     - cmake
     - libcurl14-openssl-dev
+    - libelf-dev
+    - libdw-dev
