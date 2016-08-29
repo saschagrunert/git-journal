@@ -5,24 +5,37 @@
 extern crate clap;
 extern crate git2;
 
-use git2::{Error, ObjectType, Repository, Commit};
+use git2::{Error, ObjectType, Repository, Commit, Oid};
 use clap::App;
+use std::collections::HashMap;
 
 fn main() {
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
-    let path = matches.value_of("path")
-                      .expect("Could not parse 'path' parameter.");
-    let revision_range = matches.value_of("revision_range")
-                                .expect("Could not parse 'revision range' parameter.");
-    match get_log_vector(path, revision_range) {
-        Ok(()) => println!("Done."),
-        Err(e) => panic!("Can't parse git log: {}", e),
-    };
+
+    let path = matches.value_of("path").expect("Could not parse 'path' parameter");
+    let revision_range = matches.value_of("revision_range").expect("Could not parse 'revision range' parameter");
+
+    let repo = Repository::open(path).expect("Could not open repository");
+    let tags = get_tags(&repo).expect("Could not retrieve tags from repo");
+    parse_log(&repo, revision_range, &tags).expect("Could not parse log");
 }
 
-fn get_log_vector(path: &str, revision_range: &str) -> Result<(), Error> {
-    let repo = try!(Repository::open(path));
+type TagHashMap = HashMap<Oid, String>;
+fn get_tags(repo: &Repository) -> Result<TagHashMap, Error> {
+    let mut tags = HashMap::new();
+    for name in try!(repo.tag_names(None)).iter() {
+        let name = name.expect("Could not retrieve tag name");
+        let obj = try!(repo.revparse_single(name));
+        if let Ok(tag) = obj.into_tag() {
+            let tag_name = tag.name().expect("Could not parse tag name").to_owned();
+            tags.insert(tag.target_id(), tag_name);
+        }
+    }
+    Ok(tags)
+}
+
+fn parse_log(repo: &Repository, revision_range: &str, tags: &TagHashMap) -> Result<(), Error> {
     let mut revwalk = try!(repo.revwalk());
     revwalk.set_sorting(git2::SORT_TIME);
 
@@ -44,7 +57,11 @@ fn get_log_vector(path: &str, revision_range: &str) -> Result<(), Error> {
 
     // Iterate over the git objects and process them.
     for id in revwalk {
-        let commit = try!(repo.find_commit(try!(id)));
+        let oid = try!(id);
+        let commit = try!(repo.find_commit(oid));
+        if let Some(tag) = tags.get(&oid) {
+            println!("Found tag {} for commit {}", tag, oid);
+        }
         print_commit(commit);
     }
     Ok(())

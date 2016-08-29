@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Sascha Grunert <mail@saschagruenrt.de>"]
 
 [dependencies]
-clap = { version = "*", features = ["yaml"] }
-clippy = "*"
-git2 = "*"
+clap = { version = "2.11.0", features = ["yaml"] }
+clippy = "0.0.86"
+git2 = "0.4.4"
 
