@@ -5,7 +5,7 @@
 extern crate clap;
 extern crate git2;
 
-use git2::{Error, ObjectType, Repository, Commit, Oid};
+use git2::{Error, ObjectType, Oid, Repository};
 use clap::App;
 
 struct GitJournal {
@@ -61,29 +61,9 @@ impl GitJournal {
             for &(tag_id, ref tag_name) in self.tags.iter().filter(|tag| tag.0.as_bytes() == oid.as_bytes()) {
                 println!("Found tag {} for commit {}.", tag_name, tag_id);
             }
-            self.print_commit(commit);
+            println!("\t{}\n---", commit.message().unwrap());
         }
         Ok(())
-    }
-
-    fn print_commit(&self, commit: Commit) {
-        println!("Commit: {}", commit.id());
-
-        if commit.parents().len() > 1 {
-            print!("Merge:");
-            for id in commit.parent_ids() {
-                print!(" {:.8}", id);
-            }
-            println!("");
-        }
-
-        let author = commit.author();
-        println!("Author: {}\n", author);
-
-        for line in String::from_utf8_lossy(commit.message_bytes()).lines() {
-            println!("\t{}", line);
-        }
-        println!("\n");
     }
 }
 
