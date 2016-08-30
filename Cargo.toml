@@ -5,8 +5,5 @@ authors = ["Sascha Grunert <mail@saschagruenrt.de>"]
 
 [dependencies]
 clap = { version = "2.11.0", features = ["yaml"] }
-clippy = { version = "0.0.86", optional = true }
 git2 = "0.4.4"
 
-[features]
-default = []

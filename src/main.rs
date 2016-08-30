@@ -1,6 +1,3 @@
-#![cfg_attr(feature="clippy", feature(plugin))]
-#![cfg_attr(feature="clippy", plugin(clippy))]
-
 #[macro_use]
 extern crate clap;
 extern crate git2;
@@ -34,7 +31,7 @@ impl GitJournal {
         })
     }
 
-    fn parse_log(&self, revision_range: &str) -> Result<(), Error> {
+    fn parse_log(&self, revision_range: &str, skip_pattern: &str) -> Result<(), Error> {
         let mut revwalk = try!(self.repo.revwalk());
         revwalk.set_sorting(git2::SORT_TIME);
 
@@ -57,11 +54,13 @@ impl GitJournal {
         // Iterate over the git objects and process them.
         for id in revwalk {
             let oid = try!(id);
-            let commit = try!(self.repo.find_commit(oid));
-            for &(tag_id, ref tag_name) in self.tags.iter().filter(|tag| tag.0.as_bytes() == oid.as_bytes()) {
-                println!("Found tag {} for commit {}.", tag_name, tag_id);
+            let mut commit = try!(self.repo.find_commit(oid));
+            for tag in self.tags
+                .iter()
+                .filter(|tag| tag.0.as_bytes() == oid.as_bytes() && !tag.1.contains(skip_pattern)) {
+                println!("TAG: {}", tag.1);
             }
-            println!("\t{}\n---", commit.message().unwrap());
+            println!("{}: {}", oid, commit.summary().unwrap());
         }
         Ok(())
     }
@@ -73,9 +72,10 @@ fn main() {
 
     let path = matches.value_of("path").expect("Could not parse 'path' parameter");
     let revision_range = matches.value_of("revision_range").expect("Could not parse 'revision range' parameter");
+    let skip_pattern = matches.value_of("skip_pattern").expect("Could not parse 'skip pattern' parameter");
 
     match GitJournal::new(path) {
-        Ok(journal) => journal.parse_log(revision_range).expect("Log parsing error"),
+        Ok(journal) => journal.parse_log(revision_range, skip_pattern).expect("Log parsing error"),
         Err(e) => println!("{}", e),
     }
 }
