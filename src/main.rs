@@ -11,11 +11,12 @@ struct GitJournal {
 }
 
 impl GitJournal {
+    /// Constructs a new `GitJournal`.
     fn new(path: &str) -> Result<GitJournal, Error> {
         // Open the repository
         let new_repo = try!(Repository::open(path));
 
-        // Get all available tags
+        // Get all available tags in some vector of tuples
         let mut new_tags = vec![];
         for name in try!(new_repo.tag_names(None)).iter() {
             let name = try!(name.ok_or(Error::from_str("Could not receive tag name")));
@@ -25,12 +26,15 @@ impl GitJournal {
                 new_tags.push((tag.target_id(), tag_name));
             }
         }
+
+        // Return the git journal object
         Ok(GitJournal {
             repo: new_repo,
             tags: new_tags,
         })
     }
 
+    /// Parses a revision range for a `GitJournal`.
     fn parse_log(&self, revision_range: &str, tag_skip_pattern: &str) -> Result<(), Error> {
         let mut revwalk = try!(self.repo.revwalk());
         let mut stop_at_first_tag = false;
@@ -75,13 +79,16 @@ impl GitJournal {
 }
 
 fn main() {
+    // Load the CLI parameters from the yaml file
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
 
+    // Get all values of the given CLI parameters
     let path = matches.value_of("path").expect("Could not parse 'path' parameter");
     let revision_range = matches.value_of("revision_range").expect("Could not parse 'revision range' parameter");
     let tag_skip_pattern = matches.value_of("tag_skip_pattern").expect("Could not parse 'skip pattern' parameter");
 
+    // Create the git journal
     match GitJournal::new(path) {
         Ok(journal) => journal.parse_log(revision_range, tag_skip_pattern).expect("Log parsing error"),
         Err(e) => println!("{}", e),
