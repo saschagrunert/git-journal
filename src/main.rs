@@ -31,14 +31,16 @@ impl GitJournal {
         })
     }
 
-    fn parse_log(&self, revision_range: &str, skip_pattern: &str) -> Result<(), Error> {
+    fn parse_log(&self, revision_range: &str, tag_skip_pattern: &str) -> Result<(), Error> {
         let mut revwalk = try!(self.repo.revwalk());
+        let mut stop_at_first_tag = false;
         revwalk.set_sorting(git2::SORT_TIME);
 
         // Fill the revwalk with the selected revisions.
         let revspec = try!(self.repo.revparse(&revision_range));
         if revspec.mode().contains(git2::REVPARSE_SINGLE) {
             try!(revwalk.push(revspec.from().unwrap().id()));
+            stop_at_first_tag = true;
         } else {
             let from = revspec.from().unwrap().id();
             let to = revspec.to().unwrap().id();
@@ -52,13 +54,16 @@ impl GitJournal {
         }
 
         // Iterate over the git objects and process them.
-        for id in revwalk {
+        'revloop: for id in revwalk {
             let oid = try!(id);
             let mut commit = try!(self.repo.find_commit(oid));
             for tag in self.tags
                 .iter()
-                .filter(|tag| tag.0.as_bytes() == oid.as_bytes() && !tag.1.contains(skip_pattern)) {
-                println!("TAG: {}", tag.1);
+                .filter(|tag| tag.0.as_bytes() == oid.as_bytes() && !tag.1.contains(tag_skip_pattern)) {
+                if stop_at_first_tag {
+                    break 'revloop;
+                }
+                println!("TAG: {} ({})", tag.1, tag.0);
             }
             println!("{}: {}", oid, commit.summary().unwrap());
         }
@@ -72,10 +77,10 @@ fn main() {
 
     let path = matches.value_of("path").expect("Could not parse 'path' parameter");
     let revision_range = matches.value_of("revision_range").expect("Could not parse 'revision range' parameter");
-    let skip_pattern = matches.value_of("skip_pattern").expect("Could not parse 'skip pattern' parameter");
+    let tag_skip_pattern = matches.value_of("tag_skip_pattern").expect("Could not parse 'skip pattern' parameter");
 
     match GitJournal::new(path) {
-        Ok(journal) => journal.parse_log(revision_range, skip_pattern).expect("Log parsing error"),
+        Ok(journal) => journal.parse_log(revision_range, tag_skip_pattern).expect("Log parsing error"),
         Err(e) => println!("{}", e),
     }
 }

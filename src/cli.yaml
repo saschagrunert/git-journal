@@ -15,8 +15,9 @@ args:
       value_name: revision range
       default_value: HEAD
       help: Specifies the revision range to be processed.
-  - skip_pattern:
+        Per default the last TAG to HEAD.
+  - tag_skip_pattern:
       short: s
-      value_name: skip pattern
+      value_name: tag skip pattern
       default_value: rc
       help: A pattern to exclude tags from the processing.
