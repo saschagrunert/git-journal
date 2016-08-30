@@ -18,7 +18,6 @@ script:
   # - travis-cargo coveralls --no-sudo
 os:
   - linux
-  - osx
 matrix:
   allow_failures:
     - rust: nightly
@@ -26,8 +25,11 @@ notifications:
   email:
     on_success: never
 addons:
-  packages:
-    - cmake
-    - libcurl14-openssl-dev
-    - libelf-dev
-    - libdw-dev
+  apt:
+    sources:
+      - kalakris-cmake
+    packages:
+      - cmake
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
