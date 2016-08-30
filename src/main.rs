@@ -39,33 +39,36 @@ impl GitJournal {
         // Fill the revwalk with the selected revisions.
         let revspec = try!(self.repo.revparse(&revision_range));
         if revspec.mode().contains(git2::REVPARSE_SINGLE) {
-            try!(revwalk.push(revspec.from().unwrap().id()));
+            // A single commit was given
+            let from = try!(revspec.from().ok_or(Error::from_str("Could not set revision range start")));
+            try!(revwalk.push(from.id()));
             stop_at_first_tag = true;
         } else {
-            let from = revspec.from().unwrap().id();
-            let to = revspec.to().unwrap().id();
-            try!(revwalk.push(to));
+            // A specific commit range was given
+            let from = try!(revspec.from().ok_or(Error::from_str("Could not set revision range start")));
+            let to = try!(revspec.to().ok_or(Error::from_str("Could not set revision range end")));
+            try!(revwalk.push(to.id()));
             if revspec.mode().contains(git2::REVPARSE_MERGE_BASE) {
-                let base = try!(self.repo.merge_base(from, to));
+                let base = try!(self.repo.merge_base(from.id(), to.id()));
                 let o = try!(self.repo.find_object(base, Some(ObjectType::Commit)));
                 try!(revwalk.push(o.id()));
             }
-            try!(revwalk.hide(from));
+            try!(revwalk.hide(from.id()));
         }
 
         // Iterate over the git objects and process them.
-        'revloop: for id in revwalk {
+        'revloop: for (index, id) in revwalk.enumerate() {
             let oid = try!(id);
             let mut commit = try!(self.repo.find_commit(oid));
             for tag in self.tags
                 .iter()
                 .filter(|tag| tag.0.as_bytes() == oid.as_bytes() && !tag.1.contains(tag_skip_pattern)) {
-                if stop_at_first_tag {
+                println!("TAG: {} ({})", tag.1, tag.0);
+                if stop_at_first_tag && index > 0 {
                     break 'revloop;
                 }
-                println!("TAG: {} ({})", tag.1, tag.0);
             }
-            println!("{}: {}", oid, commit.summary().unwrap());
+            println!("{}\t{}: {}", index, oid, commit.summary().unwrap());
         }
         Ok(())
     }
