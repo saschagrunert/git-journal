@@ -1,5 +1,5 @@
 name: git-journal
-version: 0.1.0
+version: 1.0.0
 author: Sascha Grunert <mail@saschagrunert.de>
 about: The Git Commit Message Framework
 
@@ -15,7 +15,8 @@ args:
       value_name: revision range
       default_value: HEAD
       help: Specifies the revision range to be processed.
-        Per default the last TAG to HEAD.
+        If a single revision is specified, the output will stop
+        at the first following git TAG.
   - tag_skip_pattern:
       short: s
       value_name: tag skip pattern
