@@ -18,7 +18,12 @@ args:
         If a single revision is specified, the output will stop
         at the first following git TAG.
   - tag_skip_pattern:
-      short: s
+      short: t
       value_name: tag skip pattern
       default_value: rc
       help: A pattern to exclude tags from the processing.
+  - setup:
+      long: setup
+      short: s
+      help: Creates all necessary git hooks and an initial
+        configuration file.

@@ -1,9 +1,19 @@
 [package]
 name = "git-journal"
 version = "1.0.0"
+license = "MIT"
+readme = "README.md"
+keywords = ["parser", "git", "log", "changelog", "journal"]
 authors = ["Sascha Grunert <mail@saschagruenrt.de>"]
+repository = "https://github.com/saschagrunert/git-journal"
 
 [dependencies]
 clap = { version = "2.11.0", features = ["yaml"] }
 git2 = "0.4.4"
+chrono = "0.2.25"
+regex = "0.1.73"
+
+[[bin]]
+name = "git-journal"
+path = "src/main.rs"
 
