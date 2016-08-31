@@ -17,14 +17,21 @@ The development is actually ongoing which means that the library and binary is c
 The base project will be developed as a git extension written in Rust. These features are planned for the initial
 release:
 
-* [ ] Changelog generation with filtering support
-    * Support for Changelogs containing distinct sections
-    * Create Changelogs between git tags automatically
-    * Filter out selected commits (e.g. merges)
-    * Support multiple output formats
-* [ ] Commit Message templating and validation
-    * Provide a meaningful template for a commit message
-    * Validate the commit message via git hooks
-* [ ] TODO list support within commit messages
-    * Keep track of the feature directly in the commit message
+* [ ] Automatic setup (`--setup/-s`) in a certain git repository.
+    * [ ] Install git hooks as symlinks to the binary.
+    * [ ] Provide an initial configuration file with default values.
+* [ ] Changelog generation
+    * [x] Parse until the last tag or in a commit range.
+    * [ ] Add the possibility to parse the last n Releases.
+    * [ ] Beautify the commit message body (typos, section mismatches).
+    * [ ] Support for distinct sections.
+    * [ ] Add support for multi level sections (Product A -> Feature A -> Category) and sorting.
+    * [ ] Filter out excluded patterns
+    * [ ] Output formats:
+        * [ ] Markdown
+        * [ ] HTML
+        * [ ] PDF
+  * [ ] Commit Message templating and validation
+    * [ ] Verify commit message based on config via git hook (which is the executable itself)
+* [ ] TODO list support within commit messages (keep track of the feature directly in the commit message)
 
