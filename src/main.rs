@@ -18,11 +18,17 @@ fn main() {
         let path = matches.value_of("path").expect("Could not parse 'path' parameter");
         let revision_range = matches.value_of("revision_range").expect("Could not parse 'revision range' parameter");
         let tag_skip_pattern = matches.value_of("tag_skip_pattern").expect("Could not parse 'skip pattern' parameter");
+        let tags_count = matches.value_of("tags_count").expect("Could not parse 'tags count' parameter");
+
+        let max_tags = tags_count.parse::<u32>().expect("Could not parse tags count to integer");
 
         // Create the git journal
         match GitJournal::new(path) {
             Ok(journal) => {
-                journal.parse_log(revision_range, tag_skip_pattern, matches.is_present("all"))
+                journal.parse_log(revision_range,
+                               tag_skip_pattern,
+                               &max_tags,
+                               &matches.is_present("all"))
                     .expect("Log parsing error")
             }
             Err(e) => println!("{}", e),

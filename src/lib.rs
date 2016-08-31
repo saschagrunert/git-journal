@@ -68,9 +68,14 @@ impl GitJournal {
     }
 
     /// Parses a revision range for a `GitJournal`.
-    pub fn parse_log(&self, revision_range: &str, tag_skip_pattern: &str, all: bool) -> Result<(), GitJournalError> {
+    pub fn parse_log(&self,
+                     revision_range: &str,
+                     tag_skip_pattern: &str,
+                     max_tags_count: &u32,
+                     all: &bool)
+                     -> Result<(), GitJournalError> {
+
         let mut revwalk = try!(self.repo.revwalk());
-        let mut stop_at_first_tag = false;
         revwalk.set_sorting(git2::SORT_TIME);
 
         // Fill the revwalk with the selected revisions.
@@ -79,7 +84,6 @@ impl GitJournal {
             // A single commit was given
             let from = try!(revspec.from().ok_or(git2::Error::from_str("Could not set revision range start")));
             try!(revwalk.push(from.id()));
-            stop_at_first_tag = if !all { true } else { false };
         } else {
             // A specific commit range was given
             let from = try!(revspec.from().ok_or(git2::Error::from_str("Could not set revision range start")));
@@ -97,6 +101,7 @@ impl GitJournal {
         let mut result: Vec<(String, Vec<String>)> = vec![];
         let mut current_entries: Vec<String> = vec![];
         let today = UTC::today();
+        let mut parsed_tags :u32 = 1;
         let mut current_tag = format!("Unreleased ({}-{}-{})",
                                       today.year(),
                                       today.month(),
@@ -115,11 +120,12 @@ impl GitJournal {
                 }
 
                 // If a single revision is given stop at the first seen tag
-                if stop_at_first_tag && index > 0 {
+                if !all && index > 0 && parsed_tags >= *max_tags_count {
                     break 'revloop;
                 }
 
                 // Format the tag and set as current
+                parsed_tags += 1;
                 let date = UTC.timestamp(commit.time().seconds(), 0).date();
                 current_tag = format!("{} ({}-{}-{})",
                                       tag.1,
@@ -173,7 +179,6 @@ impl GitJournal {
         if !body_message.is_empty() {
             body_message.insert(0, '\n');
         }
-
         Ok(format!("{} {}{}", list_char, summary_message, body_message))
     }
 }

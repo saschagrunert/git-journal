@@ -22,11 +22,18 @@ args:
       value_name: tag skip pattern
       default_value: rc
       help: A pattern to exclude tags from the processing.
+  - tags_count:
+      short: n
+      long: tags-count
+      value_name: number of tags
+      default_value: '1'
+      help: The number of tags which should be processed until
+        the parser stops when a single revision is given.
   - all:
       short: a
       long: all
       help: Do not stop parsing at the first tag when a single
-        revision is given.
+        revision is given. Overwrites '-n/--tags-count'.
   - setup:
       long: setup
       short: s
