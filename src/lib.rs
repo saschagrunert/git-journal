@@ -68,7 +68,7 @@ impl GitJournal {
     }
 
     /// Parses a revision range for a `GitJournal`.
-    pub fn parse_log(&self, revision_range: &str, tag_skip_pattern: &str) -> Result<(), GitJournalError> {
+    pub fn parse_log(&self, revision_range: &str, tag_skip_pattern: &str, all: bool) -> Result<(), GitJournalError> {
         let mut revwalk = try!(self.repo.revwalk());
         let mut stop_at_first_tag = false;
         revwalk.set_sorting(git2::SORT_TIME);
@@ -79,7 +79,7 @@ impl GitJournal {
             // A single commit was given
             let from = try!(revspec.from().ok_or(git2::Error::from_str("Could not set revision range start")));
             try!(revwalk.push(from.id()));
-            stop_at_first_tag = true;
+            stop_at_first_tag = if !all { true } else { false };
         } else {
             // A specific commit range was given
             let from = try!(revspec.from().ok_or(git2::Error::from_str("Could not set revision range start")));
@@ -131,7 +131,7 @@ impl GitJournal {
             let message = try!(commit.message().ok_or(git2::Error::from_str("Could not parse commit message")));
             match self.parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
-                Err(e) => println!("Error parsing commit message: {}", e),
+                Err(e) => println!("Skip commit: {}", e),
             }
         }
         // Add the last processed items as well

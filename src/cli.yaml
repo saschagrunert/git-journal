@@ -22,6 +22,11 @@ args:
       value_name: tag skip pattern
       default_value: rc
       help: A pattern to exclude tags from the processing.
+  - all:
+      short: a
+      long: all
+      help: Do not stop parsing at the first tag when a single
+        revision is given.
   - setup:
       long: setup
       short: s

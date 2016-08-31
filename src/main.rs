@@ -21,7 +21,10 @@ fn main() {
 
         // Create the git journal
         match GitJournal::new(path) {
-            Ok(journal) => journal.parse_log(revision_range, tag_skip_pattern).expect("Log parsing error"),
+            Ok(journal) => {
+                journal.parse_log(revision_range, tag_skip_pattern, matches.is_present("all"))
+                    .expect("Log parsing error")
+            }
             Err(e) => println!("{}", e),
         }
     }
