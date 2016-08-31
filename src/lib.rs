@@ -145,8 +145,9 @@ impl GitJournal {
             result.push((current_tag, current_entries));
         }
 
-        for (tag, commits) in result {
+        for (tag, mut commits) in result {
             println!("\n{}:", tag);
+            commits.sort();
             for commit in commits {
                 println!("{}", commit);
             }
