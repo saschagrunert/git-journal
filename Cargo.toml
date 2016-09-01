@@ -11,7 +11,7 @@ repository = "https://github.com/saschagrunert/git-journal"
 clap = { version = "2.11.0", features = ["yaml"] }
 git2 = "0.4.4"
 chrono = "0.2.25"
-regex = "0.1.73"
+nom = "1.2.4"
 
 [[bin]]
 name = "git-journal"

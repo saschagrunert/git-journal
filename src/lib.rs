@@ -1,17 +1,20 @@
 extern crate git2;
 extern crate chrono;
-extern crate regex;
+
+#[macro_use]
+extern crate nom;
 
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone, Datelike};
-use regex::Regex;
+use nom::*;
+
 use std::fmt;
+use std::str;
 
 #[derive(Debug)]
 pub enum GitJournalError {
     GitError(git2::Error),
-    RegexError(regex::Error),
-    EntryNotCategorized(String),
+    ParserError,
     CommitMessageLengthError,
 }
 
@@ -26,18 +29,11 @@ impl From<git2::Error> for GitJournalError {
     }
 }
 
-impl From<regex::Error> for GitJournalError {
-    fn from(err: regex::Error) -> GitJournalError {
-        GitJournalError::RegexError(err)
-    }
-}
-
 impl fmt::Display for GitJournalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             GitJournalError::GitError(ref err) => write!(f, "Git error: {}", err),
-            GitJournalError::RegexError(ref err) => write!(f, "Regex error: {}", err),
-            GitJournalError::EntryNotCategorized(ref sum) => write!(f, "No valid category: {}", sum),
+            GitJournalError::ParserError => write!(f, "Parser error."),
             GitJournalError::CommitMessageLengthError => write!(f, "Commit message length too small."),
         }
     }
@@ -101,7 +97,7 @@ impl GitJournal {
         let mut result: Vec<(String, Vec<String>)> = vec![];
         let mut current_entries: Vec<String> = vec![];
         let today = UTC::today();
-        let mut parsed_tags :u32 = 1;
+        let mut parsed_tags: u32 = 1;
         let mut current_tag = format!("Unreleased ({}-{}-{})",
                                       today.year(),
                                       today.month(),
@@ -120,7 +116,7 @@ impl GitJournal {
                 }
 
                 // If a single revision is given stop at the first seen tag
-                if !all && index > 0 && parsed_tags >= *max_tags_count {
+                if !all && index > 0 && parsed_tags > *max_tags_count {
                     break 'revloop;
                 }
 
@@ -157,29 +153,47 @@ impl GitJournal {
 
     /// Parses a single commit message and returns a changelog ready form
     fn parse_commit_message(&self, message: &str) -> Result<String, GitJournalError> {
-        let summary = try!(message.lines().nth(0).ok_or(GitJournalError::CommitMessageLengthError)).trim();
-        let body = message.lines().skip(1).collect::<Vec<&str>>();
-        let list_char = '-';
-
-        // Skip this entry if not in any category
-        let categories = ["Critical", "Added", "Changed", "Fixed", "Improved", "Removed"];
-        if categories.iter().filter(|&cat| summary.contains(cat)).count() == 0 {
-            return Err(GitJournalError::EntryNotCategorized(summary.to_owned()));
-        }
-
-        // Trim commits by pattern and highlight category
-        let trim_re = try!(Regex::new(r"^[A-Z]+-[0-9]+\s(?P<c>\S+)\s(?P<m>.*)"));
-        let summary_message = trim_re.replace(summary, "[$c] $m");
-
-        // Remove unnecessary information from the body
-        let mut body_message = body.iter()
-            .filter(|&s| !s.is_empty() && s.chars().nth(0).unwrap() == list_char)
-            .map(|s| format!("    {}", s))
-            .collect::<Vec<String>>()
-            .join("\n");
-        if !body_message.is_empty() {
-            body_message.insert(0, '\n');
-        }
-        Ok(format!("{} {}{}", list_char, summary_message, body_message))
+        named!(commit_parser<(&str, &str, Vec<&str>)>,
+            chain!(
+                separated_pair!(alpha, char!('-'), digit)? ~
+                space? ~
+                cat: map_res!(
+                    alt!(
+                        tag!("Added") |
+                        tag!("Changed") |
+                        tag!("Fixed") |
+                        tag!("Improved") |
+                        tag!("Removed") |
+                        tag!("Changed")),
+                str::from_utf8) ~
+                sum: map_res!(
+                    take_until!("\n"),
+                    str::from_utf8
+                ) ~
+                many1!(newline) ~
+                items: many0!(
+                    map_res!(
+                        chain!(
+                            tag!("-") ~
+                            space? ~
+                            r: take_until!("\n") ~
+                            many1!(newline),
+                            || r
+                        ),
+                        str::from_utf8
+                    )
+                ) ~
+                rest,
+            || (cat, sum, items))
+        );
+        match commit_parser(message.as_bytes()) {
+             IResult::Done(_, parsed) => {
+                 return Ok(format!("- [{}]{}{}", parsed.0, parsed.1, parsed.2.join("\n    - ")));
+             },
+             _ => {
+                 println!("Could not parse:\n{}\n", message.lines().nth(0).unwrap());
+                 return Err(GitJournalError::ParserError);
+             },
+        };
     }
 }
