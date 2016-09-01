@@ -6,7 +6,7 @@ extern crate nom;
 
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone, Datelike};
-use nom::{IResult, alpha, alphanumeric, digit, newline, rest, space};
+use nom::{IResult, alpha, digit, newline, rest, space};
 
 use std::fmt;
 use std::str;
