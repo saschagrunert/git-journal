@@ -6,7 +6,7 @@ extern crate nom;
 
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone, Datelike};
-use nom::*;
+use nom::{IResult, alpha, alphanumeric, digit, newline, rest, space};
 
 use std::fmt;
 use std::str;
@@ -141,6 +141,7 @@ impl GitJournal {
             result.push((current_tag, current_entries));
         }
 
+        // Print for testing purposes
         for (tag, mut commits) in result {
             println!("\n{}:", tag);
             commits.sort();
