@@ -13,9 +13,9 @@ use std::str;
 
 #[derive(Debug)]
 pub enum GitJournalError {
-    GitError(git2::Error),
-    ParserError,
-    CommitMessageLengthError,
+    Git(git2::Error),
+    Parser,
+    CommitMessageLength,
 }
 
 pub struct GitJournal {
@@ -25,16 +25,16 @@ pub struct GitJournal {
 
 impl From<git2::Error> for GitJournalError {
     fn from(err: git2::Error) -> GitJournalError {
-        GitJournalError::GitError(err)
+        GitJournalError::Git(err)
     }
 }
 
 impl fmt::Display for GitJournalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            GitJournalError::GitError(ref err) => write!(f, "Git error: {}", err),
-            GitJournalError::ParserError => write!(f, "Parser error."),
-            GitJournalError::CommitMessageLengthError => write!(f, "Commit message length too small."),
+            GitJournalError::Git(ref err) => write!(f, "Git error: {}", err),
+            GitJournalError::Parser => write!(f, "Parser error."),
+            GitJournalError::CommitMessageLength => write!(f, "Commit message length too small."),
         }
     }
 }
@@ -154,7 +154,7 @@ impl GitJournal {
 
     /// Parses a single commit message and returns a changelog ready form
     fn parse_commit_message(&self, message: &str) -> Result<String, GitJournalError> {
-        named!(commit_parser<(&str, &str, Vec<&str>)>,
+        named!(commit_parser<(&str, &str)>,
             chain!(
                 separated_pair!(alpha, char!('-'), digit)? ~
                 space? ~
@@ -171,30 +171,15 @@ impl GitJournal {
                     take_until!("\n"),
                     str::from_utf8
                 ) ~
-                many1!(newline) ~
-                items: many0!(
-                    map_res!(
-                        chain!(
-                            tag!("-") ~
-                            space? ~
-                            r: take_until!("\n") ~
-                            many1!(newline),
-                            || r
-                        ),
-                        str::from_utf8
-                    )
-                ) ~
-                rest,
-            || (cat, sum, items))
+                many1!(newline),
+            || (cat, sum))
         );
-        match commit_parser(message.as_bytes()) {
-             IResult::Done(_, parsed) => {
-                 return Ok(format!("- [{}]{}{}", parsed.0, parsed.1, parsed.2.join("\n    - ")));
-             },
-             _ => {
-                 println!("Could not parse:\n{}\n", message.lines().nth(0).unwrap());
-                 return Err(GitJournalError::ParserError);
-             },
+
+        let parsed = match commit_parser(message.as_bytes()) {
+             IResult::Done(_, parsed) => parsed,
+             _ => return Err(GitJournalError::Parser),
         };
+
+        Ok(format!("- [{}]{}", parsed.0, parsed.1))
     }
 }
