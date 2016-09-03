@@ -22,16 +22,13 @@ release:
     * [ ] Provide an initial configuration file with default values.
 * [ ] Changelog generation
     * [x] Parse until the last tag or in a commit range.
-    * [ ] Add the possibility to parse the last n Releases.
-    * [ ] Beautify the commit message body (typos, section mismatches).
-    * [ ] Support for distinct sections.
-    * [ ] Add support for multi level sections (Product A -> Feature A -> Category) and sorting.
-    * [ ] Filter out excluded patterns
+    * [x] Add the possibility to parse the last n Releases.
+    * [ ] Filter out excluded tags
+    * [ ] Be able to use predefined tags
     * [ ] Output formats:
         * [ ] Markdown
         * [ ] HTML
         * [ ] PDF
   * [ ] Commit Message templating and validation
     * [ ] Verify commit message based on config via git hook (which is the executable itself)
-* [ ] TODO list support within commit messages (keep track of the feature directly in the commit message)
 
