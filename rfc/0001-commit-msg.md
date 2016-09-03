@@ -55,8 +55,9 @@ changelogs with filtering the content. For example it is possible to skip everyt
 ```
 JIRA-1234 [Added] the fancy thing everyone looks for
 
-Now I describe what I did in a detailed way. This detail message will be handeled as a certain paragraph. There is no
-need for a tag or a category.
+Now I describe what I did in a detailed way.
+This detail message will be handeled as a certain
+paragraph. There is no need for a tag or a category.
 
 - [Fixed] some very bas thing
 - [Added] detailed documentation about that thing :doc:
