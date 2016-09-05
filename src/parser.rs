@@ -29,7 +29,11 @@ pub struct ParsedCommit {
 
 impl fmt::Display for ParsedCommit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}\n  {:?}\n  {:?}", self.summary, self.body, self.footer)
+        write!(f,
+               "{}\n  {:?}\n  {:?}",
+               self.summary,
+               self.body,
+               self.footer)
     }
 }
 
@@ -89,7 +93,7 @@ impl Parser {
     pub fn parse_commit_message(&self, message: &str) -> Result<ParsedCommit, ParserError> {
 
         /// Parses for tags and returns them with the resulting string
-        fn parse_tags(i: &[u8]) -> (Vec<String>, String) {
+        fn parse_and_consume_tags(i: &[u8]) -> (Vec<String>, String) {
             let string = str::from_utf8(i).unwrap_or("");
             let mut tags = vec![];
             for cap in RE_TAGS.captures_iter(string) {
@@ -135,7 +139,7 @@ impl Parser {
                 space? ~
                 p_category: parse_category ~
                 tag!("]")? ~
-                p_tags_rest: map!(rest, parse_tags),
+                p_tags_rest: map!(rest, parse_and_consume_tags),
             || SummaryElement {
                 prefix: p_prefix.map_or("".to_owned(), |p| {
                     format!("{}-{}", str::from_utf8(p.0).unwrap_or(""), str::from_utf8(p.1).unwrap_or(""))
@@ -171,7 +175,7 @@ impl Parser {
                         _ => "",
 
                     };
-                    let (parsed_tags, parsed_text) = parse_tags(list_item.as_bytes());
+                    let (parsed_tags, parsed_text) = parse_and_consume_tags(list_item.as_bytes());
                     list.push(ListElement {
                         category: parsed_category.to_owned(),
                         text: parsed_text,
@@ -181,7 +185,7 @@ impl Parser {
                 parsed_body.push(BodyElement::List(list));
             } else {
                 // Assume paragraph
-                let (parsed_tags, parsed_text) = parse_tags(part.as_bytes());
+                let (parsed_tags, parsed_text) = parse_and_consume_tags(part.as_bytes());
                 parsed_body.push(BodyElement::Paragraph(ParagraphElement {
                     text: parsed_text.trim().to_owned(),
                     tags: parsed_tags,
