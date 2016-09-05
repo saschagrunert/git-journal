@@ -5,6 +5,9 @@ extern crate regex;
 #[macro_use]
 extern crate nom;
 
+#[macro_use]
+extern crate lazy_static;
+
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone, Datelike};
 use std::fmt;
@@ -100,7 +103,7 @@ impl GitJournal {
                                       today.year(),
                                       today.month(),
                                       today.day());
-        let parser = parser::Parser::new();
+        let parser = parser::Parser;
         'revloop: for (index, id) in revwalk.enumerate() {
             let oid = try!(id);
             let commit = try!(self.repo.find_commit(oid));

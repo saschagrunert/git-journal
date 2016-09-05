@@ -59,32 +59,28 @@ pub struct ParsedCommit {
     footer: Vec<FooterElement>,
 }
 
-pub struct Parser {
+lazy_static! {
+    static ref RE_TAGS: Regex = Regex::new(r" :(.*?):").unwrap();
 }
 
+pub struct Parser;
 impl Parser {
-    /// Constructs a new `Parser`.
-    pub fn new() -> Parser {
-        Parser {}
-    }
-
     /// Parses a single commit message and returns a changelog ready form
     pub fn parse_commit_message(&self, message: &str) -> Result<String, ParserError> {
 
         /// Parses for tags and returns them with the resulting string
         fn parse_tags(i: &[u8]) -> (Vec<String>, String) {
             let string = str::from_utf8(i).unwrap_or("");
-            let re_tags = Regex::new(r" :(.*?):").unwrap();
             let mut tags = vec![];
-            for cap in re_tags.captures_iter(string) {
+            for cap in RE_TAGS.captures_iter(string) {
                 tags.extend(cap.at(1).unwrap_or("").split(",").map(|x| x.trim().to_string()).collect::<Vec<String>>());
             }
-            (tags, re_tags.replace_all(string, ""))
+            (tags, RE_TAGS.replace_all(string, ""))
         }
 
         // Parse the summary line
         let summary_line = try!(message.lines().nth(0).ok_or(ParserError::CommitMessageLength));
-        named!(summary_parser<SummaryElement>,
+        named!(parse_summary<SummaryElement>,
             chain!(
                 p_prefix: separated_pair!(alpha, char!('-'), digit)? ~
                 space? ~
@@ -110,7 +106,7 @@ impl Parser {
                 text: p_tags_rest.1.clone(),
             })
         );
-        let parsed_summary = match summary_parser(summary_line.as_bytes()) {
+        let parsed_summary = match parse_summary(summary_line.as_bytes()) {
             IResult::Done(_, parsed) => parsed,
             _ => return Err(ParserError::SummaryParsing(format!("Could not parse commit summary: {}", summary_line))),
         };
