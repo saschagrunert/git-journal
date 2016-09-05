@@ -25,8 +25,8 @@ parsing of the commit message possible. This means that an overall commit messag
 - Footer: Add additional information to the commit as `Key: Value` pairs, e.g. `Reviewed-by: John Doe`, multiplication
   is also possible since there could be multiple `Reviewed-by` keys
 
-An empty line separates the commit message parts, whereas the separation between the body and the footer is implicit by their
-differnt syntax.
+An empty line separates the commit message parts, whereas newlines between lists and paragraphs within the body are
+possible as well. The separation between the body and the footer itself is implicit by their differnt syntax.
 
 ## Syntax elements
 
