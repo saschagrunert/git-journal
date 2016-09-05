@@ -11,6 +11,7 @@ extern crate lazy_static;
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone, Datelike};
 use std::fmt;
+use parser::ParsedCommit;
 
 mod parser;
 
@@ -95,8 +96,8 @@ impl GitJournal {
         }
 
         // Iterate over the git objects and collect them in a vector of tuples
-        let mut result: Vec<(String, Vec<String>)> = vec![];
-        let mut current_entries: Vec<String> = vec![];
+        let mut result: Vec<(String, Vec<ParsedCommit>)> = vec![];
+        let mut current_entries: Vec<ParsedCommit> = vec![];
         let today = UTC::today();
         let mut parsed_tags: u32 = 1;
         let mut current_tag = format!("Unreleased ({}-{}-{})",
