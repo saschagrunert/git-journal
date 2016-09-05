@@ -22,7 +22,8 @@ parsing of the commit message possible. This means that an overall commit messag
 
 - Summary line: The first line of the commit
 - Body: Can hold lists or paragraphs of text
-- Footer: Add additional information to the commit as `Key: Value` pairs, e.g. `Reviewed-by: John Doe`
+- Footer: Add additional information to the commit as `Key: Value` pairs, e.g. `Reviewed-by: John Doe`, multiplication
+  is also possible since there could be multiple `Reviewed-by` keys
 
 An empty line separates the commit message parts, whereas the separation between the body and the footer is implicit by their
 differnt syntax.
@@ -59,8 +60,8 @@ examples for tags are `:internal:`, `:API:`,·`:Documentation:`,`:Feature A:` or
 - Apply to the current line/paragraph
 - Can appear anywhere in the line
 
-Tags enable the possibility of sectioned
-changelogs with filtering the content. For example it is possible to skip everything which is tagged as `:internal:`.
+Tags enable the possibility of sectioned changelogs with filtering the content. For example it is possible to skip
+everything which is tagged as `:internal:`.
 
 ### Example commit message
 ```
