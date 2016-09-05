@@ -132,7 +132,7 @@ impl GitJournal {
                                       date.day());
             }
             // Add the commit message to the current entries of the tag
-            let message = try!(commit.message().ok_or(git2::Error::from_str("Could not parse commit message")));
+            let message = try!(commit.message().ok_or(git2::Error::from_str("Parsing error:")));
             match parser.parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
                 Err(e) => println!("Skip commit: {}", e),
