@@ -6,21 +6,14 @@ extern crate nom;
 
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone, Datelike};
-use nom::{IResult, alpha, digit, newline, rest, space};
-
 use std::fmt;
-use std::str;
+
+mod parser;
 
 #[derive(Debug)]
 pub enum GitJournalError {
     Git(git2::Error),
-    Parser,
-    CommitMessageLength,
-}
-
-pub struct GitJournal {
-    repo: Repository,
-    tags: Vec<(Oid, String)>,
+    Parser(String),
 }
 
 impl From<git2::Error> for GitJournalError {
@@ -33,10 +26,14 @@ impl fmt::Display for GitJournalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             GitJournalError::Git(ref err) => write!(f, "Git error: {}", err),
-            GitJournalError::Parser => write!(f, "Parser error."),
-            GitJournalError::CommitMessageLength => write!(f, "Commit message length too small."),
+            GitJournalError::Parser(ref err) => write!(f, "Parser error: {}", err),
         }
     }
+}
+
+pub struct GitJournal {
+    repo: Repository,
+    tags: Vec<(Oid, String)>,
 }
 
 impl GitJournal {
@@ -102,6 +99,7 @@ impl GitJournal {
                                       today.year(),
                                       today.month(),
                                       today.day());
+        let parser = parser::Parser::new();
         'revloop: for (index, id) in revwalk.enumerate() {
             let oid = try!(id);
             let commit = try!(self.repo.find_commit(oid));
@@ -131,7 +129,7 @@ impl GitJournal {
             }
             // Add the commit message to the current entries of the tag
             let message = try!(commit.message().ok_or(git2::Error::from_str("Could not parse commit message")));
-            match self.parse_commit_message(message) {
+            match parser.parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
                 Err(e) => println!("Skip commit: {}", e),
             }
@@ -150,36 +148,5 @@ impl GitJournal {
             }
         }
         Ok(())
-    }
-
-    /// Parses a single commit message and returns a changelog ready form
-    fn parse_commit_message(&self, message: &str) -> Result<String, GitJournalError> {
-        named!(commit_parser<(&str, &str)>,
-            chain!(
-                separated_pair!(alpha, char!('-'), digit)? ~
-                space? ~
-                cat: map_res!(
-                    alt!(
-                        tag!("Added") |
-                        tag!("Changed") |
-                        tag!("Fixed") |
-                        tag!("Improved") |
-                        tag!("Removed") |
-                        tag!("Changed")),
-                str::from_utf8) ~
-                sum: map_res!(
-                    take_until!("\n"),
-                    str::from_utf8
-                ) ~
-                many1!(newline),
-            || (cat, sum))
-        );
-
-        let parsed = match commit_parser(message.as_bytes()) {
-             IResult::Done(_, parsed) => parsed,
-             _ => return Err(GitJournalError::Parser),
-        };
-
-        Ok(format!("- [{}]{}", parsed.0, parsed.1))
     }
 }
