@@ -1,5 +1,5 @@
-use nom::{IResult, eof, alpha, digit, newline, space, rest};
-use super::GitJournalError;
+use nom::{IResult, alpha, digit, space, rest};
+use regex::Regex;
 use std::str;
 use std::fmt;
 
@@ -26,6 +26,17 @@ pub struct SummaryElement {
     tags: Vec<String>,
 }
 
+impl fmt::Display for SummaryElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "- [{}]{} (Prefix: '{}', Tags: '{:?}')",
+               self.category,
+               self.text,
+               self.prefix,
+               self.tags.join(", "))
+    }
+}
+
 pub struct ListElement {
     category: String,
     text: String,
@@ -49,7 +60,6 @@ pub struct ParsedCommit {
 }
 
 pub struct Parser {
-    
 }
 
 impl Parser {
@@ -61,43 +71,50 @@ impl Parser {
     /// Parses a single commit message and returns a changelog ready form
     pub fn parse_commit_message(&self, message: &str) -> Result<String, ParserError> {
 
+        /// Parses for tags and returns them with the resulting string
+        fn parse_tags(i: &[u8]) -> (Vec<String>, String) {
+            let string = str::from_utf8(i).unwrap_or("");
+            let re_tags = Regex::new(r" :(.*?):").unwrap();
+            let mut tags = vec![];
+            for cap in re_tags.captures_iter(string) {
+                tags.extend(cap.at(1).unwrap_or("").split(",").map(|x| x.trim().to_string()).collect::<Vec<String>>());
+            }
+            (tags, re_tags.replace_all(string, ""))
+        }
+
         // Parse the summary line
         let summary_line = try!(message.lines().nth(0).ok_or(ParserError::CommitMessageLength));
         named!(summary_parser<SummaryElement>,
             chain!(
-                separated_pair!(alpha, char!('-'), digit)? ~
+                p_prefix: separated_pair!(alpha, char!('-'), digit)? ~
                 space? ~
                 tag!("[")? ~
-                cat: map_res!(
+                p_category: map_res!(
                     alt!(
                         tag!("Added") |
                         tag!("Changed") |
                         tag!("Fixed") |
                         tag!("Improved") |
-                        tag!("Removed") |
-                        tag!("Changed")),
-                str::from_utf8) ~
-                tag!("]")? ~
-                txt: map_res!(
-                    rest,
+                        tag!("Removed")
+                    ),
                     str::from_utf8
-                ),
+                ) ~
+                tag!("]")? ~
+                p_tags_rest: map!(rest, parse_tags),
             || SummaryElement {
-                prefix: "bla".to_string(),
-                category: cat.to_string(),
-                text: txt.to_string(),
-                tags: vec![],
+                prefix: p_prefix.map_or("".to_string(), |p| {
+                    format!("{}-{}", str::from_utf8(p.0).unwrap_or(""), str::from_utf8(p.1).unwrap_or(""))
+                }),
+                category: p_category.to_string(),
+                tags: p_tags_rest.0.clone(),
+                text: p_tags_rest.1.clone(),
             })
         );
-
-        let parsed = match summary_parser(summary_line.as_bytes()) {
+        let parsed_summary = match summary_parser(summary_line.as_bytes()) {
             IResult::Done(_, parsed) => parsed,
             _ => return Err(ParserError::SummaryParsing(format!("Could not parse commit summary: {}", summary_line))),
         };
 
-        println!("{:?}", parsed);
-
-        // Ok(format!("- [{}]{}", parsed.0, parsed.1))
-        Ok("-".to_string())
+        Ok(format!("{}", parsed_summary))
     }
 }
