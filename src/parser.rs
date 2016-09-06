@@ -23,15 +23,15 @@ impl fmt::Display for ParserError {
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
-pub struct ParsedTag<'a> {
-    pub name: &'a str,
+pub struct ParsedTag {
+    pub name: String,
     pub date: Date<UTC>,
 }
 
-impl<'a> fmt::Display for ParsedTag<'a> {
+impl fmt::Display for ParsedTag {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
-               "{} ({}-{}-{})",
+               "{} ({}-{:02}-{:02})",
                self.name,
                self.date.year(),
                self.date.month(),
@@ -41,37 +41,28 @@ impl<'a> fmt::Display for ParsedTag<'a> {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ParsedCommit {
-    summary: SummaryElement,
-    body: Vec<BodyElement>,
-    footer: Vec<FooterElement>,
+    pub summary: SummaryElement,
+    pub body: Vec<BodyElement>,
+    pub footer: Vec<FooterElement>,
 }
 
 impl fmt::Display for ParsedCommit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,
-               "{}\n  {:?}\n  {:?}",
-               self.summary,
-               self.body,
-               self.footer)
+        write!(f, "{}\n  {:?}", self.summary, self.body)
     }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct SummaryElement {
-    prefix: String,
-    category: String,
-    text: String,
-    tags: Vec<String>,
+    pub prefix: String,
+    pub category: String,
+    pub text: String,
+    pub tags: Vec<String>,
 }
 
 impl fmt::Display for SummaryElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,
-               "- [{}]{} (Prefix: '{}', Tags: {:?})",
-               self.category,
-               self.text,
-               self.prefix,
-               self.tags)
+        write!(f, "- [{}]{}", self.category, self.text)
     }
 }
 
@@ -83,21 +74,21 @@ pub enum BodyElement {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ListElement {
-    category: String,
-    text: String,
-    tags: Vec<String>,
+    pub category: String,
+    pub text: String,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ParagraphElement {
-    text: String,
-    tags: Vec<String>,
+    pub text: String,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct FooterElement {
-    key: String,
-    value: String,
+    pub key: String,
+    pub value: String,
 }
 
 lazy_static! {

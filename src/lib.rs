@@ -39,6 +39,7 @@ impl fmt::Display for GitJournalError {
 pub struct GitJournal {
     repo: Repository,
     tags: Vec<(Oid, String)>,
+    parse_result: Vec<(ParsedTag, Vec<ParsedCommit>)>,
 }
 
 impl GitJournal {
@@ -62,11 +63,12 @@ impl GitJournal {
         Ok(GitJournal {
             repo: new_repo,
             tags: new_tags,
+            parse_result: vec![],
         })
     }
 
     /// Parses a revision range for a `GitJournal`.
-    pub fn parse_log(&self,
+    pub fn parse_log(&mut self,
                      revision_range: &str,
                      tag_skip_pattern: &str,
                      max_tags_count: &u32,
@@ -97,12 +99,11 @@ impl GitJournal {
         }
 
         // Iterate over the git objects and collect them in a vector of tuples
-        let mut result: Vec<(ParsedTag, Vec<ParsedCommit>)> = vec![];
         let mut current_entries: Vec<ParsedCommit> = vec![];
         let mut parsed_tags: u32 = 1;
         let unreleased_str = "Unreleased";
         let mut current_tag = ParsedTag {
-            name: unreleased_str,
+            name: unreleased_str.to_owned(),
             date: UTC::today(),
         };
         let parser = parser::Parser;
@@ -115,7 +116,7 @@ impl GitJournal {
 
                 // Parsing entries of the last tag done
                 if !current_entries.is_empty() {
-                    result.push((current_tag.clone(), current_entries.clone()));
+                    self.parse_result.push((current_tag.clone(), current_entries.clone()));
                     current_entries.clear();
                 }
 
@@ -128,7 +129,7 @@ impl GitJournal {
                 parsed_tags += 1;
                 let date = UTC.timestamp(commit.time().seconds(), 0).date();
                 current_tag = ParsedTag {
-                    name: &tag.1,
+                    name: tag.1.clone(),
                     date: date,
                 };
             }
@@ -140,6 +141,7 @@ impl GitJournal {
 
             // Add the commit message to the current entries of the tag
             let message = try!(commit.message().ok_or(git2::Error::from_str("Parsing error:")));
+
             match parser.parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
                 Err(e) => println!("Skiping commit: {}", e),
@@ -147,17 +149,24 @@ impl GitJournal {
         }
         // Add the last processed items as well
         if !current_entries.is_empty() {
-            result.push((current_tag, current_entries));
+            self.parse_result.push((current_tag, current_entries));
         }
 
-        // Print for testing purposes
-        for (tag, mut commits) in result {
+        Ok(())
+    }
+
+    pub fn print_log(&self, short: bool) {
+        for &(ref tag, ref commits) in &self.parse_result {
             println!("\n{}:", tag);
-            commits.sort();
-            for commit in commits {
-                println!("{}", commit);
+            let mut c = commits.clone();
+            c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
+            for commit in c {
+                if short {
+                    println!("{}", commit.summary);
+                } else {
+                    println!("{}", commit);
+                }
             }
         }
-        Ok(())
     }
 }
