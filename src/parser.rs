@@ -55,7 +55,7 @@ impl fmt::Display for ParsedCommit {
                     for item in vec {
                         try!(write!(f, "\n    {}", item.text));
                     }
-                },
+                }
                 BodyElement::Paragraph(ref par) => {
                     for line in par.text.lines().map(|x| format!("    {}", x)).collect::<Vec<String>>() {
                         try!(write!(f, "\n{}", line));

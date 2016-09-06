@@ -26,10 +26,11 @@ fn main() {
         match GitJournal::new(path) {
             Ok(mut journal) => {
                 journal.parse_log(revision_range,
-                                  tag_skip_pattern,
-                                  &max_tags,
-                                  &matches.is_present("all"),
-                                  &matches.is_present("skip_unreleased")).expect("Log parsing error");
+                               tag_skip_pattern,
+                               &max_tags,
+                               &matches.is_present("all"),
+                               &matches.is_present("skip_unreleased"))
+                    .expect("Log parsing error");
                 journal.print_log(true);
                 println!("\n---");
                 journal.print_log(false);
