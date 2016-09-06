@@ -155,13 +155,13 @@ impl GitJournal {
         Ok(())
     }
 
-    pub fn print_log(&self, short: bool) {
+    pub fn print_log(&self, only_short: bool) {
         for &(ref tag, ref commits) in &self.parse_result {
             println!("\n{}:", tag);
             let mut c = commits.clone();
             c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
             for commit in c {
-                if short {
+                if only_short {
                     println!("{}", commit.summary);
                 } else {
                     println!("{}", commit);
