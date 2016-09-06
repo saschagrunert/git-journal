@@ -17,16 +17,16 @@ conventions and templates as a foundation for a nice looking changelog.
 
 ## Commit message layout
 
-A git commit message follows a basic layout, it has a Subject and a messsage body. An extension to this will make an easier
+A git commit message follows a basic layout, it has a Subject and a message body. An extension to this will make an easier
 parsing of the commit message possible. This means that an overall commit message can be split into three parts:
 
 - Summary line: The first line of the commit
 - Body: Can hold lists or paragraphs of text
 - Footer: Add additional information to the commit as `Key: Value` pairs, e.g. `Reviewed-by: John Doe`, multiplication
-  is also possible since there could be multiple `Reviewed-by` keys
+  is also possible since there could be multiple `Reviewed-by` keys.
 
 An empty line separates the commit message parts, whereas newlines between lists and paragraphs within the body are
-possible as well. The separation between the body and the footer itself is implicit by their differnt syntax.
+possible as well. The separation between the body and the footer itself is implicit by their different syntax.
 
 ## Syntax elements
 
