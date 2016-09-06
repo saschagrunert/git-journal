@@ -53,7 +53,11 @@ impl fmt::Display for ParsedCommit {
             match *item {
                 BodyElement::List(ref vec) => {
                     for item in vec {
-                        try!(write!(f, "\n    {}", item.text));
+                        try!(write!(f, "\n    - "));
+                        if !item.category.is_empty() {
+                            try!(write!(f, "[{}]", item.category));
+                        }
+                        try!(write!(f, "{}", item.text));
                     }
                 }
                 BodyElement::Paragraph(ref par) => {
@@ -145,12 +149,17 @@ impl Parser {
             )
         );
 
-        named!(parse_list_category<&str>,
+        named!(parse_list_item<ListElement>,
             chain!(
                 many0!(space) ~
                 tag!("- ") ~
-                p_category: parse_category ,
-                || p_category
+                p_category: parse_category ~
+                p_tags_rest: map!(rest, parse_and_consume_tags),
+                || ListElement {
+                    category: p_category.to_owned(),
+                    tags: p_tags_rest.0.clone(),
+                    text: p_tags_rest.1.clone(),
+                }
             )
         );
 
@@ -196,16 +205,9 @@ impl Parser {
                 // Parse list items
                 let mut list = vec![];
                 for list_item in part.lines() {
-                    let (parsed_tags, parsed_text) = parse_and_consume_tags(list_item.as_bytes());
-                    let parsed_category = match parse_list_category(list_item.as_bytes()) {
-                        IResult::Done(_, cat) => cat,
-                        _ => "",
+                    if let IResult::Done(_, result) = parse_list_item(list_item.as_bytes()) {
+                        list.push(result);
                     };
-                    list.push(ListElement {
-                        category: parsed_category.to_owned(),
-                        text: parsed_text,
-                        tags: parsed_tags,
-                    });
                 }
                 parsed_body.push(BodyElement::List(list));
             } else {
