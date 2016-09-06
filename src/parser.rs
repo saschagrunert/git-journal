@@ -48,17 +48,17 @@ pub struct ParsedCommit {
 
 impl fmt::Display for ParsedCommit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(writeln!(f, "{}", self.summary));
+        try!(write!(f, "{}", self.summary));
         for item in &self.body {
             match *item {
                 BodyElement::List(ref vec) => {
                     for item in vec {
-                        try!(writeln!(f, "    {}", item.text));
+                        try!(write!(f, "\n    {}", item.text));
                     }
                 },
                 BodyElement::Paragraph(ref par) => {
                     for line in par.text.lines().map(|x| format!("    {}", x)).collect::<Vec<String>>() {
-                        try!(writeln!(f, "{}", line));
+                        try!(write!(f, "\n{}", line));
                     }
                 }
             }
