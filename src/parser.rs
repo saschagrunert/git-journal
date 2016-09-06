@@ -1,5 +1,7 @@
 use nom::{IResult, alpha, digit, space, rest};
 use regex::{Regex, RegexBuilder};
+use chrono::{Date, UTC, Datelike};
+
 use std::str;
 use std::fmt;
 
@@ -17,6 +19,23 @@ impl fmt::Display for ParserError {
             ParserError::FooterParsing(ref line) => write!(f, "Could not parse commit footer: {}", line),
             ParserError::CommitMessageLength => write!(f, "Commit message length too small."),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
+pub struct ParsedTag<'a> {
+    pub name: &'a str,
+    pub date: Date<UTC>,
+}
+
+impl<'a> fmt::Display for ParsedTag<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,
+               "{} ({}-{}-{})",
+               self.name,
+               self.date.year(),
+               self.date.month(),
+               self.date.day())
     }
 }
 
@@ -132,7 +151,7 @@ impl Parser {
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
-        let summary_line = try!(commit_parts.nth(0).ok_or(ParserError::CommitMessageLength));
+        let summary_line = try!(commit_parts.nth(0).ok_or(ParserError::CommitMessageLength)).trim();
         named!(parse_summary<SummaryElement>,
             chain!(
                 p_prefix: separated_pair!(alpha, char!('-'), digit)? ~

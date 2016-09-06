@@ -9,9 +9,9 @@ extern crate nom;
 extern crate lazy_static;
 
 use git2::{ObjectType, Oid, Repository};
-use chrono::{UTC, TimeZone, Datelike};
+use chrono::{UTC, TimeZone};
 use std::fmt;
-use parser::ParsedCommit;
+use parser::{ParsedCommit, ParsedTag};
 
 mod parser;
 
@@ -70,7 +70,8 @@ impl GitJournal {
                      revision_range: &str,
                      tag_skip_pattern: &str,
                      max_tags_count: &u32,
-                     all: &bool)
+                     all: &bool,
+                     skip_unreleased: &bool)
                      -> Result<(), GitJournalError> {
 
         let mut revwalk = try!(self.repo.revwalk());
@@ -96,14 +97,14 @@ impl GitJournal {
         }
 
         // Iterate over the git objects and collect them in a vector of tuples
-        let mut result: Vec<(String, Vec<ParsedCommit>)> = vec![];
+        let mut result: Vec<(ParsedTag, Vec<ParsedCommit>)> = vec![];
         let mut current_entries: Vec<ParsedCommit> = vec![];
-        let today = UTC::today();
         let mut parsed_tags: u32 = 1;
-        let mut current_tag = format!("Unreleased ({}-{}-{})",
-                                      today.year(),
-                                      today.month(),
-                                      today.day());
+        let unreleased_str = "Unreleased";
+        let mut current_tag = ParsedTag {
+            name: unreleased_str,
+            date: UTC::today(),
+        };
         let parser = parser::Parser;
         'revloop: for (index, id) in revwalk.enumerate() {
             let oid = try!(id);
@@ -126,17 +127,22 @@ impl GitJournal {
                 // Format the tag and set as current
                 parsed_tags += 1;
                 let date = UTC.timestamp(commit.time().seconds(), 0).date();
-                current_tag = format!("{} ({}-{}-{})",
-                                      tag.1,
-                                      date.year(),
-                                      date.month(),
-                                      date.day());
+                current_tag = ParsedTag {
+                    name: &tag.1,
+                    date: date,
+                };
             }
+
+            // Do not parse if we want to skip commits which do not belong to any release
+            if *skip_unreleased && current_tag.name == unreleased_str {
+                continue;
+            }
+
             // Add the commit message to the current entries of the tag
             let message = try!(commit.message().ok_or(git2::Error::from_str("Parsing error:")));
             match parser.parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
-                Err(e) => println!("Skip commit: {}", e),
+                Err(e) => println!("Skiping commit: {}", e),
             }
         }
         // Add the last processed items as well

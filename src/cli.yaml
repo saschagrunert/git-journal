@@ -34,6 +34,10 @@ args:
       long: all
       help: Do not stop parsing at the first tag when a single
         revision is given. Overwrites '-n/--tags-count'.
+  - skip_unreleased:
+      short: u
+      long: skip-unreleased
+      help: Skip entries without any relation to a git TAG.
   - setup:
       long: setup
       short: s
