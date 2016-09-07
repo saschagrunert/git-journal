@@ -1,7 +1,9 @@
-extern crate git2;
 extern crate chrono;
+extern crate git2;
 extern crate regex;
+extern crate rustc_serialize;
 extern crate term;
+extern crate toml;
 
 #[macro_use]
 extern crate nom;
@@ -11,54 +13,75 @@ extern crate lazy_static;
 
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone};
-use parser::{ParsedCommit, ParsedTag};
+
+use parser::{Parser, ParsedCommit, ParsedTag};
+use config::{Config};
 
 use std::fmt;
 use std::io::Write;
 
 mod parser;
+mod config;
 
-macro_rules! println_i(
+macro_rules! println_info(
     ($($arg:tt)*) => { {
         let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
         try!(t.fg(term::color::YELLOW));
-        try!(write!(t, "[ I ] "));
+        try!(write!(t, "[ INFO ] "));
+        try!(writeln!(t, $($arg)*));
+        try!(t.reset());
+    } }
+);
+
+macro_rules! println_ok(
+    ($($arg:tt)*) => { {
+        let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
+        try!(t.fg(term::color::GREEN));
+        try!(write!(t, "[ OK ] "));
         try!(writeln!(t, $($arg)*));
         try!(t.reset());
     } }
 );
 
 #[derive(Debug)]
-pub enum GitJournalError {
+pub enum Error {
     Git(git2::Error),
     Io(std::io::Error),
     Term(term::Error),
+    Setup(config::Error),
 }
 
-impl From<git2::Error> for GitJournalError {
-    fn from(err: git2::Error) -> GitJournalError {
-        GitJournalError::Git(err)
+impl From<git2::Error> for Error {
+    fn from(err: git2::Error) -> Error {
+        Error::Git(err)
     }
 }
 
-impl From<std::io::Error> for GitJournalError {
-    fn from(err: std::io::Error) -> GitJournalError {
-        GitJournalError::Io(err)
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Error {
+        Error::Io(err)
     }
 }
 
-impl From<term::Error> for GitJournalError {
-    fn from(err: term::Error) -> GitJournalError {
-        GitJournalError::Term(err)
+impl From<term::Error> for Error {
+    fn from(err: term::Error) -> Error {
+        Error::Term(err)
     }
 }
 
-impl fmt::Display for GitJournalError {
+impl From<config::Error> for Error {
+    fn from(err: config::Error) -> Error {
+        Error::Setup(err)
+    }
+}
+
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            GitJournalError::Git(ref err) => write!(f, "Git error: {}", err),
-            GitJournalError::Io(ref err) => write!(f, "Io error: {}", err),
-            GitJournalError::Term(ref err) => write!(f, "Term error: {}", err),
+            Error::Git(ref err) => write!(f, "Git error: {}", err),
+            Error::Io(ref err) => write!(f, "Io error: {}", err),
+            Error::Term(ref err) => write!(f, "Term error: {}", err),
+            Error::Setup(ref err) => write!(f, "Setup error: {}", err),
         }
     }
 }
@@ -67,11 +90,12 @@ pub struct GitJournal {
     repo: Repository,
     tags: Vec<(Oid, String)>,
     parse_result: Vec<(ParsedTag, Vec<ParsedCommit>)>,
+    config: Config,
 }
 
 impl GitJournal {
     /// Constructs a new `GitJournal`.
-    pub fn new(path: &str) -> Result<GitJournal, GitJournalError> {
+    pub fn new(path: &str) -> Result<GitJournal, Error> {
         // Open the repository
         let new_repo = try!(Repository::open(path));
 
@@ -86,12 +110,26 @@ impl GitJournal {
             }
         }
 
+        // Search for config in path and load
+        let mut new_config = Config::new();
+        match new_config.load(path) {
+            Ok(()) => println_ok!("Loaded configuration file from '{}'.", path),
+            Err(_) => println_info!("Could not open configuration file in repository, using the default values."),
+        }
+
         // Return the git journal object
         Ok(GitJournal {
             repo: new_repo,
             tags: new_tags,
             parse_result: vec![],
+            config: new_config
         })
+    }
+
+    pub fn setup(path: &str) -> Result<(), Error> {
+        let output_file = try!(Config::new().save_default_config(path));
+        println_ok!("Setup complete, defaults written to '{}' file.", output_file);
+        Ok(())
     }
 
     /// Parses a revision range for a `GitJournal`.
@@ -101,7 +139,7 @@ impl GitJournal {
                      max_tags_count: &u32,
                      all: &bool,
                      skip_unreleased: &bool)
-                     -> Result<(), GitJournalError> {
+                     -> Result<(), Error> {
 
         let mut revwalk = try!(self.repo.revwalk());
         revwalk.set_sorting(git2::SORT_TIME);
@@ -133,7 +171,7 @@ impl GitJournal {
             name: unreleased_str.to_owned(),
             date: UTC::today(),
         };
-        let parser = parser::Parser;
+        let parser = Parser;
         'revloop: for (index, id) in revwalk.enumerate() {
             let oid = try!(id);
             let commit = try!(self.repo.find_commit(oid));
@@ -171,7 +209,7 @@ impl GitJournal {
 
             match parser.parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
-                Err(e) => println_i!("Skipping commit: {}", e),
+                Err(e) => println_info!("Skipping commit: {}", e),
             }
         }
         // Add the last processed items as well

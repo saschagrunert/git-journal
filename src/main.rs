@@ -9,12 +9,12 @@ fn main() {
     // Load the CLI parameters from the yaml file
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
+    let path = matches.value_of("path").expect("Could not parse 'path' parameter");
 
     if matches.is_present("setup") {
-        println!("Setup");
+        GitJournal::setup(path).expect("Setup error");
     } else {
         // Get all values of the given CLI parameters
-        let path = matches.value_of("path").expect("Could not parse 'path' parameter");
         let revision_range = matches.value_of("revision_range").expect("Could not parse 'revision range' parameter");
         let tag_skip_pattern = matches.value_of("tag_skip_pattern").expect("Could not parse 'skip pattern' parameter");
         let tags_count = matches.value_of("tags_count").expect("Could not parse 'tags count' parameter");

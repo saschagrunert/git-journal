@@ -15,6 +15,8 @@ nom = "1.2.4"
 regex = "0.1.74"
 lazy_static = "0.2.1"
 term = "0.4.4"
+toml = "0.2.0"
+rustc-serialize = "0.3.19"
 
 [[bin]]
 name = "git-journal"

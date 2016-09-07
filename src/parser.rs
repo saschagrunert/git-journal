@@ -6,18 +6,18 @@ use std::str;
 use std::fmt;
 
 #[derive(Debug)]
-pub enum ParserError {
+pub enum Error {
     SummaryParsing(String),
     FooterParsing(String),
     CommitMessageLength,
 }
 
-impl fmt::Display for ParserError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ParserError::SummaryParsing(ref line) => write!(f, "Could not parse commit summary: {}", line),
-            ParserError::FooterParsing(ref line) => write!(f, "Could not parse commit footer: {}", line),
-            ParserError::CommitMessageLength => write!(f, "Commit message length too small."),
+            Error::SummaryParsing(ref line) => write!(f, "Could not parse commit summary: {}", line),
+            Error::FooterParsing(ref line) => write!(f, "Could not parse commit footer: {}", line),
+            Error::CommitMessageLength => write!(f, "Commit message length too small."),
         }
     }
 }
@@ -119,7 +119,7 @@ lazy_static! {
 pub struct Parser;
 impl Parser {
     /// Parses a single commit message and returns a changelog ready form
-    pub fn parse_commit_message(&self, message: &str) -> Result<ParsedCommit, ParserError> {
+    pub fn parse_commit_message(&self, message: &str) -> Result<ParsedCommit, Error> {
 
         /// Parses for tags and returns them with the resulting string
         fn parse_and_consume_tags(i: &[u8]) -> (Vec<String>, String) {
@@ -167,7 +167,7 @@ impl Parser {
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
-        let summary_line = try!(commit_parts.nth(0).ok_or(ParserError::CommitMessageLength)).trim();
+        let summary_line = try!(commit_parts.nth(0).ok_or(Error::CommitMessageLength)).trim();
         named!(parse_summary<SummaryElement>,
             chain!(
                 p_prefix: separated_pair!(alpha, char!('-'), digit)? ~
@@ -186,7 +186,7 @@ impl Parser {
         );
         let parsed_summary = match parse_summary(summary_line.as_bytes()) {
             IResult::Done(_, parsed) => parsed,
-            _ => return Err(ParserError::SummaryParsing(summary_line.to_owned())),
+            _ => return Err(Error::SummaryParsing(summary_line.to_owned())),
         };
 
         // Parse the body and the footer, the summary is already consumed
@@ -197,8 +197,8 @@ impl Parser {
             if RE_FOOTER.is_match(part) {
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
-                        key: try!(cap.at(1).ok_or(ParserError::FooterParsing(part.to_owned()))).to_owned(),
-                        value: try!(cap.at(2).ok_or(ParserError::FooterParsing(part.to_owned()))).to_owned(),
+                        key: try!(cap.at(1).ok_or(Error::FooterParsing(part.to_owned()))).to_owned(),
+                        value: try!(cap.at(2).ok_or(Error::FooterParsing(part.to_owned()))).to_owned(),
                     });
                 }
             } else if RE_LIST.is_match(part) {
