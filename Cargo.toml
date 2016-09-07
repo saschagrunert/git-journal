@@ -14,6 +14,7 @@ chrono = "0.2.25"
 nom = "1.2.4"
 regex = "0.1.74"
 lazy_static = "0.2.1"
+term = "0.4.4"
 
 [[bin]]
 name = "git-journal"

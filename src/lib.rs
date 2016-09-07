@@ -1,6 +1,7 @@
 extern crate git2;
 extern crate chrono;
 extern crate regex;
+extern crate term;
 
 #[macro_use]
 extern crate nom;
@@ -10,15 +11,28 @@ extern crate lazy_static;
 
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone};
-use std::fmt;
 use parser::{ParsedCommit, ParsedTag};
 
+use std::fmt;
+use std::io::Write;
+
 mod parser;
+
+macro_rules! println_i(
+    ($($arg:tt)*) => { {
+        let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
+        try!(t.fg(term::color::YELLOW));
+        try!(write!(t, "[ I ] "));
+        try!(writeln!(t, $($arg)*));
+        try!(t.reset());
+    } }
+);
 
 #[derive(Debug)]
 pub enum GitJournalError {
     Git(git2::Error),
-    Parser(String),
+    Io(std::io::Error),
+    Term(term::Error),
 }
 
 impl From<git2::Error> for GitJournalError {
@@ -27,11 +41,24 @@ impl From<git2::Error> for GitJournalError {
     }
 }
 
+impl From<std::io::Error> for GitJournalError {
+    fn from(err: std::io::Error) -> GitJournalError {
+        GitJournalError::Io(err)
+    }
+}
+
+impl From<term::Error> for GitJournalError {
+    fn from(err: term::Error) -> GitJournalError {
+        GitJournalError::Term(err)
+    }
+}
+
 impl fmt::Display for GitJournalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             GitJournalError::Git(ref err) => write!(f, "Git error: {}", err),
-            GitJournalError::Parser(ref err) => write!(f, "Parser error: {}", err),
+            GitJournalError::Io(ref err) => write!(f, "Io error: {}", err),
+            GitJournalError::Term(ref err) => write!(f, "Term error: {}", err),
         }
     }
 }
@@ -144,7 +171,7 @@ impl GitJournal {
 
             match parser.parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
-                Err(e) => println!("Skiping commit: {}", e),
+                Err(e) => println_i!("Skipping commit: {}", e),
             }
         }
         // Add the last processed items as well
