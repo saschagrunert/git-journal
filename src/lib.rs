@@ -15,7 +15,7 @@ use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone};
 
 use parser::{Parser, ParsedCommit, ParsedTag};
-use config::{Config};
+use config::Config;
 
 use std::fmt;
 use std::io::Write;
@@ -23,24 +23,26 @@ use std::io::Write;
 mod parser;
 mod config;
 
-macro_rules! println_info(
-    ($($arg:tt)*) => { {
+macro_rules! println_color(
+    ($color:expr, $text:tt, $($arg:tt)*) => {{
         let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
-        try!(t.fg(term::color::YELLOW));
-        try!(write!(t, "[ INFO ] "));
+        try!(t.fg($color));
+        try!(write!(t, "[ {} ] ", $text));
         try!(writeln!(t, $($arg)*));
         try!(t.reset());
-    } }
+    }}
+);
+
+macro_rules! println_info(
+    ($($arg:tt)*) => {{
+        println_color!(term::color::YELLOW, "INFO", $($arg)*);
+    }}
 );
 
 macro_rules! println_ok(
-    ($($arg:tt)*) => { {
-        let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
-        try!(t.fg(term::color::GREEN));
-        try!(write!(t, "[ OK ] "));
-        try!(writeln!(t, $($arg)*));
-        try!(t.reset());
-    } }
+    ($($arg:tt)*) => {{
+        println_color!(term::color::GREEN, "OKAY", $($arg)*);
+    }}
 );
 
 #[derive(Debug)]
@@ -114,7 +116,7 @@ impl GitJournal {
         let mut new_config = Config::new();
         match new_config.load(path) {
             Ok(()) => println_ok!("Loaded configuration file from '{}'.", path),
-            Err(_) => println_info!("Could not open configuration file in repository, using the default values."),
+            Err(e) => println_info!("Could not open configuration file, using the default values. ({})", e),
         }
 
         // Return the git journal object
@@ -122,7 +124,7 @@ impl GitJournal {
             repo: new_repo,
             tags: new_tags,
             parse_result: vec![],
-            config: new_config
+            config: new_config,
         })
     }
 
