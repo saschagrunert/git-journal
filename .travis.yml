@@ -13,8 +13,8 @@ script:
   # - cargo run --manifest-path systest/Cargo.toml
   # - cargo doc --no-deps
   # - cargo doc --no-deps --manifest-path libssh2-sys/Cargo.toml
-# after_success:
-  # - travis-cargo --only nightly doc-upload
+after_success:
+  - travis-cargo --only nightly doc-upload
   # - travis-cargo coveralls --no-sudo
 os:
   - linux
