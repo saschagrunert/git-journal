@@ -8,7 +8,7 @@ before_script:
 script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - cargo build
-  # - cargo test
+  - cargo test
   # - rustdoc --test README.md -L target
   # - cargo run --manifest-path systest/Cargo.toml
   # - cargo doc --no-deps

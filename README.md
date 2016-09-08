@@ -19,12 +19,11 @@ release:
 
 * [ ] Automatic setup (`--setup/-s`) in a certain git repository.
     * [ ] Install git hooks as symlinks to the binary.
-    * [ ] Provide an initial configuration file with default values.
+    * [x] Provide an initial configuration file with default values.
 * [ ] Changelog generation
     * [x] Parse until the last tag or in a commit range.
     * [x] Add the possibility to parse the last n Releases.
-    * [ ] Filter out excluded tags
-    * [ ] Be able to use predefined tags
+    * [x] Filter out excluded tags
     * [ ] Output formats:
         * [ ] Markdown
         * [ ] HTML

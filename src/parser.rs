@@ -1,15 +1,21 @@
 use nom::{IResult, alpha, digit, space, rest};
 use regex::{Regex, RegexBuilder};
 use chrono::{Date, UTC, Datelike};
+use term;
 
 use std::str;
 use std::fmt;
+use std::io;
+
+use config::Config;
 
 #[derive(Debug)]
 pub enum Error {
     SummaryParsing(String),
     FooterParsing(String),
     CommitMessageLength,
+    Terminal,
+    Io(io::Error),
 }
 
 impl fmt::Display for Error {
@@ -18,8 +24,27 @@ impl fmt::Display for Error {
             Error::SummaryParsing(ref line) => write!(f, "Could not parse commit summary: {}", line),
             Error::FooterParsing(ref line) => write!(f, "Could not parse commit footer: {}", line),
             Error::CommitMessageLength => write!(f, "Commit message length too small."),
+            Error::Terminal => write!(f, "Could not print to terminal."),
+            Error::Io(ref e) => write!(f, "Io error: {}", e),
         }
     }
+}
+
+impl From<term::Error> for Error {
+    #[allow(unused_variables)]
+    fn from(err: term::Error) -> Error {
+        Error::Terminal
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::Io(err)
+    }
+}
+
+pub trait Print {
+    fn print(&self, config: &Config) -> Result<bool, Error>;
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -28,14 +53,22 @@ pub struct ParsedTag {
     pub date: Date<UTC>,
 }
 
-impl fmt::Display for ParsedTag {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,
-               "{} ({}-{:02}-{:02})",
-               self.name,
-               self.date.year(),
-               self.date.month(),
-               self.date.day())
+impl Print for ParsedTag {
+    fn print(&self, config: &Config) -> Result<bool, Error> {
+        let mut t = try!(term::stdout().ok_or(Error::Terminal));
+        if config.colored_output {
+            try!(t.fg(term::color::GREEN));
+        }
+        print!("\n{} ", self.name);
+        if config.colored_output {
+            try!(t.fg(term::color::YELLOW));
+        }
+        println!("({}-{:02}-{:02}):",
+                 self.date.year(),
+                 self.date.month(),
+                 self.date.day());
+        try!(t.reset());
+        Ok(true)
     }
 }
 
@@ -46,28 +79,46 @@ pub struct ParsedCommit {
     pub footer: Vec<FooterElement>,
 }
 
-impl fmt::Display for ParsedCommit {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "{}", self.summary));
+impl Print for ParsedCommit {
+    fn print(&self, config: &Config) -> Result<bool, Error> {
+        // If summary is already filtered out than dont print at all
+        if !try!(self.summary.print(config)) {
+            return Ok(false);
+        }
+        let mut t = try!(term::stdout().ok_or(Error::Terminal));
         for item in &self.body {
             match *item {
                 BodyElement::List(ref vec) => {
                     for item in vec {
-                        try!(write!(f, "\n    - "));
-                        if !item.category.is_empty() {
-                            try!(write!(f, "[{}]", item.category));
+                        // Check if list item contains excluded tag
+                        if item.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
+                            continue;
                         }
-                        try!(write!(f, "{}", item.text));
+                        print!("    - ");
+                        if !item.category.is_empty() {
+                            if config.colored_output {
+                                try!(t.fg(term::color::BRIGHT_BLUE));
+                            }
+                            print!("[{}]", item.category);
+                            if config.colored_output {
+                                try!(t.fg(term::color::WHITE));
+                            }
+                        }
+                        println!("{}", item.text);
                     }
                 }
                 BodyElement::Paragraph(ref par) => {
-                    for line in par.text.lines().map(|x| format!("    {}", x)).collect::<Vec<String>>() {
-                        try!(write!(f, "\n{}", line));
+                    // Check if paragraph contains excluded tag
+                    if par.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() == 0usize {
+                        for line in par.text.lines().map(|x| format!("    {}", x)).collect::<Vec<String>>() {
+                            println!("{}", line);
+                        }
                     }
                 }
             }
         }
-        Ok(())
+        try!(t.reset());
+        Ok(true)
     }
 }
 
@@ -79,9 +130,27 @@ pub struct SummaryElement {
     pub tags: Vec<String>,
 }
 
-impl fmt::Display for SummaryElement {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "- [{}]{}", self.category, self.text)
+impl Print for SummaryElement {
+    fn print(&self, config: &Config) -> Result<bool, Error> {
+        // Filter out excluded tags
+        if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
+            return Ok(false);
+        }
+        let mut t = try!(term::stdout().ok_or(Error::Terminal));
+        print!("- ");
+        if config.show_prefix && !self.prefix.is_empty() {
+            print!("{} ", self.prefix);
+        }
+        if config.colored_output {
+            try!(t.fg(term::color::BRIGHT_BLUE));
+        }
+        print!("[{}]", self.category);
+        if config.colored_output {
+            try!(t.fg(term::color::WHITE));
+        }
+        println!("{}", self.text);
+        try!(t.reset());
+        Ok(true)
     }
 }
 
@@ -122,8 +191,8 @@ impl Parser {
     pub fn parse_commit_message(&self, message: &str) -> Result<ParsedCommit, Error> {
 
         /// Parses for tags and returns them with the resulting string
-        fn parse_and_consume_tags(i: &[u8]) -> (Vec<String>, String) {
-            let string = str::from_utf8(i).unwrap_or("");
+        fn parse_and_consume_tags(input: &[u8]) -> (Vec<String>, String) {
+            let string = str::from_utf8(input).unwrap_or("");
             let mut tags = vec![];
             for cap in RE_TAGS.captures_iter(string) {
                 tags.extend(cap.at(1).unwrap_or("").split(',').map(|x| x.trim().to_owned()).collect::<Vec<String>>());

@@ -30,9 +30,8 @@ fn main() {
                                &matches.is_present("all"),
                                &matches.is_present("skip_unreleased"))
                     .expect("Log parsing error");
-                journal.print_log(true);
-                println!("\n---");
-                journal.print_log(false);
+
+                journal.print_log(matches.is_present("short")).expect("Could not print log.");
             }
             Err(e) => println!("{}", e),
         }

@@ -42,7 +42,7 @@ prefix, which appears directly in the commit summary. Commit prefixes are used t
 system and are not mandatory.
 
 ### Categories
-A category is used to indicate with one word what has been done in the commit. Examples for categories are: `[Added]`,
+A category is used to indicate with one word what has been done in the commit. Valid categories are: `[Added]`,
 `[Changed]`, `[Fixed]`, `[Improved]` and `[Removed]`. Rules for categories are:
 
 - A verb in simple past form

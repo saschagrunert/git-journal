@@ -43,3 +43,7 @@ args:
       short: s
       help: Creates all necessary git hooks and an initial
         configuration file.
+  - short:
+      long: short
+      short: l
+      help: Print only the shortlog (summary) form.

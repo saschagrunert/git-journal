@@ -1,3 +1,31 @@
+#![deny(missing_docs)]
+
+//! # The Git Commit Message Framework
+//!
+//! Target of the project is to provide a Rust based framework to write more sensible commit
+//! messages. Single commit messages should contain one logical change of the project which is
+//! described in a standardized way. This results in a much cleaner git history and provides
+//! contributors more information about the actual change.
+//!
+//! To gain very clean commit message history it is necessary to use git rebase, squashed and
+//! amended commits. git-journal will simplify these development approaches by providing sensible
+//! conventions and strong defaults.
+//!
+//! ### Basic usage example
+//!
+//! ```
+//! use git_journal::GitJournal;
+//! let mut journal = GitJournal::new(".").unwrap();
+//! journal.parse_log("HEAD", "rc", &1, &false, &true);
+//! journal.print_log(true).expect("Could not print short log.");
+//! ```
+//!
+//! Simply create a new git-journal struct from a given path (`.` in this example). Then parse the
+//! log between a given commit range or a single commit. In this example we want to retrieve
+//! everything included in the last git tag, which does not represent a release candidate (contains
+//! `"rc"`). After that parsing the log will be printed in the shortest possible format.
+//!
+
 extern crate chrono;
 extern crate git2;
 extern crate regex;
@@ -14,43 +42,34 @@ extern crate lazy_static;
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone};
 
-use parser::{Parser, ParsedCommit, ParsedTag};
+use parser::{Parser, ParsedCommit, ParsedTag, Print};
 use config::Config;
 
 use std::fmt;
 use std::io::Write;
 
+#[macro_use]
+mod macros;
 mod parser;
 mod config;
 
-macro_rules! println_color(
-    ($color:expr, $text:tt, $($arg:tt)*) => {{
-        let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
-        try!(t.fg($color));
-        try!(write!(t, "[ {} ] ", $text));
-        try!(writeln!(t, $($arg)*));
-        try!(t.reset());
-    }}
-);
-
-macro_rules! println_info(
-    ($($arg:tt)*) => {{
-        println_color!(term::color::YELLOW, "INFO", $($arg)*);
-    }}
-);
-
-macro_rules! println_ok(
-    ($($arg:tt)*) => {{
-        println_color!(term::color::GREEN, "OKAY", $($arg)*);
-    }}
-);
-
+/// An enumeration of possible errors that can happen when working with git-journal.
 #[derive(Debug)]
 pub enum Error {
+    /// Erros related to the git repository.
     Git(git2::Error),
+
+    /// Erros related to the system IO, like parsing of the configuration file.
     Io(std::io::Error),
+
+    /// Errors related to the terminal emulation, which is used for colored output.
     Term(term::Error),
+
+    /// Errors related to the setup process.
     Setup(config::Error),
+
+    /// Errors related to the printing of the log.
+    Print(parser::Error),
 }
 
 impl From<git2::Error> for Error {
@@ -77,6 +96,12 @@ impl From<config::Error> for Error {
     }
 }
 
+impl From<parser::Error> for Error {
+    fn from(err: parser::Error) -> Error {
+        Error::Print(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -84,10 +109,12 @@ impl fmt::Display for Error {
             Error::Io(ref err) => write!(f, "Io error: {}", err),
             Error::Term(ref err) => write!(f, "Term error: {}", err),
             Error::Setup(ref err) => write!(f, "Setup error: {}", err),
+            Error::Print(ref err) => write!(f, "Print error: {}", err),
         }
     }
 }
 
+/// The main structure of git-journal.
 pub struct GitJournal {
     repo: Repository,
     tags: Vec<(Oid, String)>,
@@ -96,7 +123,20 @@ pub struct GitJournal {
 }
 
 impl GitJournal {
-    /// Constructs a new `GitJournal`.
+    /// Constructs a new `GitJournal<Result<GitJournal, Error>>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use git_journal::GitJournal;
+    ///
+    /// let journal = GitJournal::new(".").unwrap();
+    /// ```
+    ///
+    /// # Errors
+    /// When not providing a path with a valid git repository ('.git' folder or the initial parsing
+    /// of the git tags failed.
+    ///
     pub fn new(path: &str) -> Result<GitJournal, Error> {
         // Open the repository
         let new_repo = try!(Repository::open(path));
@@ -116,7 +156,7 @@ impl GitJournal {
         let mut new_config = Config::new();
         match new_config.load(path) {
             Ok(()) => println_ok!("Loaded configuration file from '{}'.", path),
-            Err(e) => println_info!("Could not open configuration file, using the default values. ({})", e),
+            Err(e) => println_info!("Could not open configuration file, using default values. ({})", e),
         }
 
         // Return the git journal object
@@ -128,13 +168,54 @@ impl GitJournal {
         })
     }
 
+    /// Does the setup on the target git repository.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use git_journal::GitJournal;
+    ///
+    /// GitJournal::setup(".").expect("Setup error");
+    /// ```
+    ///
+    /// Creates a `.gitjournal` file with the default values inside the given path, which looks
+    /// like:
+    ///
+    /// ```toml
+    /// # Set to false if the output should not be colored
+    /// colored_output = true
+    ///
+    /// # Excluded tags in an array, e.g. "internal"
+    /// excluded_tags = []
+    ///
+    /// # Show or hide the commit message prefix, e.g. JIRA-1234
+    /// show_prefix = false
+    /// ```
+    ///
+    /// # Errors
+    /// When the writing of the default configuration fails.
+    ///
     pub fn setup(path: &str) -> Result<(), Error> {
         let output_file = try!(Config::new().save_default_config(path));
-        println_ok!("Setup complete, defaults written to '{}' file.", output_file);
+        println_ok!("Setup complete, defaults written to '{}' file.",
+                    output_file);
         Ok(())
     }
 
     /// Parses a revision range for a `GitJournal`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use git_journal::GitJournal;
+    ///
+    /// let mut journal = GitJournal::new(".").unwrap();
+    /// journal.parse_log("HEAD", "rc", &1, &false, &false);
+    /// ```
+    ///
+    /// # Errors
+    /// When something during the parsing fails, for example if the revision range is invalid.
+    ///
     pub fn parse_log(&mut self,
                      revision_range: &str,
                      tag_skip_pattern: &str,
@@ -222,18 +303,35 @@ impl GitJournal {
         Ok(())
     }
 
-    pub fn print_log(&self, only_short: bool) {
+    /// Prints the resulting log in a short or detailed variant.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use git_journal::GitJournal;
+    ///
+    /// let mut journal = GitJournal::new(".").unwrap();
+    /// journal.parse_log("HEAD", "rc", &1, &false, &false);
+    /// journal.print_log(true).expect("Could not print short log.");
+    /// journal.print_log(false).expect("Could not print detailed log.");
+    /// ```
+    ///
+    /// # Errors
+    /// If some commit message could not be print.
+    ///
+    pub fn print_log(&self, only_short: bool) -> Result<(), Error> {
         for &(ref tag, ref commits) in &self.parse_result {
-            println!("\n{}:", tag);
+            try!(tag.print(&self.config));
             let mut c = commits.clone();
             c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
             for commit in c {
                 if only_short {
-                    println!("{}", commit.summary);
+                    try!(commit.summary.print(&self.config));
                 } else {
-                    println!("{}", commit);
+                    try!(commit.print(&self.config));
                 }
             }
         }
+        Ok(())
     }
 }
