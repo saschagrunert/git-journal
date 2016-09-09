@@ -19,4 +19,3 @@ macro_rules! println_info(
         println_color_category!(term::color::YELLOW, "INFO", $($arg)*);
     }}
 );
-

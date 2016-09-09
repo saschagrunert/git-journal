@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate clap;
-
-#[macro_use]
 extern crate git_journal;
 
 use clap::App;
@@ -15,8 +13,9 @@ fn main() {
 
     if matches.is_present("verify") {
         // Verify a commit message and panic! if verification failed.
-        if let Err(error) = GitJournal::verify(matches.value_of("verify").expect("Could not parse 'verify' value.")) {
-            panic!("Commit message invalid. ({})", error);
+        match GitJournal::verify(matches.value_of("verify").expect("Could not parse 'verify' value.")) {
+            Ok(()) => println!("[ OKAY ] Commit message valid."),
+            Err(error) => panic!("Commit message invalid. ({})", error),
         }
     } else if matches.is_present("setup") {
         GitJournal::setup(path).expect("Setup error");

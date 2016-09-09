@@ -212,7 +212,8 @@ impl GitJournal {
     /// ```
     /// use git_journal::GitJournal;
     ///
-    /// GitJournal::verify("tests/commit_msg").expect("Commit message verification error");
+    /// GitJournal::verify("tests/commit_messages/success_1")
+    ///     .expect("Commit message verification error");
     /// ```
     ///
     /// # Errors
@@ -223,7 +224,6 @@ impl GitJournal {
         let mut commit_message = String::new();
         try!(file.read_to_string(&mut commit_message));
         try!(Parser.parse_commit_message(&commit_message));
-        println_ok!("Commit message valid.");
         Ok(())
     }
 

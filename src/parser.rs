@@ -12,6 +12,7 @@ use config::Config;
 #[derive(Debug)]
 pub enum Error {
     SummaryParsing(String),
+    ParagraphParsing(String),
     FooterParsing(String),
     CommitMessageLength,
     Terminal,
@@ -22,6 +23,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::SummaryParsing(ref line) => write!(f, "Could not parse commit summary: {}", line),
+            Error::ParagraphParsing(ref line) => write!(f, "Could not parse commit paragraph: {}", line),
             Error::FooterParsing(ref line) => write!(f, "Could not parse commit footer: {}", line),
             Error::CommitMessageLength => write!(f, "Commit message length too small."),
             Error::Terminal => write!(f, "Could not print to terminal."),
@@ -183,6 +185,7 @@ lazy_static! {
     static ref RE_TAGS: Regex = Regex::new(r" :(.*?):").unwrap();
     static ref RE_FOOTER: Regex = RegexBuilder::new(r"^([\w-]+):\s(.*)$").multi_line(true).compile().unwrap();
     static ref RE_LIST: Regex = RegexBuilder::new(r"^-\s.*$(\n^\s+-\s.*)*").multi_line(true).compile().unwrap();
+    static ref RE_PARAGRAPH: Regex = RegexBuilder::new(r"^\w").multi_line(true).compile().unwrap();
 }
 
 pub struct Parser;
@@ -221,11 +224,12 @@ impl Parser {
         named!(parse_list_item<ListElement>,
             chain!(
                 many0!(space) ~
-                tag!("- ") ~
-                p_category: parse_category ~
+                tag!("-") ~
+                space? ~
+                p_category: parse_category? ~
                 p_tags_rest: map!(rest, parse_and_consume_tags),
                 || ListElement {
-                    category: p_category.to_owned(),
+                    category: p_category.unwrap_or("").to_owned(),
                     tags: p_tags_rest.0.clone(),
                     text: p_tags_rest.1.clone(),
                 }
@@ -242,7 +246,6 @@ impl Parser {
                 p_prefix: separated_pair!(alpha, char!('-'), digit)? ~
                 space? ~
                 p_category: parse_category ~
-                tag!("]")? ~
                 p_tags_rest: map!(rest, parse_and_consume_tags),
             || SummaryElement {
                 prefix: p_prefix.map_or("".to_owned(), |p| {
@@ -280,7 +283,10 @@ impl Parser {
                 }
                 parsed_body.push(BodyElement::List(list));
             } else {
-                // Assume paragraph
+                // Assume paragraph, test for a valid paragraph
+                if !RE_PARAGRAPH.is_match(part) {
+                    return Err(Error::ParagraphParsing(part.to_owned()));
+                }
                 let (parsed_tags, parsed_text) = parse_and_consume_tags(part.as_bytes());
                 parsed_body.push(BodyElement::Paragraph(ParagraphElement {
                     text: parsed_text.trim().to_owned(),
