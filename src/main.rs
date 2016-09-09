@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate clap;
+
+#[macro_use]
 extern crate git_journal;
 
 use clap::App;
@@ -11,7 +13,12 @@ fn main() {
     let matches = App::from_yaml(yaml).get_matches();
     let path = matches.value_of("path").expect("Could not parse 'path' parameter");
 
-    if matches.is_present("setup") {
+    if matches.is_present("verify") {
+        // Verify a commit message and panic! if verification failed.
+        if let Err(error) = GitJournal::verify(matches.value_of("verify").expect("Could not parse 'verify' value.")) {
+            panic!("Commit message invalid. ({})", error);
+        }
+    } else if matches.is_present("setup") {
         GitJournal::setup(path).expect("Setup error");
     } else {
         // Get all values of the given CLI parameters

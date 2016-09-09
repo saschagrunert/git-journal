@@ -47,3 +47,8 @@ args:
       long: short
       short: l
       help: Print only the shortlog (summary) form.
+  - verify:
+      long: verify
+      short: v
+      value_name: COMMIT_MESSAGE
+      help: Verify the specified commit message.

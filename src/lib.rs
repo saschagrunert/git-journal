@@ -47,7 +47,8 @@ use parser::{Parser, ParsedCommit, ParsedTag, Print};
 use config::Config;
 
 use std::fmt;
-use std::io::Write;
+use std::fs::File;
+use std::io::prelude::*;
 
 #[macro_use]
 mod macros;
@@ -215,9 +216,14 @@ impl GitJournal {
     /// ```
     ///
     /// # Errors
-    /// When the commit message is not valid due to RFC0001.
+    /// When the commit message is not valid due to RFC0001 or opening of the given file failed.
     ///
     pub fn verify(path: &str) -> Result<(), Error> {
+        let mut file = try!(File::open(path));
+        let mut commit_message = String::new();
+        try!(file.read_to_string(&mut commit_message));
+        try!(Parser.parse_commit_message(&commit_message));
+        println_ok!("Commit message valid.");
         Ok(())
     }
 
@@ -273,7 +279,6 @@ impl GitJournal {
             name: unreleased_str.to_owned(),
             date: UTC::today(),
         };
-        let parser = Parser;
         'revloop: for (index, id) in revwalk.enumerate() {
             let oid = try!(id);
             let commit = try!(self.repo.find_commit(oid));
@@ -309,7 +314,7 @@ impl GitJournal {
             // Add the commit message to the current entries of the tag
             let message = try!(commit.message().ok_or(git2::Error::from_str("Parsing error:")));
 
-            match parser.parse_commit_message(message) {
+            match Parser.parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
                 Err(e) => println_info!("Skipping commit: {}", e),
             }
