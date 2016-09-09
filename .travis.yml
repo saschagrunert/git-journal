@@ -1,35 +1,33 @@
 language: rust
 rust:
-  - stable
-  - beta
-  - nightly
+- stable
+- beta
+- nightly
 before_script:
-  - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+- pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
 script:
-  - export CARGO_TARGET_DIR=`pwd`/target
-  - cargo build
-  - cargo test
-  # - rustdoc --test README.md -L target
-  # - cargo run --manifest-path systest/Cargo.toml
-  # - cargo doc --no-deps
-  # - cargo doc --no-deps --manifest-path libssh2-sys/Cargo.toml
+- export CARGO_TARGET_DIR=`pwd`/target
+- cargo build
+- cargo test
 after_success:
-  - travis-cargo --only nightly doc-upload
-  # - travis-cargo coveralls --no-sudo
+- travis-cargo --only nightly doc-upload
 os:
-  - linux
+- linux
 matrix:
   allow_failures:
-    - rust: nightly
+  - rust: nightly
 notifications:
   email:
     on_success: never
 addons:
   apt:
     sources:
-      - kalakris-cmake
+    - kalakris-cmake
     packages:
-      - cmake
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
+    - cmake
+    - libcurl4-openssl-dev
+    - libelf-dev
+    - libdw-dev
+env:
+  global:
+    secure: WC9zSfV0u90iqsZD5477le2r7f0PwPEXQffN2fVbiV1kOWYZa7czyMeLQdCadfROf9K5SMgDBvRdB+FEyVWDMsatp5hIfeLyxug/xrktP7onzcWIImX+zFXV/Z+RDWOH+ojDsgmtR9PmP+k1+8DAq+w7d2e9uWkrVXhuY2xwvoUi0Ry3Ilw3Kji4EkzAV+sTCHV0wYM95Q1OOeYgIxf69Az73DqC6H254lud+EHculiBKaT+rnLvTdWJKP97xLuZ9p7wB368D3I4LGSQvtuGFynO+FRhjPbWKljeu6D1Q/Zj/CzX8Us0OXY0z4oGPsJTfLeSEJsIwTPFnqCyzmMBkpV4GC63Prso8pYmSe9a+226OAtLTyhWTWuHpw78BO23lsSLHpRIpHleNeMJhdAirEld7OWV3R3gYSNfuYKEQ6moQfpLdpWQbAddmE5qDsp9T5WIeFRu+aUPR45h6H4ma3w0txGiNSJKKzopIolnI3TZoI05B+dOGYoxPAhx5r1adDsqhZiXMgAni/NmUAN+nY19qBOLGQKhrqdqzRyz9QeNUiirPiL1ezyKQazTqjuubsgrbGk3hz9nyFrVgfEGbacYL6wCRzZuoOhBjcSePhymUXjSI+7PB5Ew4GfFNi5Jqxx47/Ba+uM5Gk8CTft/CjQ6jBOH2YxZeVHmwXKbaNI=
