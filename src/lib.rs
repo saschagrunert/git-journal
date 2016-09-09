@@ -324,6 +324,7 @@ impl GitJournal {
             self.parse_result.push((current_tag, current_entries));
         }
 
+        println_ok!("Parsing done.");
         Ok(())
     }
 
