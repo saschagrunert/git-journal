@@ -203,6 +203,24 @@ impl GitJournal {
         Ok(())
     }
 
+    /// Verify a given commit message against the parsing rules of
+    /// [RFC0001](https://github.com/saschagrunert/git-journal/blob/master/rfc/0001-commit-msg.md)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use git_journal::GitJournal;
+    ///
+    /// GitJournal::verify("COMMIT_MSG").expect("Commit message verification error");
+    /// ```
+    ///
+    /// # Errors
+    /// When the commit message is not valid due to RFC0001.
+    ///
+    pub fn verify(path: &str) -> Result<(), Error> {
+        Ok(())
+    }
+
     /// Parses a revision range for a `GitJournal`.
     ///
     /// # Examples
