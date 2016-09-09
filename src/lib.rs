@@ -1,3 +1,4 @@
+#![doc(html_root_url = "https://saschagrunert.github.io/git-journal/")]
 #![deny(missing_docs)]
 
 //! # The Git Commit Message Framework
