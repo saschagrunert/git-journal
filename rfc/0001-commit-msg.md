@@ -83,7 +83,7 @@ Some adaptions to an already existing git repository are needed to use these new
 
 - Apply the commit message template via `commit.template` or a `prepare-commit-msg` hook
 - Use a different comment char via `core.commentchar` if necessary
-- Use a `pre-commit` hook for commit message validation and a `commit-msg` hook for normalization
+- Use a `commit-msg` hook for commit message validation
 
 # Drawbacks
 [drawbacks]: #drawbacks

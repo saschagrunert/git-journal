@@ -1,4 +1,4 @@
-# git-journal [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)
+# [git-journal](https://saschagrunert.github.io/git-journal) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)
 The Git Commit Message Framework
 
 ## Targets
