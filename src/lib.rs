@@ -212,7 +212,7 @@ impl GitJournal {
     /// ```
     /// use git_journal::GitJournal;
     ///
-    /// GitJournal::verify(".git/COMMIT_EDITMSG").expect("Commit message verification error");
+    /// GitJournal::verify("tests/commit_msg").expect("Commit message verification error");
     /// ```
     ///
     /// # Errors
