@@ -4,7 +4,7 @@ rust:
   - beta
   - nightly
 before_script:
-  - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH; fi
 script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - travis-cargo build
@@ -12,11 +12,12 @@ script:
   #- travis-cargo bench
   - cargo doc --no-deps
 after_success:
-  - travis-cargo --only nightly doc-upload
-  - travis-cargo coveralls --no-sudo --verify
-  - ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/git_journal-*
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then travis-cargo --only nightly doc-upload; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then travis-cargo coveralls --no-sudo --verify; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/git_journal-*; fi
 os:
   - linux
+  - osx
 matrix:
   allow_failures:
   - rust: nightly
