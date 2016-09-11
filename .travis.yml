@@ -9,8 +9,8 @@ script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - travis-cargo build
   - travis-cargo test
-  #- travis-cargo bench
-  - cargo doc --no-deps
+  - travis-cargo bench
+  - travis-cargo --only stable doc
 after_success:
   - travis-cargo --only nightly doc-upload
   - travis-cargo coveralls --no-sudo --verify
