@@ -1,20 +1,22 @@
 language: rust
 rust:
-- stable
-- beta
-- nightly
+  - stable
+  - beta
+  - nightly
 before_script:
-- pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+  - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
+  - export TRAVIS_CARGO_NIGHTLY_FEATURE=""
 script:
-- export CARGO_TARGET_DIR=`pwd`/target
-- cargo build
-- cargo test
-- cargo doc --no-deps
+  - export CARGO_TARGET_DIR=`pwd`/target
+  - travis-cargo build
+  - travis-cargo test
+  - travis-cargo bench
+  - travis-cargo doc --no-deps
 after_success:
-- travis-cargo --only nightly doc-upload
-- travis-cargo coveralls --no-sudo
+  - travis-cargo --only nightly doc-upload
+  - travis-cargo coveralls --no-sudo --verify
 os:
-- linux
+  - linux
 matrix:
   allow_failures:
   - rust: nightly
