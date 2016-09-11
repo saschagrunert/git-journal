@@ -17,12 +17,12 @@ conventions and templates as a foundation for a nice looking changelog.
 
 ## Commit message layout
 
-A git commit message follows a basic layout, it has a Subject and a message body. An extension to this will make an easier
+A git commit message follows a basic layout, it has a subject and a message body. An extension to this will make an easier
 parsing of the commit message possible. This means that an overall commit message can be split into three parts:
 
-- Summary line: The first line of the commit
-- Body: Can hold lists or paragraphs of text
-- Footer: Add additional information to the commit as `Key: Value` pairs, e.g. `Reviewed-by: John Doe`, multiplication
+- *Summary line*: The first line of the commit
+- *Body*: Can hold lists or paragraphs of text
+- *Footer*: Add additional information to the commit as `Key: Value` pairs, e.g. `Reviewed-by: John Doe`, multiplication
   is also possible since there could be multiple `Reviewed-by` keys.
 
 An empty line separates the commit message parts, whereas newlines between lists and paragraphs within the body are
@@ -45,7 +45,7 @@ system and are not mandatory.
 A category is used to indicate with one word what has been done in the commit. Valid categories are: `[Added]`,
 `[Changed]`, `[Fixed]`, `[Improved]` and `[Removed]`. Rules for categories are:
 
-- A verb in simple past form
+- A verb always in simple past form
 - Wrapped in square brackets
 - Appear at the beginning of a list item or a paragraph
 - Only once per list item, but multiple times in a commit
@@ -53,7 +53,7 @@ A category is used to indicate with one word what has been done in the commit. V
 
 ### Tags
 Tags help to generate a sectioned changelog and filter out certain messages which are only for a special purpose. Valid
-examples for tags are `:internal:`, `:API:`,·`:Documentation:`,`:Feature A:` or `:tag 1:tag 2:`. The following rules apply to tags:
+examples for tags are `:internal:`, `:API:`,·`:Documentation:` or `:Feature A:`. The following rules apply to tags:
 
 - Not mandatory
 - Wrapped in colons
@@ -90,4 +90,3 @@ Some adaptions to an already existing git repository are needed to use these new
 
 The already existing git functionality provides a lots of freedom in writing commit messages. This freedom should not be
 limited in a negative way.
-
