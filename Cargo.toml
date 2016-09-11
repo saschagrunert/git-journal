@@ -9,6 +9,9 @@ repository = "https://github.com/saschagrunert/git-journal"
 homepage = "https://github.com/saschagrunert/git-journal"
 documentation = "https://saschagrunert.github.io/git-journal"
 
+#[lib]
+#name = "gitjournal"
+
 [dependencies]
 chrono = "*"
 clap = { version = "*", features = ["yaml"] }
