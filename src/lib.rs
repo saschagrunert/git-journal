@@ -12,7 +12,7 @@
 //! amended commits. git-journal will simplify these development approaches by providing sensible
 //! conventions and strong defaults.
 //!
-//! ### Basic usage example
+//! ### Example usage
 //!
 //! ```
 //! use git_journal::GitJournal;
