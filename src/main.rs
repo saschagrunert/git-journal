@@ -2,8 +2,13 @@
 extern crate clap;
 extern crate gitjournal;
 
+use std::process::exit;
 use clap::App;
 use gitjournal::GitJournal;
+
+fn print(string: &str) {
+    println!("[Git-Journal] {}", string)
+}
 
 fn main() {
     // Load the CLI parameters from the yaml file
@@ -14,14 +19,20 @@ fn main() {
     if matches.is_present("verify") {
         // Verify a commit message and panic! if verification failed.
         match GitJournal::verify(matches.value_of("verify").expect("Could not parse 'verify' value.")) {
-            Ok(()) => println!("[ OKAY ] Commit message valid."),
-            Err(error) => panic!("Commit message invalid. ({})", error),
+            Ok(()) => print("Commit message valid."),
+            Err(error) => {
+                print(&format!("Commit message invalid: {}", error));
+                exit(1);
+            }
         }
     } else if matches.is_present("prepare") {
         // Prepare a commit message before editing by the user
         match GitJournal::prepare(matches.value_of("prepare").expect("Could not parse 'prepare' value.")) {
-            Ok(()) => println!("[ OKAY ] Commit message prepared."),
-            Err(error) => panic!("Commit message preparation failed. ({})", error),
+            Ok(()) => print("Commit message prepared."),
+            Err(error) => {
+                print(&format!("Commit message preparation failed: {}", error));
+                exit(1);
+            }
         }
     } else {
         // Create the journal
