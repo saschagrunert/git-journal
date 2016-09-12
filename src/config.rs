@@ -81,3 +81,56 @@ impl Config {
         Ok(())
     }
 }
+
+#[test]
+fn config_save_and_load_ok() {
+    let mut config = Config::new();
+    assert!(config.save_default_config(".").is_ok());
+    assert!(config.load(".").is_ok());
+}
+
+#[test]
+fn config_save_err() {
+    let config = Config::new();
+    match config.save_default_config("/dev/null") {
+        Err(e) => println!("{}", e),
+        _ => assert!(false),
+    }
+}
+
+#[test]
+fn config_load_err() {
+    let mut config = Config::new();
+    match config.load("/dev/null") {
+        Err(e) => println!("{}", e),
+        _ => assert!(false),
+    }
+}
+
+#[test]
+fn config_load_invalid_1() {
+    let mut config = Config::new();
+    match config.load("tests/invalid_1.toml") {
+        Err(e) => println!("{}", e),
+        _ => assert!(false),
+    }
+}
+
+#[test]
+fn config_load_invalid_2() {
+    let mut config = Config::new();
+    match config.load("tests/invalid_2.toml") {
+        Err(e) => println!("{}", e),
+        _ => assert!(false),
+    }
+}
+
+#[test]
+fn config_load_invalid_3() {
+    let mut config = Config::new();
+    match config.load("tests/invalid_3.toml") {
+        Err(e) => println!("{}", e),
+        _ => assert!(false),
+    }
+}
+

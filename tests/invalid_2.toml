@@ -1,0 +1,3 @@
+colored_output = true
+excluded_tags = [test]
+show_prefix = false
