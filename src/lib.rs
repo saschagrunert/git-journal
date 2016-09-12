@@ -278,7 +278,7 @@ impl GitJournal {
     ///
     pub fn prepare(path: &str) -> Result<(), Error> {
         let mut file = try!(OpenOptions::new().write(true).append(true).open(path));
-        try!(writeln!(file, "A new line!"));
+        // try!(writeln!(file, "A new line!"));
         Ok(())
     }
 
