@@ -333,10 +333,8 @@ mod tests {
 
     #[test]
     fn parse_commit_ok_2() {
-        let commit = Parser::parse_commit_message("Changed my commit summary\n\n\
-                                                   - List item 1\n\
-                                                   - List item 2\n\
-                                                   - List item 3");
+        let commit = Parser::parse_commit_message("Changed my commit summary\n\n- List item 1\n- List item 2\n- List \
+                                                   item 3");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
@@ -350,10 +348,8 @@ mod tests {
 
     #[test]
     fn parse_commit_ok_3() {
-        let commit = Parser::parse_commit_message("PREFIX-666 Fixed some ____ commit :tag1: :tag2: :tag3:\n\n\
-                                                   Some: Footer\n\
-                                                   Another: Footer\n\
-                                                   My-ID: IDVALUE");
+        let commit = Parser::parse_commit_message("PREFIX-666 Fixed some ____ commit :tag1: :tag2: :tag3:\n\nSome: \
+                                                   Footer\nAnother: Footer\nMy-ID: IDVALUE");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 0);
@@ -368,10 +364,8 @@ mod tests {
 
     #[test]
     fn parse_commit_ok_4() {
-        let commit = Parser::parse_commit_message("Added my :1234: commit 💖 summary :some tag:\n\n\
-                                                   Paragraph\n\n\
-                                                   - List Item\n\n\
-                                                   Reviewed-by: Me");
+        let commit = Parser::parse_commit_message("Added my :1234: commit 💖 summary :some tag:\n\nParagraph\n\n- \
+                                                   List Item\n\nReviewed-by: Me");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 2);

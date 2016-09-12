@@ -1,4 +1,4 @@
-# [git-journal](https://saschagrunert.github.io/git-journal) ![License MIT](https://img.shields.io/badge/license-MIT-blue.svg) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)  [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/git-journal/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/git-journal?branch=master)
+# [git-journal](https://saschagrunert.github.io/git-journal) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/git-journal/blob/master/LICENSE) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)  [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/git-journal/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/git-journal?branch=master)
 The Git Commit Message Framework
 
 ## Targets
@@ -25,10 +25,11 @@ release:
     * [x] Parse until the last tag or in a commit range.
     * [x] Add the possibility to parse the last n Releases.
     * [x] Filter out excluded tags
+    * [x] Multiprocessing support during parsing
     * [ ] Output formats:
         * [ ] Markdown
         * [ ] HTML
         * [ ] PDF
   * [ ] Commit Message templating and validation
-    * [ ] Verify commit message based on config via git hook (which is the executable itself)
+    * [x] Verify commit message based on config
 
