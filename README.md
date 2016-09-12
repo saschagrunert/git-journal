@@ -25,7 +25,6 @@ release:
     * [x] Parse until the last tag or in a commit range.
     * [x] Add the possibility to parse the last n Releases.
     * [x] Filter out excluded tags
-    * [x] Multiprocessing support during parsing
     * [ ] Output formats:
         * [ ] Markdown
         * [ ] HTML
