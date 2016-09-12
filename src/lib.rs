@@ -362,8 +362,111 @@ impl GitJournal {
 }
 
 #[test]
-fn new_test() {
+fn new() {
     assert!(GitJournal::new(".").is_ok());
     assert!(GitJournal::new("/dev/null").is_err());
 }
 
+#[test]
+fn setup() {
+    let path = "./tests/test_repo";
+    assert!(GitJournal::new(path).is_ok());
+    assert!(GitJournal::setup(path).is_ok());
+    assert!(GitJournal::new(path).is_ok());
+}
+
+#[test]
+fn setup_failed() {
+    assert!(GitJournal::setup("/dev/null").is_err());
+}
+
+#[test]
+fn verify_commit_msg_summary_success_1() {
+    assert!(GitJournal::verify("./tests/commit_messages/success_1").is_ok());
+}
+
+#[test]
+fn verify_commit_msg_summary_success_2() {
+    assert!(GitJournal::verify("./tests/commit_messages/success_2").is_ok());
+}
+
+#[test]
+fn verify_commit_msg_summary_success_3() {
+    assert!(GitJournal::verify("./tests/commit_messages/success_3").is_ok());
+}
+
+#[test]
+fn verify_commit_msg_summary_success_4() {
+    assert!(GitJournal::verify("./tests/commit_messages/success_4").is_ok());
+}
+
+#[test]
+fn verify_commit_msg_summary_failure_1() {
+    assert!(GitJournal::verify("./tests/commit_messages/failure_1").is_err());
+}
+
+#[test]
+fn verify_commit_msg_summary_failure_2() {
+    assert!(GitJournal::verify("./tests/commit_messages/failure_2").is_err());
+}
+
+#[test]
+fn verify_commit_msg_summary_failure_3() {
+    assert!(GitJournal::verify("./tests/commit_messages/failure_3").is_err());
+}
+
+#[test]
+fn verify_commit_msg_paragraph_failure_1() {
+    assert!(GitJournal::verify("./tests/commit_messages/failure_4").is_err());
+}
+
+#[test]
+fn verify_commit_msg_paragraph_failure_2() {
+    assert!(GitJournal::verify("./tests/commit_messages/failure_5").is_err());
+}
+
+#[test]
+fn verify_commit_msg_paragraph_failure_3() {
+    assert!(GitJournal::verify("./tests/commit_messages/failure_6").is_err());
+}
+
+#[test]
+fn parse_log_1() {
+    let mut journal = GitJournal::new("./tests/test_repo").unwrap();
+    assert_eq!(journal.tags.len(), 2);
+    assert_eq!(journal.parse_result.len(), 0);
+    assert_eq!(journal.config.show_prefix, false);
+    assert_eq!(journal.config.colored_output, true);
+    assert_eq!(journal.config.excluded_tags.len(), 0);
+    assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
+    assert_eq!(journal.parse_result.len(), journal.tags.len() + 1);
+    assert_eq!(journal.parse_result[0].1.len(), 1);
+    assert_eq!(journal.parse_result[1].1.len(), 1);
+    assert_eq!(journal.parse_result[2].1.len(), 2);
+}
+
+#[test]
+fn parse_log_2() {
+    let mut journal = GitJournal::new("./tests/test_repo").unwrap();
+    assert!(journal.parse_log("HEAD", "rc", &1, &false, &false).is_ok());
+    assert_eq!(journal.parse_result.len(), 2);
+    assert_eq!(journal.parse_result[0].0.name, "Unreleased");
+    assert_eq!(journal.parse_result[1].0.name, "v2");
+}
+
+#[test]
+fn parse_log_3() {
+    let mut journal = GitJournal::new("./tests/test_repo").unwrap();
+    assert!(journal.parse_log("HEAD", "rc", &1, &false, &true).is_ok());
+    assert_eq!(journal.parse_result.len(), 1);
+    assert_eq!(journal.parse_result[0].0.name, "v2");
+}
+
+#[test]
+fn parse_log_4() {
+    let mut journal = GitJournal::new("./tests/test_repo").unwrap();
+    assert!(journal.parse_log("HEAD", "rc", &2, &false, &true).is_ok());
+    assert_eq!(journal.parse_result.len(), 2);
+    assert_eq!(journal.parse_result[0].0.name, "v2");
+    assert_eq!(journal.parse_result[1].0.name, "v1");
+}
