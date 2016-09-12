@@ -186,6 +186,7 @@ lazy_static! {
     static ref RE_FOOTER: Regex = RegexBuilder::new(r"^([\w-]+):\s(.*)$").multi_line(true).compile().unwrap();
     static ref RE_LIST: Regex = RegexBuilder::new(r"^-\s.*$(\n^\s+-\s.*)*").multi_line(true).compile().unwrap();
     static ref RE_PARAGRAPH: Regex = RegexBuilder::new(r"^\w").multi_line(true).compile().unwrap();
+    static ref RE_COMMENT: Regex = RegexBuilder::new(r"^#.*").multi_line(true).compile().unwrap();
 }
 
 pub struct Parser;
@@ -265,8 +266,11 @@ impl Parser {
         let mut parsed_footer = vec![];
         let mut parsed_body = vec![];
         for part in commit_parts {
-            // Parse footer
-            if RE_FOOTER.is_match(part) {
+            // Do nothing on comments
+            if RE_COMMENT.is_match(part) {
+                continue;
+            } else if RE_FOOTER.is_match(part) {
+                // Parse footer
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
                         key: try!(cap.at(1).ok_or(Error::FooterParsing(part.to_owned()))).to_owned(),

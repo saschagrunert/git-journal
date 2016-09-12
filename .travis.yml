@@ -8,8 +8,8 @@ before_script:
 script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - travis-cargo build
-  - travis-cargo test
   - travis-cargo bench
+  - travis-cargo test
   - cargo doc --no-deps
 after_success:
   - travis-cargo --only nightly doc-upload

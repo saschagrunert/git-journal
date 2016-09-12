@@ -34,11 +34,12 @@ impl fmt::Display for Error {
         }
     }
 }
-#[derive(Debug, RustcEncodable, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, RustcEncodable, RustcDecodable)]
 pub struct Config {
     pub show_prefix: bool,
     pub colored_output: bool,
     pub excluded_tags: Vec<String>,
+    pub enable_debug: bool,
 }
 
 impl Config {
@@ -47,6 +48,7 @@ impl Config {
             show_prefix: false,
             colored_output: true,
             excluded_tags: vec![],
+            enable_debug: true,
         }
     }
 
@@ -79,6 +81,10 @@ impl Config {
         let toml = try!(Parser::new(&toml_string).parse().ok_or(toml::Error::Custom("Parsing error".to_owned())));
         *self = try!(decode(Value::Table(toml)).ok_or(toml::Error::Custom("Decoding error".to_owned())));
         Ok(())
+    }
+
+    pub fn is_default_config(&self) -> bool {
+        *self == Config::new()
     }
 }
 

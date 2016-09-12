@@ -47,9 +47,10 @@ use parser::{Parser, ParsedCommit, ParsedTag, Print};
 use config::Config;
 
 use std::fmt;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::io::prelude::*;
+use std::os::unix::prelude::PermissionsExt;
 
 #[macro_use]
 mod macros;
@@ -119,10 +120,12 @@ impl fmt::Display for Error {
 
 /// The main structure of git-journal.
 pub struct GitJournal {
+    /// The configuration structure
+    pub config: Config,
+    parse_result: Vec<(ParsedTag, Vec<ParsedCommit>)>,
+    path: String,
     repo: Repository,
     tags: Vec<(Oid, String)>,
-    parse_result: Vec<(ParsedTag, Vec<ParsedCommit>)>,
-    config: Config,
 }
 
 impl GitJournal {
@@ -158,19 +161,24 @@ impl GitJournal {
         // Search for config in path and load
         let mut new_config = Config::new();
         match new_config.load(path) {
-            Ok(()) => println_ok!("Loaded configuration file from '{}'.", path),
-            Err(e) => {
+            Ok(()) => {
+                if new_config.enable_debug {
+                    println_ok!("Loaded configuration file from '{}'.", path)
+                }
+            }
+            Err(error) => {
                 println_info!("Could not open configuration file, using default values. ({})",
-                              e)
+                              error)
             }
         }
 
         // Return the git journal object
         Ok(GitJournal {
+            config: new_config,
+            parse_result: vec![],
+            path: path.to_owned(),
             repo: new_repo,
             tags: new_tags,
-            parse_result: vec![],
-            config: new_config,
         })
     }
 
@@ -181,7 +189,8 @@ impl GitJournal {
     /// ```
     /// use gitjournal::GitJournal;
     ///
-    /// GitJournal::setup(".").expect("Setup error");
+    /// let journal = GitJournal::new(".").unwrap();
+    /// journal.setup().expect("Setup error");
     /// ```
     ///
     /// Creates a `.gitjournal` file with the default values inside the given path, which looks
@@ -196,29 +205,80 @@ impl GitJournal {
     ///
     /// # Show or hide the commit message prefix, e.g. JIRA-1234
     /// show_prefix = false
+    ///
+    /// # Show or hide the debug messages like `[ OKAY ] ...` or `[ INFO ] ...`
+    /// enable_debug = true
     /// ```
     ///
-    /// It also creates a symlink for the commit message validation hook inside the given git
-    /// repository and saves a commit message template.
+    /// It also creates a symlinks for the commit message validation and preparation hook inside
+    /// the given git repository.
     ///
     /// # Errors
-    /// When the writing of the default configuration fails.
+    /// - When the writing of the default configuration fails.
+    /// - When installation of the commit message (preparation) hook fails.
     ///
-    pub fn setup(path: &str) -> Result<(), Error> {
-        // Save the default config
-        let output_file = try!(Config::new().save_default_config(path));
-        println_ok!("Defaults written to '{}' file.", output_file);
+    pub fn setup(&self) -> Result<(), Error> {
+
+        // Save the default config if necessary
+        if !self.config.is_default_config() {
+            let output_file = try!(Config::new().save_default_config(&self.path));
+            if self.config.enable_debug {
+                println_ok!("Defaults written to '{}' file.", output_file);
+            }
+        }
+
+        let hooks_path = ".git/hooks";
 
         // Install commit message hook
-        let mut hook_path = PathBuf::from(path);
-        hook_path.push(".git/hooks/commit-msg");
-        let mut hook = try!(File::create(hook_path.clone()));
+        let mut commit_hook_path = PathBuf::from(&self.path);
+        commit_hook_path.push(hooks_path);
+        commit_hook_path.push("commit-msg");
+        let mut hook = try!(File::create(commit_hook_path.clone()));
         try!(hook.write_all("#!/usr/bin/env sh\n\
-                             git journal -v $1".as_bytes()));
-        println_ok!("Commit message hook installed to '{}'.", hook_path.display());
+                             git journal -v $1"
+            .as_bytes()));
+        try!(std::fs::set_permissions(commit_hook_path.clone(), std::fs::Permissions::from_mode(0o755)));
 
-        // Save a commit message template
+        if self.config.enable_debug {
+            println_ok!("Commit message hook installed to '{}'.",
+                        commit_hook_path.display());
+        }
 
+        // Install the prepare commit message hook
+        let mut prepare_hook_path = PathBuf::from(&self.path);
+        prepare_hook_path.push(hooks_path);
+        prepare_hook_path.push("prepare-commit-msg");
+        let mut hook = try!(File::create(prepare_hook_path.clone()));
+        try!(hook.write_all("#!/usr/bin/env sh\n\
+                             git journal -r $1"
+            .as_bytes()));
+        try!(std::fs::set_permissions(prepare_hook_path.clone(), std::fs::Permissions::from_mode(0o755)));
+
+        if self.config.enable_debug {
+            println_ok!("Prepare commit message hook written to '{}'.",
+                        prepare_hook_path.display());
+        }
+
+        Ok(())
+    }
+
+    /// Prepare a commit message before the user edits it
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use gitjournal::GitJournal;
+    ///
+    /// GitJournal::prepare("./tests/COMMIT_EDITMSG")
+    ///     .expect("Commit message preparation error");
+    /// ```
+    ///
+    /// # Errors
+    /// When the path is not available or writing the commit message fails.
+    ///
+    pub fn prepare(path: &str) -> Result<(), Error> {
+        let mut file = try!(OpenOptions::new().write(true).append(true).open(path));
+        try!(writeln!(file, "A new line!"));
         Ok(())
     }
 
@@ -334,7 +394,11 @@ impl GitJournal {
 
             match Parser::parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
-                Err(e) => println_info!("Skipping commit: {}", e),
+                Err(e) => {
+                    if self.config.enable_debug {
+                        println_info!("Skipping commit: {}", e);
+                    }
+                }
             }
         }
         // Add the last processed items as well
@@ -342,7 +406,9 @@ impl GitJournal {
             self.parse_result.push((current_tag, current_entries));
         }
 
-        println_ok!("Parsing done.");
+        if self.config.enable_debug {
+            println_ok!("Parsing done.");
+        }
         Ok(())
     }
 
@@ -396,14 +462,17 @@ mod tests {
     #[test]
     fn setup() {
         let path = ".";
-        assert!(GitJournal::new(path).is_ok());
-        assert!(GitJournal::setup(path).is_ok());
+        let journal = GitJournal::new(path);
+        assert!(journal.is_ok());
+        assert!(journal.unwrap().setup().is_ok());
         assert!(GitJournal::new(path).is_ok());
     }
 
     #[test]
     fn setup_failed() {
-        let res = GitJournal::setup("/dev/null");
+        let journal = GitJournal::new("./tests/test_repo");
+        assert!(journal.is_ok());
+        let res = journal.unwrap().setup();
         assert!(res.is_err());
         if let Err(e) = res {
             println!("{}", e);

@@ -52,3 +52,8 @@ args:
       short: v
       value_name: COMMIT_MESSAGE
       help: Verify the specified commit message.
+  - prepare:
+      long: prepare
+      short: r
+      value_name: COMMIT_MESSAGE
+      help: Prepare the commit message before the user can edits it.

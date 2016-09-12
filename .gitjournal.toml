@@ -1,3 +1,4 @@
 colored_output = true
+enable_debug = true
 excluded_tags = []
 show_prefix = false
