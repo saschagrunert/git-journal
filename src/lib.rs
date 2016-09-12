@@ -48,6 +48,7 @@ use config::Config;
 
 use std::fmt;
 use std::fs::File;
+use std::path::PathBuf;
 use std::io::prelude::*;
 
 #[macro_use]
@@ -197,13 +198,27 @@ impl GitJournal {
     /// show_prefix = false
     /// ```
     ///
+    /// It also creates a symlink for the commit message validation hook inside the given git
+    /// repository and saves a commit message template.
+    ///
     /// # Errors
     /// When the writing of the default configuration fails.
     ///
     pub fn setup(path: &str) -> Result<(), Error> {
+        // Save the default config
         let output_file = try!(Config::new().save_default_config(path));
-        println_ok!("Setup complete, defaults written to '{}' file.",
-                    output_file);
+        println_ok!("Defaults written to '{}' file.", output_file);
+
+        // Install commit message hook
+        let mut hook_path = PathBuf::from(path);
+        hook_path.push(".git/hooks/commit-msg");
+        let mut hook = try!(File::create(hook_path.clone()));
+        try!(hook.write_all("#!/usr/bin/env sh\n\
+                             git journal -v $1".as_bytes()));
+        println_ok!("Commit message hook installed to '{}'.", hook_path.display());
+
+        // Save a commit message template
+
         Ok(())
     }
 
@@ -380,7 +395,7 @@ mod tests {
 
     #[test]
     fn setup() {
-        let path = "./tests/test_repo";
+        let path = ".";
         assert!(GitJournal::new(path).is_ok());
         assert!(GitJournal::setup(path).is_ok());
         assert!(GitJournal::new(path).is_ok());
