@@ -14,7 +14,7 @@ script:
 after_success:
   - travis-cargo --only nightly doc-upload
   - travis-cargo coveralls --no-sudo --verify
-  - ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/git_journal-*
+  - ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/gitjournal*
 os:
   - linux
 matrix:
