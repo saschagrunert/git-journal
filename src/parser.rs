@@ -191,7 +191,7 @@ lazy_static! {
 pub struct Parser;
 impl Parser {
     /// Parses a single commit message and returns a changelog ready form
-    pub fn parse_commit_message(&self, message: &str) -> Result<ParsedCommit, Error> {
+    pub fn parse_commit_message(message: &str) -> Result<ParsedCommit, Error> {
 
         /// Parses for tags and returns them with the resulting string
         fn parse_and_consume_tags(input: &[u8]) -> (Vec<String>, String) {
@@ -300,5 +300,101 @@ impl Parser {
             body: parsed_body,
             footer: parsed_footer,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_and_print_error(message: &str) {
+        let ret = Parser::parse_commit_message(message);
+        assert!(ret.is_err());
+        if let Err(e) = ret {
+            println!("{}", e);
+        }
+    }
+
+    #[test]
+    fn parse_commit_ok_1() {
+        let commit = Parser::parse_commit_message("JIRA-1234 [Changed] my commit summary\n\n\
+                                                   Some paragraph");
+        assert!(commit.is_ok());
+        if let Ok(commit) = commit {
+            assert_eq!(commit.body.len(), 1);
+            assert_eq!(commit.body[0], BodyElement::Paragraph(ParagraphElement{text: "Some paragraph".to_owned(), tags: vec![]}));
+            assert_eq!(commit.footer.len(), 0);
+            assert_eq!(commit.summary.prefix, "JIRA-1234");
+            assert_eq!(commit.summary.category, "Changed");
+            assert_eq!(commit.summary.text, " my commit summary");
+            assert_eq!(commit.summary.tags.len(), 0);
+        }
+    }
+
+    #[test]
+    fn parse_commit_ok_2() {
+        let commit = Parser::parse_commit_message("Changed my commit summary\n\n\
+                                                   - List item 1\n\
+                                                   - List item 2\n\
+                                                   - List item 3");
+        assert!(commit.is_ok());
+        if let Ok(commit) = commit {
+            assert_eq!(commit.body.len(), 1);
+            assert_eq!(commit.footer.len(), 0);
+            assert_eq!(commit.summary.prefix, "");
+            assert_eq!(commit.summary.category, "Changed");
+            assert_eq!(commit.summary.text, " my commit summary");
+            assert_eq!(commit.summary.tags.len(), 0);
+        }
+    }
+
+    #[test]
+    fn parse_commit_ok_3() {
+        let commit = Parser::parse_commit_message("PREFIX-666 Fixed some ____ commit :tag1: :tag2: :tag3:\n\n\
+                                                   Some: Footer\n\
+                                                   Another: Footer\n\
+                                                   My-ID: IDVALUE");
+        assert!(commit.is_ok());
+        if let Ok(commit) = commit {
+            assert_eq!(commit.body.len(), 0);
+            assert_eq!(commit.footer.len(), 3);
+            assert_eq!(commit.summary.prefix, "PREFIX-666");
+            assert_eq!(commit.summary.category, "Fixed");
+            assert_eq!(commit.summary.text, " some ____ commit");
+            assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
+        }
+    }
+
+
+    #[test]
+    fn parse_commit_ok_4() {
+        let commit = Parser::parse_commit_message("Added my :1234: commit 💖 summary :some tag:\n\n\
+                                                   Paragraph\n\n\
+                                                   - List Item\n\n\
+                                                   Reviewed-by: Me");
+        assert!(commit.is_ok());
+        if let Ok(commit) = commit {
+            assert_eq!(commit.body.len(), 2);
+            assert_eq!(commit.footer.len(), 1);
+            assert_eq!(commit.summary.prefix, "");
+            assert_eq!(commit.summary.category, "Added");
+            assert_eq!(commit.summary.text, " my commit 💖 summary");
+            assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
+        }
+    }
+
+    #[test]
+    fn parse_commit_failure_1() {
+        parse_and_print_error("None");
+    }
+
+    #[test]
+    fn parse_commit_failure_2() {
+        parse_and_print_error("PREFIX+1234 Changed some stuff");
+    }
+
+    #[test]
+    fn parse_commit_failure_3() {
+        parse_and_print_error("Fix some stuff");
     }
 }

@@ -158,7 +158,10 @@ impl GitJournal {
         let mut new_config = Config::new();
         match new_config.load(path) {
             Ok(()) => println_ok!("Loaded configuration file from '{}'.", path),
-            Err(e) => println_info!("Could not open configuration file, using default values. ({})", e),
+            Err(e) => {
+                println_info!("Could not open configuration file, using default values. ({})",
+                              e)
+            }
         }
 
         // Return the git journal object
@@ -223,7 +226,7 @@ impl GitJournal {
         let mut file = try!(File::open(path));
         let mut commit_message = String::new();
         try!(file.read_to_string(&mut commit_message));
-        try!(Parser.parse_commit_message(&commit_message));
+        try!(Parser::parse_commit_message(&commit_message));
         Ok(())
     }
 
@@ -314,7 +317,7 @@ impl GitJournal {
             // Add the commit message to the current entries of the tag
             let message = try!(commit.message().ok_or(git2::Error::from_str("Parsing error:")));
 
-            match Parser.parse_commit_message(message) {
+            match Parser::parse_commit_message(message) {
                 Ok(parsed_message) => current_entries.push(parsed_message),
                 Err(e) => println_info!("Skipping commit: {}", e),
             }
