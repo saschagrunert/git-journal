@@ -1,6 +1,6 @@
-extern crate git_journal;
+extern crate gitjournal;
 
-use git_journal::GitJournal;
+use gitjournal::GitJournal;
 
 #[test]
 fn commit_msg_summary_success_1() {

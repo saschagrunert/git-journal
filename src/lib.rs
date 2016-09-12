@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://saschagrunert.github.io/git-journal/")]
+#![doc(html_root_url = "https://saschagrunert.github.io/gitjournal/")]
 #![deny(missing_docs)]
 
 //! # The Git Commit Message Framework
@@ -15,7 +15,7 @@
 //! ### Example usage
 //!
 //! ```
-//! use git_journal::GitJournal;
+//! use gitjournal::GitJournal;
 //! let mut journal = GitJournal::new(".").unwrap();
 //! journal.parse_log("HEAD", "rc", &1, &false, &true);
 //! journal.print_log(true).expect("Could not print short log.");
@@ -130,7 +130,7 @@ impl GitJournal {
     /// # Examples
     ///
     /// ```
-    /// use git_journal::GitJournal;
+    /// use gitjournal::GitJournal;
     ///
     /// let journal = GitJournal::new(".").unwrap();
     /// ```
@@ -175,7 +175,7 @@ impl GitJournal {
     /// # Examples
     ///
     /// ```
-    /// use git_journal::GitJournal;
+    /// use gitjournal::GitJournal;
     ///
     /// GitJournal::setup(".").expect("Setup error");
     /// ```
@@ -210,7 +210,7 @@ impl GitJournal {
     /// # Examples
     ///
     /// ```
-    /// use git_journal::GitJournal;
+    /// use gitjournal::GitJournal;
     ///
     /// GitJournal::verify("tests/commit_messages/success_1")
     ///     .expect("Commit message verification error");
@@ -232,7 +232,7 @@ impl GitJournal {
     /// # Examples
     ///
     /// ```
-    /// use git_journal::GitJournal;
+    /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
     /// journal.parse_log("HEAD", "rc", &1, &false, &false);
@@ -333,7 +333,7 @@ impl GitJournal {
     /// # Examples
     ///
     /// ```
-    /// use git_journal::GitJournal;
+    /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
     /// journal.parse_log("HEAD", "rc", &1, &false, &false);

@@ -1,9 +1,9 @@
 #[macro_use]
 extern crate clap;
-extern crate git_journal;
+extern crate gitjournal;
 
 use clap::App;
-use git_journal::GitJournal;
+use gitjournal::GitJournal;
 
 fn main() {
     // Load the CLI parameters from the yaml file
