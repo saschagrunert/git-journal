@@ -11,7 +11,8 @@ will simplify these development approaches by providing sensible conventions and
 
 ## Development progress
 The development is actually ongoing which means that the library and binary is currently not available on
-[crates.io](http://crates.io).
+[crates.io](http://crates.io). The binary `git-journal` depends on the Rust library `gitjournal`, which also can be used
+independently from the binary application.
 
 ## ToDo
 The base project will be developed as a git extension written in Rust. These features are planned for the initial

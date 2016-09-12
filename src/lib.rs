@@ -344,13 +344,13 @@ impl GitJournal {
     /// # Errors
     /// If some commit message could not be print.
     ///
-    pub fn print_log(&self, only_short: bool) -> Result<(), Error> {
+    pub fn print_log(&self, compact: bool) -> Result<(), Error> {
         for &(ref tag, ref commits) in &self.parse_result {
             try!(tag.print(&self.config));
             let mut c = commits.clone();
             c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
             for commit in c {
-                if only_short {
+                if compact {
                     try!(commit.summary.print(&self.config));
                 } else {
                     try!(commit.print(&self.config));
@@ -431,7 +431,7 @@ fn verify_commit_msg_paragraph_failure_3() {
 }
 
 #[test]
-fn parse_log_1() {
+fn parse_and_print_log_1() {
     let mut journal = GitJournal::new("./tests/test_repo").unwrap();
     assert_eq!(journal.tags.len(), 2);
     assert_eq!(journal.parse_result.len(), 0);
@@ -443,30 +443,48 @@ fn parse_log_1() {
     assert_eq!(journal.parse_result[0].1.len(), 1);
     assert_eq!(journal.parse_result[1].1.len(), 1);
     assert_eq!(journal.parse_result[2].1.len(), 2);
+    assert!(journal.print_log(false).is_ok());
+    assert!(journal.print_log(true).is_ok());
 }
 
 #[test]
-fn parse_log_2() {
+fn parse_and_print_log_2() {
     let mut journal = GitJournal::new("./tests/test_repo").unwrap();
     assert!(journal.parse_log("HEAD", "rc", &1, &false, &false).is_ok());
     assert_eq!(journal.parse_result.len(), 2);
     assert_eq!(journal.parse_result[0].0.name, "Unreleased");
     assert_eq!(journal.parse_result[1].0.name, "v2");
+    assert!(journal.print_log(false).is_ok());
+    assert!(journal.print_log(true).is_ok());
 }
 
 #[test]
-fn parse_log_3() {
+fn parse_and_print_log_3() {
     let mut journal = GitJournal::new("./tests/test_repo").unwrap();
     assert!(journal.parse_log("HEAD", "rc", &1, &false, &true).is_ok());
     assert_eq!(journal.parse_result.len(), 1);
     assert_eq!(journal.parse_result[0].0.name, "v2");
+    assert!(journal.print_log(false).is_ok());
+    assert!(journal.print_log(true).is_ok());
 }
 
 #[test]
-fn parse_log_4() {
+fn parse_and_print_log_4() {
     let mut journal = GitJournal::new("./tests/test_repo").unwrap();
     assert!(journal.parse_log("HEAD", "rc", &2, &false, &true).is_ok());
     assert_eq!(journal.parse_result.len(), 2);
     assert_eq!(journal.parse_result[0].0.name, "v2");
     assert_eq!(journal.parse_result[1].0.name, "v1");
+    assert!(journal.print_log(false).is_ok());
+    assert!(journal.print_log(true).is_ok());
+}
+
+#[test]
+fn parse_and_print_log_5() {
+    let mut journal = GitJournal::new("./tests/test_repo").unwrap();
+    assert!(journal.parse_log("v1..v2", "rc", &0, &false, &true).is_ok());
+    assert_eq!(journal.parse_result.len(), 1);
+    assert_eq!(journal.parse_result[0].0.name, "v2");
+    assert!(journal.print_log(false).is_ok());
+    assert!(journal.print_log(true).is_ok());
 }
