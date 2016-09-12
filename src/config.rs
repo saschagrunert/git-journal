@@ -82,55 +82,54 @@ impl Config {
     }
 }
 
-#[test]
-fn config_save_and_load_ok() {
-    let mut config = Config::new();
-    assert!(config.save_default_config(".").is_ok());
-    assert!(config.load(".").is_ok());
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn config_save_err() {
-    let config = Config::new();
-    match config.save_default_config("/dev/null") {
-        Err(e) => println!("{}", e),
-        _ => assert!(false),
+    #[test]
+    fn config_save_and_load_ok() {
+        let mut config = Config::new();
+        assert!(config.save_default_config(".").is_ok());
+        assert!(config.load(".").is_ok());
+    }
+
+
+    #[test]
+    fn config_save_err() {
+        let config = Config::new();
+        let res = config.save_default_config("/dev/null");
+        assert!(res.is_err());
+        if let Err(e) = res {
+            println!("{}", e);
+        }
+    }
+
+    fn load_and_print_failure(path: &str) {
+        let mut config = Config::new();
+        let res = config.load(path);
+        assert!(res.is_err());
+        if let Err(e) = res {
+            println!("{}", e);
+        }
+    }
+
+    #[test]
+    fn config_load_err() {
+        load_and_print_failure("/dev/null");
+    }
+
+    #[test]
+    fn config_load_invalid_1() {
+        load_and_print_failure("tests/invalid_1.toml");
+    }
+
+    #[test]
+    fn config_load_invalid_2() {
+        load_and_print_failure("tests/invalid_2.toml");
+    }
+
+    #[test]
+    fn config_load_invalid_3() {
+        load_and_print_failure("tests/invalid_3.toml");
     }
 }
-
-#[test]
-fn config_load_err() {
-    let mut config = Config::new();
-    match config.load("/dev/null") {
-        Err(e) => println!("{}", e),
-        _ => assert!(false),
-    }
-}
-
-#[test]
-fn config_load_invalid_1() {
-    let mut config = Config::new();
-    match config.load("tests/invalid_1.toml") {
-        Err(e) => println!("{}", e),
-        _ => assert!(false),
-    }
-}
-
-#[test]
-fn config_load_invalid_2() {
-    let mut config = Config::new();
-    match config.load("tests/invalid_2.toml") {
-        Err(e) => println!("{}", e),
-        _ => assert!(false),
-    }
-}
-
-#[test]
-fn config_load_invalid_3() {
-    let mut config = Config::new();
-    match config.load("tests/invalid_3.toml") {
-        Err(e) => println!("{}", e),
-        _ => assert!(false),
-    }
-}
-
