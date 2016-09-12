@@ -360,3 +360,10 @@ impl GitJournal {
         Ok(())
     }
 }
+
+#[test]
+fn new_test() {
+    assert!(GitJournal::new(".").is_ok());
+    assert!(GitJournal::new("/dev/null").is_err());
+}
+
