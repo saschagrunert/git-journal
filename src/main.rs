@@ -9,8 +9,10 @@ use gitjournal::GitJournal;
 
 fn print(string: &str, color: term::color::Color) -> Result<(), term::Error> {
     let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
+    try!(t.fg(term::color::YELLOW));
+    try!(write!(t, "[git-journal] "));
     try!(t.fg(color));
-    try!(writeln!(t, "[git-journal] {}", string));
+    try!(writeln!(t, "{}", string));
     try!(t.reset());
     Ok(())
 }
