@@ -146,7 +146,11 @@ impl GitJournal {
     ///
     pub fn new(path: &str) -> Result<GitJournal, Error> {
         // Search upwards for the .git directory
-        let mut path_buf = PathBuf::from(path);
+        let mut path_buf = if path != "." {
+            PathBuf::from(path)
+        } else {
+            try!(std::env::current_dir())
+        };
         'git_search: loop {
             for dir in try!(fs::read_dir(path_buf.clone())) {
                 let dir_path = try!(dir).path();
