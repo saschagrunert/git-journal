@@ -314,8 +314,7 @@ impl GitJournal {
                               " Added ...\n\n# Add a more detailed description if needed\n\n# - Added ...\n# - \
                                Changed ...\n# - Fixed ...\n# - Improved ...\n# - Removed ...\n\n" +
                               &old_msg_vec.join("\n");
-            println!("{}", new_content);
-            // try!(file.write_all(&new_content.as_bytes()));
+            try!(file.write_all(&new_content.as_bytes()));
         }
         Ok(())
     }
