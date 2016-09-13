@@ -296,7 +296,7 @@ impl GitJournal {
             let mut file = try!(OpenOptions::new().write(true).open(path));
             let mut old_msg_vec = commit_message.lines()
                 .filter_map(|line| {
-                    if !line.is_empty() && !line.starts_with("#") {
+                    if !line.is_empty() && !line.starts_with('#') {
                         Some("# ".to_owned() + line)
                     } else {
                         None
