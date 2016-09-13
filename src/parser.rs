@@ -310,6 +310,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use config;
 
     fn parse_and_print_error(message: &str) {
         let ret = Parser::parse_commit_message(message);
@@ -322,7 +323,9 @@ mod tests {
     #[test]
     fn parse_commit_ok_1() {
         let commit = Parser::parse_commit_message("JIRA-1234 [Changed] my commit summary\n\n\
-                                                   Some paragraph");
+                                                   Some paragraph\n\n\
+                                                   # A comment\n\
+                                                   # Another comment");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
@@ -332,6 +335,7 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
+            assert!(commit.print(&config::Config::new()).is_ok());
         }
     }
 
@@ -347,6 +351,7 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
+            assert!(commit.print(&config::Config::new()).is_ok());
         }
     }
 
@@ -362,6 +367,7 @@ mod tests {
             assert_eq!(commit.summary.category, "Fixed");
             assert_eq!(commit.summary.text, " some ____ commit");
             assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
+            assert!(commit.print(&config::Config::new()).is_ok());
         }
     }
 
@@ -378,6 +384,7 @@ mod tests {
             assert_eq!(commit.summary.category, "Added");
             assert_eq!(commit.summary.text, " my commit 💖 summary");
             assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
+            assert!(commit.print(&config::Config::new()).is_ok());
         }
     }
 
