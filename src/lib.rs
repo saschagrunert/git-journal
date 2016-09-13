@@ -296,21 +296,26 @@ impl GitJournal {
             let mut file = try!(OpenOptions::new().write(true).open(path));
             let mut old_msg_vec = commit_message.lines()
                 .filter_map(|line| {
-                    if !line.is_empty() && !line.starts_with('#') {
-                        Some("# ".to_owned() + line)
+                    if !line.is_empty() {
+                        if line.starts_with('#') {
+                            Some(line.to_owned())
+                        } else {
+                            Some("# ".to_owned() + line)
+                        }
                     } else {
                         None
                     }
                 })
                 .collect::<Vec<_>>();
             if !old_msg_vec.is_empty() {
-                old_msg_vec.insert(0, "# The old commit message:".to_owned());
+                old_msg_vec.insert(0, "# The provided commit message:".to_owned());
             }
             let new_content = self.config.template_prefix.clone() +
                               " Added ...\n\n# Add a more detailed description if needed\n\n# - Added ...\n# - \
                                Changed ...\n# - Fixed ...\n# - Improved ...\n# - Removed ...\n\n" +
                               &old_msg_vec.join("\n");
-            try!(file.write_all(&new_content.as_bytes()));
+            println!("{}", new_content);
+            // try!(file.write_all(&new_content.as_bytes()));
         }
         Ok(())
     }
