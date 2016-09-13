@@ -294,7 +294,15 @@ impl GitJournal {
 
             // Write the new generated content to the file
             let mut file = try!(OpenOptions::new().write(true).open(path));
-            let mut old_msg_vec = commit_message.lines().map(|line| "# ".to_owned() + line).collect::<Vec<_>>();
+            let mut old_msg_vec = commit_message.lines()
+                .filter_map(|line| {
+                    if !line.is_empty() && !line.starts_with("#") {
+                        Some("# ".to_owned() + line)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
             if !old_msg_vec.is_empty() {
                 old_msg_vec.insert(0, "# The old commit message:".to_owned());
             }

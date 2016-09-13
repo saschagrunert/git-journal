@@ -160,6 +160,7 @@ mod tests {
         let mut config = Config::new();
         assert!(config.save_default_config(".").is_ok());
         assert!(config.load(".").is_ok());
+        assert_eq!(config.is_default_config(), true);
     }
 
 
