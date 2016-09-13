@@ -112,7 +112,7 @@ impl Print for ParsedCommit {
                 BodyElement::Paragraph(ref par) => {
                     // Check if paragraph contains excluded tag
                     if par.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() == 0usize {
-                        for line in par.text.lines().map(|x| format!("    {}", x)).collect::<Vec<String>>() {
+                        for line in par.text.lines().map(|x| "    ".to_owned() + x).collect::<Vec<String>>() {
                             println!("{}", line);
                         }
                     }
@@ -322,14 +322,13 @@ mod tests {
 
     #[test]
     fn parse_commit_ok_1() {
-        let commit = Parser::parse_commit_message("JIRA-1234 [Changed] my commit summary\n\n\
-                                                   Some paragraph\n\n\
-                                                   # A comment\n\
-                                                   # Another comment");
+        let commit = Parser::parse_commit_message("JIRA-1234 [Changed] my commit summary\n\nSome paragraph\n\n# A \
+                                                   comment\n# Another comment");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
-            assert_eq!(commit.body[0], BodyElement::Paragraph(ParagraphElement{text: "Some paragraph".to_owned(), tags: vec![]}));
+            assert_eq!(commit.body[0],
+                       BodyElement::Paragraph(ParagraphElement {text: "Some paragraph".to_owned(), tags: vec![]}));
             assert_eq!(commit.footer.len(), 0);
             assert_eq!(commit.summary.prefix, "JIRA-1234");
             assert_eq!(commit.summary.category, "Changed");

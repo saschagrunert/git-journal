@@ -18,17 +18,18 @@ independently from the binary application.
 The base project will be developed as a git extension written in Rust. These features are planned for the initial
 release:
 
-* [ ] Automatic setup (`--setup/-s`) in a certain git repository.
-    * [ ] Install git hooks as symlinks to the binary.
+* [x] Automatic setup (`--setup/-s`) in a certain git repository.
+    * [x] Install git hooks
     * [x] Provide an initial configuration file with default values.
+* [x] Commit Message validation based on config
+* [x] Commit Message preparation based on config
 * [ ] Changelog generation
     * [x] Parse until the last tag or in a commit range.
     * [x] Add the possibility to parse the last n Releases.
     * [x] Filter out excluded tags
+    * [ ] Generate output regarding template (tags mapping and order)
     * [ ] Output formats:
         * [ ] Markdown
         * [ ] HTML
         * [ ] PDF
-  * [ ] Commit Message templating and validation
-    * [x] Verify commit message based on config
 

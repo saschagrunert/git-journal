@@ -44,9 +44,9 @@ use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone};
 
 use parser::{Parser, ParsedCommit, ParsedTag, Print};
-use config::Config;
+pub use config::Config;
 
-use std::fmt;
+use std::{fmt, fs};
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::io::prelude::*;
@@ -55,7 +55,7 @@ use std::os::unix::prelude::PermissionsExt;
 #[macro_use]
 mod macros;
 mod parser;
-mod config;
+pub mod config;
 
 /// An enumeration of possible errors that can happen when working with git-journal.
 #[derive(Debug)]
@@ -129,7 +129,8 @@ pub struct GitJournal {
 }
 
 impl GitJournal {
-    /// Constructs a new `GitJournal<Result<GitJournal, Error>>`.
+    /// Constructs a new `GitJournal<Result<GitJournal, Error>>`. Searches upwards if the given
+    /// path does not contain the `.git` directory.
     ///
     /// # Examples
     ///
@@ -144,8 +145,22 @@ impl GitJournal {
     /// of the git tags failed.
     ///
     pub fn new(path: &str) -> Result<GitJournal, Error> {
+        // Search upwards for the .git directory
+        let mut path_buf = PathBuf::from(path);
+        'git_search: loop {
+            for dir in try!(fs::read_dir(path_buf.clone())) {
+                let dir_path = try!(dir).path();
+                if dir_path.ends_with(".git") {
+                    break 'git_search;
+                }
+            }
+            if !path_buf.pop() {
+                break;
+            }
+        }
+
         // Open the repository
-        let new_repo = try!(Repository::open(path));
+        let new_repo = try!(Repository::open(path_buf.clone()));
 
         // Get all available tags in some vector of tuples
         let mut new_tags = vec![];
@@ -160,23 +175,13 @@ impl GitJournal {
 
         // Search for config in path and load
         let mut new_config = Config::new();
-        match new_config.load(path) {
-            Ok(()) => {
-                if new_config.enable_debug {
-                    println_ok!("Loaded configuration file from '{}'.", path)
-                }
-            }
-            Err(error) => {
-                println_info!("Could not open configuration file, using default values. ({})",
-                              error)
-            }
-        }
+        new_config.load(path).is_ok();
 
         // Return the git journal object
         Ok(GitJournal {
             config: new_config,
             parse_result: vec![],
-            path: path.to_owned(),
+            path: path_buf.to_str().unwrap_or("").to_owned(),
             repo: new_repo,
             tags: new_tags,
         })
@@ -200,14 +205,17 @@ impl GitJournal {
     /// # Set to false if the output should not be colored
     /// colored_output = true
     ///
+    /// # Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
+    /// enable_debug = true
+    ///
     /// # Excluded tags in an array, e.g. "internal"
     /// excluded_tags = []
     ///
     /// # Show or hide the commit message prefix, e.g. JIRA-1234
     /// show_prefix = false
     ///
-    /// # Show or hide the debug messages like `[ OKAY ] ...` or `[ INFO ] ...`
-    /// enable_debug = true
+    /// # Commit message template prefix which will be added during commit preparation
+    /// template_prefix = "JIRA-1234"
     /// ```
     ///
     /// It also creates a symlinks for the commit message validation and preparation hook inside
@@ -218,13 +226,10 @@ impl GitJournal {
     /// - When installation of the commit message (preparation) hook fails.
     ///
     pub fn setup(&self) -> Result<(), Error> {
-
-        // Save the default config if necessary
-        if !self.config.is_default_config() {
-            let output_file = try!(Config::new().save_default_config(&self.path));
-            if self.config.enable_debug {
-                println_ok!("Defaults written to '{}' file.", output_file);
-            }
+        // Save the default config
+        let output_file = try!(Config::new().save_default_config(&self.path));
+        if self.config.enable_debug {
+            println_ok!("Defaults written to '{}' file.", output_file);
         }
 
         let hooks_path = ".git/hooks";
@@ -237,7 +242,8 @@ impl GitJournal {
         try!(hook.write_all("#!/usr/bin/env sh\n\
                              git journal -v $1"
             .as_bytes()));
-        try!(std::fs::set_permissions(commit_hook_path.clone(), std::fs::Permissions::from_mode(0o755)));
+        try!(std::fs::set_permissions(commit_hook_path.clone(),
+                                      std::fs::Permissions::from_mode(0o755)));
 
         if self.config.enable_debug {
             println_ok!("Commit message hook installed to '{}'.",
@@ -252,7 +258,8 @@ impl GitJournal {
         try!(hook.write_all("#!/usr/bin/env sh\n\
                              git journal -r $1"
             .as_bytes()));
-        try!(std::fs::set_permissions(prepare_hook_path.clone(), std::fs::Permissions::from_mode(0o755)));
+        try!(std::fs::set_permissions(prepare_hook_path.clone(),
+                                      std::fs::Permissions::from_mode(0o755)));
 
         if self.config.enable_debug {
             println_ok!("Prepare commit message hook written to '{}'.",
@@ -262,23 +269,41 @@ impl GitJournal {
         Ok(())
     }
 
-    /// Prepare a commit message before the user edits it
+    /// Prepare a commit message before the user edits it. This includes also a verification of the
+    /// commit message, e.g. for amended commits.
     ///
     /// # Examples
     ///
     /// ```
     /// use gitjournal::GitJournal;
     ///
-    /// GitJournal::prepare("./tests/COMMIT_EDITMSG")
-    ///     .expect("Commit message preparation error");
+    /// let journal = GitJournal::new(".").unwrap();
+    /// journal.prepare("./tests/commit_messages/success_1").expect("Commit message preparation error");
     /// ```
     ///
     /// # Errors
     /// When the path is not available or writing the commit message fails.
     ///
-    pub fn prepare(path: &str) -> Result<(), Error> {
-        let mut file = try!(OpenOptions::new().write(true).append(true).open(path));
-        // try!(writeln!(file, "A new line!"));
+    pub fn prepare(&self, path: &str) -> Result<(), Error> {
+        // If the message is not valid, assume a new commit and provide the template
+        if let Err(_) = self.verify(path) {
+            // Read the file contents to get the actual commit message string
+            let mut read_file = try!(File::open(path));
+            let mut commit_message = String::new();
+            try!(read_file.read_to_string(&mut commit_message));
+
+            // Write the new generated content to the file
+            let mut file = try!(OpenOptions::new().write(true).open(path));
+            let mut old_msg_vec = commit_message.lines().map(|line| "# ".to_owned() + line).collect::<Vec<_>>();
+            if !old_msg_vec.is_empty() {
+                old_msg_vec.insert(0, "# The old commit message:".to_owned());
+            }
+            let new_content = self.config.template_prefix.clone() +
+                              " Added ...\n\n# Add a more detailed description if needed\n\n# - Added ...\n# - \
+                               Changed ...\n# - Fixed ...\n# - Improved ...\n# - Removed ...\n\n" +
+                              &old_msg_vec.join("\n");
+            try!(file.write_all(&new_content.as_bytes()));
+        }
         Ok(())
     }
 
@@ -290,14 +315,14 @@ impl GitJournal {
     /// ```
     /// use gitjournal::GitJournal;
     ///
-    /// GitJournal::verify("tests/commit_messages/success_1")
-    ///     .expect("Commit message verification error");
+    /// let journal = GitJournal::new(".").unwrap();
+    /// journal.verify("tests/commit_messages/success_1").expect("Commit message verification error");
     /// ```
     ///
     /// # Errors
     /// When the commit message is not valid due to RFC0001 or opening of the given file failed.
     ///
-    pub fn verify(path: &str) -> Result<(), Error> {
+    pub fn verify(&self, path: &str) -> Result<(), Error> {
         let mut file = try!(File::open(path));
         let mut commit_message = String::new();
         try!(file.read_to_string(&mut commit_message));
@@ -481,26 +506,31 @@ mod tests {
 
     #[test]
     fn verify_commit_msg_summary_success_1() {
-        assert!(GitJournal::verify("./tests/commit_messages/success_1").is_ok());
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.verify("./tests/commit_messages/success_1").is_ok());
     }
 
     #[test]
     fn verify_commit_msg_summary_success_2() {
-        assert!(GitJournal::verify("./tests/commit_messages/success_2").is_ok());
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.verify("./tests/commit_messages/success_2").is_ok());
     }
 
     #[test]
     fn verify_commit_msg_summary_success_3() {
-        assert!(GitJournal::verify("./tests/commit_messages/success_3").is_ok());
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.verify("./tests/commit_messages/success_3").is_ok());
     }
 
     #[test]
     fn verify_commit_msg_summary_success_4() {
-        assert!(GitJournal::verify("./tests/commit_messages/success_4").is_ok());
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.verify("./tests/commit_messages/success_4").is_ok());
     }
 
     fn verify_failure(path: &str) {
-        let res = GitJournal::verify(path);
+        let journal = GitJournal::new(".").unwrap();
+        let res = journal.verify(path);
         assert!(res.is_err());
         if let Err(e) = res {
             println!("{}", e);
@@ -594,5 +624,29 @@ mod tests {
         assert_eq!(journal.parse_result[0].0.name, "v2");
         assert!(journal.print_log(false).is_ok());
         assert!(journal.print_log(true).is_ok());
+    }
+
+    #[test]
+    fn prepare_message_success_1() {
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.prepare("./tests/COMMIT_EDITMSG").is_ok());
+    }
+
+    #[test]
+    fn prepare_message_success_2() {
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.prepare("./tests/commit_messages/success_1").is_ok());
+    }
+
+    #[test]
+    fn prepare_message_success_3() {
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.prepare("./tests/commit_messages/success_2").is_ok());
+    }
+
+    #[test]
+    fn prepare_message_failure_1() {
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.prepare("TEST").is_err());
     }
 }

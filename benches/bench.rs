@@ -7,8 +7,9 @@ use gitjournal::GitJournal;
 
 #[bench]
 fn verify_huge_message(b: &mut Bencher) {
+    let journal = GitJournal::new(".").unwrap();
     b.iter(|| {
-        assert!(GitJournal::verify("./tests/commit_messages/success_huge").is_ok());
+        assert!(journal.verify("./tests/commit_messages/success_huge").is_ok());
     });
 }
 
