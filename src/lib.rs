@@ -655,13 +655,13 @@ mod tests {
     #[test]
     fn prepare_message_success_2() {
         let journal = GitJournal::new(".").unwrap();
-        assert!(journal.prepare("./tests/commit_messages/success_1").is_ok());
+        assert!(journal.prepare("./tests/commit_messages/prepare_1").is_ok());
     }
 
     #[test]
     fn prepare_message_success_3() {
         let journal = GitJournal::new(".").unwrap();
-        assert!(journal.prepare("./tests/commit_messages/failure_2").is_ok());
+        assert!(journal.prepare("./tests/commit_messages/prepare_2").is_ok());
     }
 
     #[test]
