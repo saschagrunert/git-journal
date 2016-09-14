@@ -6,7 +6,7 @@ Providing the possibility to output the parsed git log via custom templates.
 # Motivation
 [motivation]: #motivation
 
-Since everyone has a different way in creating a Changelogs there is a more flexible approach needed. A dedicated
+Since everyone has a different way in creating Changelogs a more flexible approach is needed. A dedicated
 templating engine for the output of git-journal will enable these flexibility.
 
 # Detailed design
