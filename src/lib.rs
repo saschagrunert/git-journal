@@ -661,12 +661,20 @@ mod tests {
     #[test]
     fn prepare_message_success_3() {
         let journal = GitJournal::new(".").unwrap();
-        assert!(journal.prepare("./tests/commit_messages/success_2").is_ok());
+        assert!(journal.prepare("./tests/commit_messages/failure_2").is_ok());
     }
 
     #[test]
     fn prepare_message_failure_1() {
         let journal = GitJournal::new(".").unwrap();
         assert!(journal.prepare("TEST").is_err());
+    }
+
+    #[test]
+    fn install_git_hook() {
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.install_git_hook("test", "echo 1\n").is_ok());
+        assert!(journal.install_git_hook("test", "echo 1\n").is_ok());
+        assert!(journal.install_git_hook("test", "echo 2\n").is_ok());
     }
 }
