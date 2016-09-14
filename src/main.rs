@@ -3,7 +3,9 @@ extern crate clap;
 extern crate gitjournal;
 extern crate term;
 
+use std::fmt;
 use std::process::exit;
+
 use clap::App;
 use gitjournal::GitJournal;
 
@@ -23,57 +25,90 @@ fn print_ok(string: &str) -> Result<(), term::Error> {
     Ok(())
 }
 
-fn print_err(string: &str, error: gitjournal::Error) -> Result<(), term::Error> {
+fn print_err_exit(string: &str, error: Error) -> Result<(), term::Error> {
     let format_string = format!("{}: {}", string, error);
     try!(print_colored(&format_string, "ERROR", term::color::RED));
     exit(1);
 }
 
-static TERM_ERR: &'static str = "Could not print to terminal";
-static PATH_ERR: &'static str = "Could not parse 'path' parameter";
-static VERI_ERR: &'static str = "Could not parse 'verify' value";
-static TAGS_ERR: &'static str = "Could not parse 'tags count' parameter";
-static CONV_ERR: &'static str = "Could not parse 'tags count' to integer";
-static REVR_ERR: &'static str = "Could not parse 'revision range' parameter";
-static SKIP_ERR: &'static str = "Could not parse 'skip pattern' parameter";
-static PREP_ERR: &'static str = "Could not parse 'prepare' parameter";
-static JOUR_ERR: &'static str = "Could not initialize git-journal";
-static PRNT_ERR: &'static str = "Could not print log";
-static SETU_ERR: &'static str = "Setup failed.";
+enum Error {
+    Cli,
+    ParseInt(std::num::ParseIntError),
+    Term(term::Error),
+    GitJournal(gitjournal::Error),
+}
+
+impl From<gitjournal::Error> for Error {
+    fn from(err: gitjournal::Error) -> Error {
+        Error::GitJournal(err)
+    }
+}
+
+impl From<term::Error> for Error {
+    fn from(err: term::Error) -> Error {
+        Error::Term(err)
+    }
+}
+
+impl From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Error {
+        Error::ParseInt(err)
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::Cli => write!(f, "Cli parsing error"),
+            Error::ParseInt(ref err) => write!(f, "Parse int error: {}", err),
+            Error::Term(ref err) => write!(f, "Term error: {}", err),
+            Error::GitJournal(ref err) => write!(f, "GitJournal error: {}", err),
+        }
+    }
+}
 
 fn main() {
+    if let Err(error) = run() {
+        print_err_exit("", error).expect("Cannot print error message");
+    }
+}
+
+fn run() -> Result<(), Error> {
     // Load the CLI parameters from the yaml file
     let yaml = load_yaml!("cli.yaml");
     let matches = App::from_yaml(yaml).get_matches();
-    let path = matches.value_of("path").expect(PATH_ERR);
+    let path = try!(matches.value_of("path").ok_or(Error::Cli));
 
     // Create the journal
-    let mut journal = GitJournal::new(path).expect(JOUR_ERR);
+    let mut journal = try!(GitJournal::new(path));
 
     if matches.is_present("verify") {
         // Verify a commit message
-        match journal.verify(matches.value_of("verify").expect(VERI_ERR)) {
-            Ok(()) => print_ok("Commit message valid.").expect(TERM_ERR),
-            Err(error) => print_err("Commit message invalid", error).expect(TERM_ERR),
+        match journal.verify(try!(matches.value_of("verify").ok_or(Error::Cli))) {
+            Ok(()) => try!(print_ok("Commit message valid.")),
+            Err(error) => try!(print_err_exit("Commit message invalid", Error::GitJournal(error))),
         }
 
     } else if matches.is_present("prepare") {
         // Prepare a commit message before editing by the user
-        match journal.prepare(matches.value_of("prepare").expect(PREP_ERR)) {
-            Ok(()) => print_ok("Commit message prepared.").expect(TERM_ERR),
-            Err(error) => print_err("Commit message preparation failed", error).expect(TERM_ERR),
+        match journal.prepare(try!(matches.value_of("prepare").ok_or(Error::Cli))) {
+            Ok(()) => try!(print_ok("Commit message prepared.")),
+            Err(error) => {
+                try!(print_err_exit("Commit message preparation failed",
+                                    Error::GitJournal(error)))
+            }
         }
 
     } else if matches.is_present("setup") {
         // Do the setup procedure
-        journal.setup().expect(SETU_ERR);
+        try!(journal.setup());
 
     } else {
         // Get all values of the given CLI parameters
-        let revision_range = matches.value_of("revision_range").expect(REVR_ERR);
-        let tag_skip_pattern = matches.value_of("tag_skip_pattern").expect(SKIP_ERR);
-        let tags_count = matches.value_of("tags_count").expect(TAGS_ERR);
-        let max_tags = tags_count.parse::<u32>().expect(CONV_ERR);
+        let revision_range = try!(matches.value_of("revision_range").ok_or(Error::Cli));
+        let tag_skip_pattern = try!(matches.value_of("tag_skip_pattern").ok_or(Error::Cli));
+        let tags_count = try!(matches.value_of("tags_count").ok_or(Error::Cli));
+        let max_tags = try!(tags_count.parse::<u32>());
 
         // Parse the log
         if let Err(error) = journal.parse_log(revision_range,
@@ -81,8 +116,10 @@ fn main() {
                                               &max_tags,
                                               &matches.is_present("all"),
                                               &matches.is_present("skip_unreleased")) {
-            print_err("Log parsing error", error).expect(TERM_ERR);
+            try!(print_err_exit("Log parsing error", Error::GitJournal(error)));
         }
-        journal.print_log(matches.is_present("short")).expect(PRNT_ERR);
+        try!(journal.print_log(matches.is_present("short")));
     }
+
+    Ok(())
 }

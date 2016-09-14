@@ -236,40 +236,44 @@ impl GitJournal {
             println_ok!("Defaults written to '{}' file.", output_file);
         }
 
-        let hooks_path = ".git/hooks";
-
         // Install commit message hook
-        let mut commit_hook_path = PathBuf::from(&self.path);
-        commit_hook_path.push(hooks_path);
-        commit_hook_path.push("commit-msg");
-        let mut hook = try!(File::create(commit_hook_path.clone()));
-        try!(hook.write_all("#!/usr/bin/env sh\n\
-                             git journal -v $1"
-            .as_bytes()));
-        try!(std::fs::set_permissions(commit_hook_path.clone(),
-                                      std::fs::Permissions::from_mode(0o755)));
-
-        if self.config.enable_debug {
-            println_ok!("Commit message hook installed to '{}'.",
-                        commit_hook_path.display());
-        }
+        try!(self.install_git_hook("commit-msg", "git journal -v $1\n"));
 
         // Install the prepare commit message hook
-        let mut prepare_hook_path = PathBuf::from(&self.path);
-        prepare_hook_path.push(hooks_path);
-        prepare_hook_path.push("prepare-commit-msg");
-        let mut hook = try!(File::create(prepare_hook_path.clone()));
-        try!(hook.write_all("#!/usr/bin/env sh\n\
-                             git journal -r $1"
-            .as_bytes()));
-        try!(std::fs::set_permissions(prepare_hook_path.clone(),
-                                      std::fs::Permissions::from_mode(0o755)));
+        try!(self.install_git_hook("prepare-commit-msg", "git journal -r $1\n"));
+
+        Ok(())
+    }
+
+    fn install_git_hook(&self, name: &str, content: &str) -> Result<(), Error> {
+        let mut hook_path = PathBuf::from(&self.path);
+        hook_path.push(".git/hooks");
+        hook_path.push(name);
+        let mut hook_file: File;
+        if hook_path.exists() {
+            if self.config.enable_debug {
+                println_warn!("There is already a hook available in '{}'. Please verifiy \
+                               the hook by hand after the installation.", hook_path.display());
+            }
+            hook_file = try!(OpenOptions::new().read(true).append(true).open(hook_path.clone()));
+            let mut hook_content = String::new();
+            try!(hook_file.read_to_string(&mut hook_content));
+            if hook_content.contains(content) {
+                if self.config.enable_debug {
+                    println_ok!("Hook already installed, nothing changed in existing hook.");
+                }
+                return Ok(());
+            }
+        } else {
+            hook_file = try!(File::create(hook_path.clone()));
+            try!(hook_file.write_all("#!/usr/bin/env sh\n".as_bytes()));
+        }
+        try!(hook_file.write_all(content.as_bytes()));
+        try!(std::fs::set_permissions(hook_path.clone(), std::fs::Permissions::from_mode(0o755)));
 
         if self.config.enable_debug {
-            println_ok!("Prepare commit message hook written to '{}'.",
-                        prepare_hook_path.display());
+            println_ok!("Git hook installed to '{}'.", hook_path.display());
         }
-
         Ok(())
     }
 

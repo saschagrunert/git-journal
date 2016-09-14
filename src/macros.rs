@@ -21,3 +21,9 @@ macro_rules! println_info(
         println_color_category!(term::color::BRIGHT_BLUE, "INFO", $($arg)*);
     }}
 );
+
+macro_rules! println_warn(
+    ($($arg:tt)*) => {{
+        println_color_category!(term::color::BRIGHT_YELLOW, "WARN", $($arg)*);
+    }}
+);
