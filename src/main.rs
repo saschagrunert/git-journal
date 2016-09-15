@@ -59,17 +59,17 @@ impl From<std::num::ParseIntError> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Cli => write!(f, "Cli parsing error"),
-            Error::ParseInt(ref err) => write!(f, "Parse int error: {}", err),
-            Error::Term(ref err) => write!(f, "Term error: {}", err),
-            Error::GitJournal(ref err) => write!(f, "GitJournal error: {}", err),
+            Error::Cli => write!(f, "Cli argument parsing"),
+            Error::ParseInt(ref err) => write!(f, "ParseInt: {}", err),
+            Error::Term(ref err) => write!(f, "Term: {}", err),
+            Error::GitJournal(ref err) => write!(f, "GitJournal: {}", err),
         }
     }
 }
 
 fn main() {
     if let Err(error) = run() {
-        print_err_exit("", error).expect("Cannot print error message");
+        print_err_exit("Main", error).expect("Cannot print error message");
     }
 }
 

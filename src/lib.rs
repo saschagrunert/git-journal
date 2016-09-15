@@ -109,11 +109,11 @@ impl From<parser::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Git(ref err) => write!(f, "Git error: {}", err),
-            Error::Io(ref err) => write!(f, "Io error: {}", err),
-            Error::Term(ref err) => write!(f, "Term error: {}", err),
-            Error::Setup(ref err) => write!(f, "Setup error: {}", err),
-            Error::Print(ref err) => write!(f, "Print error: {}", err),
+            Error::Git(ref err) => write!(f, "Git: {}", err),
+            Error::Io(ref err) => write!(f, "Io: {}", err),
+            Error::Term(ref err) => write!(f, "Term: {}", err),
+            Error::Setup(ref err) => write!(f, "Setup: {}", err),
+            Error::Print(ref err) => write!(f, "Print: {}", err),
         }
     }
 }
@@ -318,13 +318,16 @@ impl GitJournal {
             if !old_msg_vec.is_empty() {
                 old_msg_vec.insert(0, "# The provided commit message:".to_owned());
             }
-            let new_content = self.config.template_prefix.clone() +
-                              " Added ...\n\n# Add a more detailed description if needed\n\n# - Added ...\n# - \
-                               Changed ...\n# - Fixed ...\n# - Improved ...\n# - Removed ...\n\n" +
-                              &old_msg_vec.join("\n");
+            let new_content = self.get_default_commit_template() + &old_msg_vec.join("\n");
             try!(file.write_all(&new_content.as_bytes()));
         }
         Ok(())
+    }
+
+    fn get_default_commit_template(&self) -> String {
+        self.config.template_prefix.clone() +
+        " Added ...\n\n# Add a more detailed description if needed\n\n# - Added ...\n# - Changed ...\n# - Fixed \
+         ...\n# - Improved ...\n# - Removed ...\n\n"
     }
 
     /// Verify a given commit message against the parsing rules of

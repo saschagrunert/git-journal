@@ -37,8 +37,8 @@ impl From<io::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Toml(ref err) => write!(f, "Toml error: {}", err),
-            Error::Io(ref err) => write!(f, "Io error: {}", err),
+            Error::Toml(ref err) => write!(f, "Toml: {}", err),
+            Error::Io(ref err) => write!(f, "Io: {}", err),
         }
     }
 }
