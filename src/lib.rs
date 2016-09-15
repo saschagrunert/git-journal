@@ -18,7 +18,7 @@
 //! use gitjournal::GitJournal;
 //! let mut journal = GitJournal::new(".").unwrap();
 //! journal.parse_log("HEAD", "rc", &1, &false, &true);
-//! journal.print_log(true).expect("Could not print short log.");
+//! journal.print_log(true, None).expect("Could not print short log.");
 //! ```
 //!
 //! Simply create a new git-journal struct from a given path (`.` in this example). Then parse the
@@ -73,7 +73,7 @@ pub enum Error {
     Setup(config::Error),
 
     /// Errors related to the printing of the log.
-    Print(parser::Error),
+    Parser(parser::Error),
 }
 
 impl From<git2::Error> for Error {
@@ -102,7 +102,7 @@ impl From<config::Error> for Error {
 
 impl From<parser::Error> for Error {
     fn from(err: parser::Error) -> Error {
-        Error::Print(err)
+        Error::Parser(err)
     }
 }
 
@@ -113,7 +113,7 @@ impl fmt::Display for Error {
             Error::Io(ref err) => write!(f, "Io: {}", err),
             Error::Term(ref err) => write!(f, "Term: {}", err),
             Error::Setup(ref err) => write!(f, "Setup: {}", err),
-            Error::Print(ref err) => write!(f, "Print: {}", err),
+            Error::Parser(ref err) => write!(f, "Parser: {}", err),
         }
     }
 }
@@ -237,10 +237,10 @@ impl GitJournal {
         }
 
         // Install commit message hook
-        try!(self.install_git_hook("commit-msg", "git journal -v $1\n"));
+        try!(self.install_git_hook("commit-msg", "git journal v $1\n"));
 
         // Install the prepare commit message hook
-        try!(self.install_git_hook("prepare-commit-msg", "git journal -r $1\n"));
+        try!(self.install_git_hook("prepare-commit-msg", "git journal p $1\n"));
 
         Ok(())
     }
@@ -469,14 +469,17 @@ impl GitJournal {
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
     /// journal.parse_log("HEAD", "rc", &1, &false, &false);
-    /// journal.print_log(true).expect("Could not print short log.");
-    /// journal.print_log(false).expect("Could not print detailed log.");
+    /// journal.print_log(true, None).expect("Could not print short log.");
+    /// journal.print_log(false, None).expect("Could not print detailed log.");
     /// ```
     ///
     /// # Errors
     /// If some commit message could not be print.
     ///
-    pub fn print_log(&self, compact: bool) -> Result<(), Error> {
+    pub fn print_log(&self, compact: bool, template: Option<&str>) -> Result<(), Error> {
+        if let Some(template) = template {
+            Parser::parse_template(template);
+        }
         for &(ref tag, ref commits) in &self.parse_result {
             try!(tag.print(&self.config));
             let mut c = commits.clone();
@@ -603,8 +606,8 @@ mod tests {
         assert_eq!(journal.parse_result[0].1.len(), 4);
         assert_eq!(journal.parse_result[1].1.len(), 1);
         assert_eq!(journal.parse_result[2].1.len(), 2);
-        assert!(journal.print_log(false).is_ok());
-        assert!(journal.print_log(true).is_ok());
+        assert!(journal.print_log(false, None).is_ok());
+        assert!(journal.print_log(true, None).is_ok());
     }
 
     #[test]
@@ -614,8 +617,8 @@ mod tests {
         assert_eq!(journal.parse_result.len(), 2);
         assert_eq!(journal.parse_result[0].0.name, "Unreleased");
         assert_eq!(journal.parse_result[1].0.name, "v2");
-        assert!(journal.print_log(false).is_ok());
-        assert!(journal.print_log(true).is_ok());
+        assert!(journal.print_log(false, None).is_ok());
+        assert!(journal.print_log(true, None).is_ok());
     }
 
     #[test]
@@ -624,8 +627,8 @@ mod tests {
         assert!(journal.parse_log("HEAD", "rc", &1, &false, &true).is_ok());
         assert_eq!(journal.parse_result.len(), 1);
         assert_eq!(journal.parse_result[0].0.name, "v2");
-        assert!(journal.print_log(false).is_ok());
-        assert!(journal.print_log(true).is_ok());
+        assert!(journal.print_log(false, None).is_ok());
+        assert!(journal.print_log(true, None).is_ok());
     }
 
     #[test]
@@ -635,8 +638,8 @@ mod tests {
         assert_eq!(journal.parse_result.len(), 2);
         assert_eq!(journal.parse_result[0].0.name, "v2");
         assert_eq!(journal.parse_result[1].0.name, "v1");
-        assert!(journal.print_log(false).is_ok());
-        assert!(journal.print_log(true).is_ok());
+        assert!(journal.print_log(false, None).is_ok());
+        assert!(journal.print_log(true, None).is_ok());
     }
 
     #[test]
@@ -645,8 +648,8 @@ mod tests {
         assert!(journal.parse_log("v1..v2", "rc", &0, &false, &true).is_ok());
         assert_eq!(journal.parse_result.len(), 1);
         assert_eq!(journal.parse_result[0].0.name, "v2");
-        assert!(journal.print_log(false).is_ok());
-        assert!(journal.print_log(true).is_ok());
+        assert!(journal.print_log(false, None).is_ok());
+        assert!(journal.print_log(true, None).is_ok());
     }
 
     #[test]
@@ -665,6 +668,12 @@ mod tests {
     fn prepare_message_success_3() {
         let journal = GitJournal::new(".").unwrap();
         assert!(journal.prepare("./tests/commit_messages/prepare_2").is_ok());
+    }
+
+    #[test]
+    fn prepare_message_success_4() {
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.prepare("./tests/commit_messages/prepare_3").is_ok());
     }
 
     #[test]

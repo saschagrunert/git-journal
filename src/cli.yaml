@@ -1,7 +1,11 @@
 name: git-journal
-version: 0.1.0
+bin_name: git journal
 author: Sascha Grunert <mail@saschagrunert.de>
 about: The Git Commit Message Framework
+after_help: 'More info at: https://github.com/saschagrunert/git-journal'
+global_settings:
+  - VersionlessSubcommands
+  - ColoredHelp
 
 args:
   - path:
@@ -17,43 +21,55 @@ args:
       help: Specifies the revision range to be processed.
         If a single revision is specified, the output will stop
         at the first following git TAG.
-  - tag_skip_pattern:
-      short: t
-      value_name: tag skip pattern
-      default_value: rc
-      help: A pattern to exclude tags from the processing.
-  - tags_count:
-      short: n
-      long: tags-count
-      value_name: number of tags
-      default_value: '1'
-      help: The number of tags which should be processed until
-        the parser stops when a single revision is given.
   - all:
       short: a
       long: all
       help: Do not stop parsing at the first tag when a single
         revision is given. Overwrites '-n/--tags-count'.
+  - short:
+      long: short
+      short: s
+      help: Print only the shortlog (summary) form.
   - skip_unreleased:
       short: u
       long: skip-unreleased
       help: Skip entries without any relation to a git TAG.
-  - setup:
-      long: setup
-      short: s
-      help: Creates all necessary git hooks and an initial
-        configuration file.
-  - short:
-      long: short
-      short: l
-      help: Print only the shortlog (summary) form.
-  - verify:
-      long: verify
-      short: v
-      value_name: COMMIT_MESSAGE
-      help: Verify the specified commit message.
+  - tags_count:
+      short: n
+      long: tags-count
+      value_name: number of tags
+      default_value: '1'
+      help: The number of tags until the parser stops when a single revision is given.
+  - tag_skip_pattern:
+      short: e
+      value_name: exclude git tag pattern
+      default_value: rc
+      help: A pattern to exclude git tags from the processing.
+  - template:
+      short: t
+      long: template
+      help: Use a custom output template.
+      takes_value: true
+
+subcommands:
   - prepare:
-      long: prepare
-      short: r
-      value_name: COMMIT_MESSAGE
-      help: Prepare the commit message before the user can edits it.
+      about: Prepare a commit message before the user can edit it.
+      visible_alias: p
+      args:
+        - message:
+            required: true
+            value_name: COMMIT
+            help: The commit message which should be prepared.
+  - setup:
+      about: Creates all necessary git hooks and an initial configuration file.
+        Shell completions for bash and fish will be available inside the current
+        working directory.
+      visible_alias: s
+  - verify:
+      about: Verify the specified commit message.
+      visible_alias: v
+      args:
+        - message:
+            required: true
+            value_name: COMMIT
+            help: The commit message which should be prepared.

@@ -305,6 +305,11 @@ impl Parser {
             footer: parsed_footer,
         })
     }
+
+    /// Parses a single commit message and returns a changelog ready form
+    pub fn parse_template(template: &str) -> Result<(), Error> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

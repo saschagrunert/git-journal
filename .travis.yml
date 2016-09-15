@@ -19,20 +19,20 @@ os:
   - linux
 matrix:
   allow_failures:
-  - rust: nightly
+    - rust: nightly
 notifications:
   email:
     on_success: never
 addons:
   apt:
     sources:
-    - kalakris-cmake
+      - kalakris-cmake
     packages:
-    - cmake
-    - libcurl4-openssl-dev
-    - libelf-dev
-    - libdw-dev
-    - binutils-dev
+      - cmake
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - binutils-dev
 env:
   global:
     - TRAVIS_CARGO_NIGHTLY_FEATURE=""
