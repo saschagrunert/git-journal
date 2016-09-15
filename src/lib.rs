@@ -477,9 +477,6 @@ impl GitJournal {
     /// If some commit message could not be print.
     ///
     pub fn print_log(&self, compact: bool, template: Option<&str>) -> Result<(), Error> {
-        if let Some(template) = template {
-            Parser::parse_template(template);
-        }
         for &(ref tag, ref commits) in &self.parse_result {
             try!(tag.print(&self.config));
             let mut c = commits.clone();
