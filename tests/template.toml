@@ -1,0 +1,8 @@
+[default]
+
+[tag1]
+name = "Section 1"
+[tag1.subtag1]
+[tag1.subtag2]
+
+[tag2]

@@ -53,12 +53,15 @@ A category is used to indicate with one word what has been done in the commit. V
 
 ### Tags
 Tags help to generate a sectioned changelog and filter out certain messages which are only for a special purpose. Valid
-examples for tags are `:internal:`, `:API:`,·`:Documentation:` or `:Feature A:`. The following rules apply to tags:
+examples for tags are `:internal:`, `:API:`,·`:Documentation:` or `:Feature A, Feature B:`. The following rules apply to
+tags:
 
 - Not mandatory
 - Wrapped in colons
+- Multiple tags separated by comma
 - Apply to the current line/paragraph
 - Can appear anywhere in the line
+- Can not contain '.' literal
 
 Tags enable the possibility of sectioned changelogs with filtering the content. For example it is possible to skip
 everything which is tagged as `:internal:`.

@@ -72,7 +72,7 @@ pub enum Error {
     /// Errors related to the setup process.
     Setup(config::Error),
 
-    /// Errors related to the printing of the log.
+    /// Errors related to the parsing and printing of the log.
     Parser(parser::Error),
 }
 
@@ -460,7 +460,8 @@ impl GitJournal {
         Ok(())
     }
 
-    /// Prints the resulting log in a short or detailed variant.
+    /// Prints the resulting log in a short or detailed variant. Will use the template as an output
+    /// formatter if provided.
     ///
     /// # Examples
     ///
@@ -477,15 +478,22 @@ impl GitJournal {
     /// If some commit message could not be print.
     ///
     pub fn print_log(&self, compact: bool, template: Option<&str>) -> Result<(), Error> {
-        for &(ref tag, ref commits) in &self.parse_result {
-            try!(tag.print(&self.config));
-            let mut c = commits.clone();
-            c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
-            for commit in c {
-                if compact {
-                    try!(commit.summary.print(&self.config));
-                } else {
-                    try!(commit.print(&self.config));
+        if let Some(template) = template {
+            try!(Parser::parse_template_and_print(template, &self.parse_result));
+        } else {
+            // Print without any template
+            for &(ref tag, ref commits) in &self.parse_result {
+                try!(tag.print(&self.config));
+                let mut c = commits.clone();
+
+                // Sort by category
+                c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
+                for commit in c {
+                    if compact {
+                        try!(commit.summary.print(&self.config));
+                    } else {
+                        try!(commit.print(&self.config));
+                    }
                 }
             }
         }
@@ -647,6 +655,14 @@ mod tests {
         assert_eq!(journal.parse_result[0].0.name, "v2");
         assert!(journal.print_log(false, None).is_ok());
         assert!(journal.print_log(true, None).is_ok());
+    }
+
+    #[test]
+    fn parse_and_print_log_6() {
+        let mut journal = GitJournal::new("./tests/test_repo").unwrap();
+        assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
     }
 
     #[test]

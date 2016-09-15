@@ -126,8 +126,11 @@ impl Config {
         let mut toml_string = String::new();
         try!(file.read_to_string(&mut toml_string));
 
-        let toml = try!(Parser::new(&toml_string).parse().ok_or(toml::Error::Custom("Parsing error".to_owned())));
-        *self = try!(decode(Value::Table(toml)).ok_or(toml::Error::Custom("Decoding error".to_owned())));
+        let toml = try!(Parser::new(&toml_string)
+            .parse()
+            .ok_or(toml::Error::Custom("Could not parse toml configuration.".to_owned())));
+        *self = try!(decode(Value::Table(toml))
+            .ok_or(toml::Error::Custom("Could not decode toml configuration.".to_owned())));
         Ok(())
     }
 

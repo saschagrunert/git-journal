@@ -2,10 +2,14 @@ use nom::{IResult, alpha, digit, space, rest};
 use regex::{Regex, RegexBuilder};
 use chrono::{Date, UTC, Datelike};
 use term;
+use toml;
 
-use std::str;
 use std::fmt;
+use std::fs::File;
+use std::io::prelude::*;
 use std::io;
+use std::iter;
+use std::str;
 
 use config::Config;
 
@@ -17,6 +21,7 @@ pub enum Error {
     CommitMessageLength,
     Terminal,
     Io(io::Error),
+    Toml(toml::Error),
 }
 
 impl fmt::Display for Error {
@@ -28,6 +33,7 @@ impl fmt::Display for Error {
             Error::CommitMessageLength => write!(f, "Commit message length too small."),
             Error::Terminal => write!(f, "Could not print to terminal."),
             Error::Io(ref e) => write!(f, "Io: {}", e),
+            Error::Toml(ref e) => write!(f, "Toml: {}", e),
         }
     }
 }
@@ -42,6 +48,12 @@ impl From<term::Error> for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::Io(err)
+    }
+}
+
+impl From<toml::Error> for Error {
+    fn from(err: toml::Error) -> Error {
+        Error::Toml(err)
     }
 }
 
@@ -89,6 +101,7 @@ impl Print for ParsedCommit {
         }
         let mut t = try!(term::stdout().ok_or(Error::Terminal));
         for item in &self.body {
+            let space_4: String = iter::repeat(' ').take(4).collect();
             match *item {
                 BodyElement::List(ref vec) => {
                     for item in vec {
@@ -96,7 +109,7 @@ impl Print for ParsedCommit {
                         if item.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
                             continue;
                         }
-                        print!("    - ");
+                        print!("{}- ", space_4);
                         if !item.category.is_empty() {
                             if config.colored_output {
                                 try!(t.fg(term::color::BRIGHT_BLUE));
@@ -112,7 +125,7 @@ impl Print for ParsedCommit {
                 BodyElement::Paragraph(ref par) => {
                     // Check if paragraph contains excluded tag
                     if par.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() == 0usize {
-                        for line in par.text.lines().map(|x| "    ".to_owned() + x).collect::<Vec<String>>() {
+                        for line in par.text.lines().map(|x| space_4.clone() + x).collect::<Vec<String>>() {
                             println!("{}", line);
                         }
                     }
@@ -199,7 +212,18 @@ impl Parser {
             let string = str::from_utf8(input).unwrap_or("");
             let mut tags = vec![];
             for cap in RE_TAGS.captures_iter(string) {
-                tags.extend(cap.at(1).unwrap_or("").split(',').map(|x| x.trim().to_owned()).collect::<Vec<String>>());
+                tags.extend(cap.at(1)
+                    .unwrap_or("")
+                    .split(',')
+                    .filter_map(|x| {
+                        // Ignore tags containing dots.
+                        if !x.contains('.') {
+                            Some(x.trim().to_owned())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<String>>());
             }
             (tags, RE_TAGS.replace_all(string, ""))
         }
@@ -304,6 +328,38 @@ impl Parser {
             body: parsed_body,
             footer: parsed_footer,
         })
+    }
+
+    /// Parses a toml output template and filters it through parsed commits
+    pub fn parse_template_and_print(template: &str,
+                                    parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)])
+                                    -> Result<(), Error> {
+        let mut file = try!(File::open(template));
+        let mut toml_string = String::new();
+        try!(file.read_to_string(&mut toml_string));
+        let toml = try!(toml::Parser::new(&toml_string).parse().ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
+        Parser::iterate_table(&toml, &mut 0);
+        Ok(())
+    }
+
+    fn iterate_table(table: &toml::Table, level: &mut usize) {
+        for (key, value) in table {
+            match *value {
+                toml::Value::Table(ref table) => {
+                    let spaces: String = iter::repeat(' ').take(4 * *level).collect();
+                    print!("\n{}{}", spaces, key);
+                    *level += 1;
+                    Parser::iterate_table(table, level);
+                    *level -= 1;
+                }
+                toml::Value::String(ref string) => {
+                    if key == "name" {
+                        print!(" == {}", string);
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 }
 
