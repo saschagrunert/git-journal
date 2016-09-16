@@ -66,6 +66,14 @@ pub enum Printed {
 pub trait PrintWithTag {
     fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config, tag: Option<&str>) -> Result<Printed, Error>;
     fn contains_tag(&self, tag: Option<&str>) -> bool;
+    fn contains_untagged(&self) -> bool;
+    fn matches_default_tag(&self, tag: Option<&str>) -> bool {
+        if let Some(tag) = tag {
+            tag == "default" && self.contains_untagged()
+        } else {
+            false
+        }
+    }
 }
 
 pub trait Print {
@@ -121,6 +129,10 @@ impl PrintWithTag for ParsedCommit {
     fn contains_tag(&self, tag: Option<&str>) -> bool {
         self.summary.contains_tag(tag) || self.body.iter().filter(|x| x.contains_tag(tag)).count() > 0
     }
+
+    fn contains_untagged(&self) -> bool {
+        self.summary.contains_untagged() || self.body.iter().filter(|x| x.contains_untagged()).count() > 0
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -138,7 +150,7 @@ impl PrintWithTag for SummaryElement {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag(tag) {
+        if self.contains_tag(tag) || self.matches_default_tag(tag) {
             try!(write!(t, "- "));
             if config.show_prefix && !self.prefix.is_empty() {
                 try!(write!(t, "{} ", self.prefix));
@@ -162,6 +174,10 @@ impl PrintWithTag for SummaryElement {
         } else {
             true
         }
+    }
+
+    fn contains_untagged(&self) -> bool {
+        self.tags.is_empty()
     }
 }
 
@@ -206,6 +222,13 @@ impl PrintWithTag for BodyElement {
             BodyElement::Paragraph(ref paragraph) => paragraph.contains_tag(tag),
         }
     }
+
+    fn contains_untagged(&self) -> bool {
+        match *self {
+            BodyElement::List(ref vec) => vec.iter().filter(|x| x.contains_untagged()).count() > 0,
+            BodyElement::Paragraph(ref paragraph) => paragraph.contains_untagged(),
+        }
+    }
 }
 
 impl PrintWithTag for ListElement {
@@ -215,7 +238,7 @@ impl PrintWithTag for ListElement {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag(tag) {
+        if self.contains_tag(tag) || self.matches_default_tag(tag) {
             try!(write!(t, "{}- ", {
                 if tag.is_none() {
                     iter::repeat(' ').take(4).collect::<String>()
@@ -246,6 +269,10 @@ impl PrintWithTag for ListElement {
             true
         }
     }
+
+    fn contains_untagged(&self) -> bool {
+        self.tags.is_empty()
+    }
 }
 
 impl PrintWithTag for ParagraphElement {
@@ -255,7 +282,7 @@ impl PrintWithTag for ParagraphElement {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag(tag) {
+        if self.contains_tag(tag) || self.matches_default_tag(tag) {
             for line in self.text
                 .lines()
                 .map(|x| {
@@ -278,6 +305,10 @@ impl PrintWithTag for ParagraphElement {
         } else {
             true
         }
+    }
+
+    fn contains_untagged(&self) -> bool {
+        self.tags.is_empty()
     }
 }
 
@@ -456,8 +487,9 @@ impl Parser {
                 };
 
                 // Do not print at all if none of the commits matches to the section
-                if commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 {
-                    try!(t.fg(term::color::RED));
+                if commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 ||
+                   (tag == "default" && commits.iter().filter(|c| c.contains_untagged()).count() > 0) {
+                    try!(t.fg(term::color::BRIGHT_RED));
                     try!(writeln!(t, "{} {}", header_lvl, name));
                     try!(t.reset());
 
