@@ -482,7 +482,7 @@ impl GitJournal {
     ///
     pub fn print_log(&self, compact: bool, template: Option<&str>) -> Result<(), Error> {
         if let Some(template) = template {
-            try!(Parser::parse_template_and_print(template, &self.parse_result, &self.config));
+            try!(Parser::parse_template_and_print(template, &self.parse_result, &self.config, &compact));
         } else {
             // Print without any template
             let mut t = try!(term::stdout().ok_or(term::Error::NotSupported));
@@ -617,6 +617,8 @@ mod tests {
         assert_eq!(journal.parse_result[2].1.len(), 2);
         assert!(journal.print_log(false, None).is_ok());
         assert!(journal.print_log(true, None).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
     }
 
     #[test]
@@ -628,6 +630,8 @@ mod tests {
         assert_eq!(journal.parse_result[1].0.name, "v2");
         assert!(journal.print_log(false, None).is_ok());
         assert!(journal.print_log(true, None).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
     }
 
     #[test]
@@ -638,6 +642,8 @@ mod tests {
         assert_eq!(journal.parse_result[0].0.name, "v2");
         assert!(journal.print_log(false, None).is_ok());
         assert!(journal.print_log(true, None).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
     }
 
     #[test]
@@ -649,6 +655,8 @@ mod tests {
         assert_eq!(journal.parse_result[1].0.name, "v1");
         assert!(journal.print_log(false, None).is_ok());
         assert!(journal.print_log(true, None).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
     }
 
     #[test]
@@ -659,12 +667,6 @@ mod tests {
         assert_eq!(journal.parse_result[0].0.name, "v2");
         assert!(journal.print_log(false, None).is_ok());
         assert!(journal.print_log(true, None).is_ok());
-    }
-
-    #[test]
-    fn parse_and_print_log_6() {
-        let mut journal = GitJournal::new("./tests/test_repo").unwrap();
-        assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
         assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
     }

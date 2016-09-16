@@ -457,7 +457,8 @@ impl Parser {
     /// Parses a toml output template and filters it through parsed commits
     pub fn parse_template_and_print(template: &str,
                                     parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)],
-                                    config: &Config)
+                                    config: &Config,
+                                    compact: &bool)
                                     -> Result<(), Error> {
         let mut file = try!(File::open(template));
         let mut toml_string = String::new();
@@ -466,7 +467,7 @@ impl Parser {
         let mut t = try!(term::stdout().ok_or(Error::Terminal));
         for &(ref tag, ref commits) in parsed_commits {
             try!(tag.print(&mut t, config));
-            try!(Parser::print_commits_in_table(&mut t, &toml, &mut 1, commits, config));
+            try!(Parser::print_commits_in_table(&mut t, &toml, &mut 1, commits, config, &compact));
         }
         try!(t.reset());
         Ok(())
@@ -476,7 +477,8 @@ impl Parser {
                               table: &toml::Table,
                               level: &mut usize,
                               commits: &[ParsedCommit],
-                              config: &Config)
+                              config: &Config,
+                              compact: &bool)
                               -> Result<(), Error> {
         for (tag, value) in table {
             if let toml::Value::Table(ref table) = *value {
@@ -487,8 +489,14 @@ impl Parser {
                 };
 
                 // Do not print at all if none of the commits matches to the section
-                if commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 ||
-                   (tag == "default" && commits.iter().filter(|c| c.contains_untagged()).count() > 0) {
+                // Differenciate between compact and non compact prints
+                if (*compact &&
+                    (commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 ||
+                     (tag == "default" && commits.iter().filter(|c| c.summary.contains_untagged()).count() > 0))) ||
+                   (!*compact &&
+                    (commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 ||
+                     (tag == "default" && commits.iter().filter(|c| c.contains_untagged()).count() > 0))) {
+
                     try!(t.fg(term::color::BRIGHT_RED));
                     try!(writeln!(t, "{} {}", header_lvl, name));
                     try!(t.reset());
@@ -502,7 +510,7 @@ impl Parser {
                 }
 
                 *level += 1;
-                try!(Parser::print_commits_in_table(t, table, level, commits, config));
+                try!(Parser::print_commits_in_table(t, table, level, commits, config, compact));
                 *level -= 1;
             }
         }
