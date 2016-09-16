@@ -43,7 +43,7 @@ extern crate lazy_static;
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone};
 
-use parser::{Parser, ParsedCommit, ParsedTag, Print};
+use parser::{Parser, ParsedCommit, ParsedTag, Print, PrintWithTag};
 pub use config::Config;
 
 use std::{fmt, fs};
@@ -214,6 +214,9 @@ impl GitJournal {
     ///
     /// # Excluded tags in an array, e.g. "internal"
     /// excluded_tags = []
+    ///
+    /// # The output file where the changelog should be written to
+    /// output_file = "CHANGELOG.md"
     ///
     /// # Show or hide the commit message prefix, e.g. JIRA-1234
     /// show_prefix = false
@@ -483,7 +486,7 @@ impl GitJournal {
         } else {
             // Print without any template
             for &(ref tag, ref commits) in &self.parse_result {
-                try!(tag.print(&self.config, None));
+                try!(tag.print(&self.config));
                 let mut c = commits.clone();
 
                 // Sort by category

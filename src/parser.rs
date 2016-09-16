@@ -63,12 +63,15 @@ pub enum Printed {
     Something,
 }
 
-pub trait Print {
+pub trait PrintWithTag {
     fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error>;
-
-    fn contains_tag(&self, tag: Option<&str>) -> bool {
-        true
+    fn contains_tag_or_none(&self, tag: Option<&str>) -> bool {
+        tag.is_some()
     }
+}
+
+pub trait Print {
+    fn print(&self, config: &Config) -> Result<Printed, Error>;
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -78,7 +81,7 @@ pub struct ParsedTag {
 }
 
 impl Print for ParsedTag {
-    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+    fn print(&self, config: &Config) -> Result<Printed, Error> {
         let mut t = try!(term::stdout().ok_or(Error::Terminal));
         if config.colored_output {
             try!(t.fg(term::color::GREEN));
@@ -87,7 +90,8 @@ impl Print for ParsedTag {
         if config.colored_output {
             try!(t.fg(term::color::YELLOW));
         }
-        try!(writeln!(t, "({}-{:02}-{:02}):",
+        try!(writeln!(t,
+                      "({}-{:02}-{:02}):",
                       self.date.year(),
                       self.date.month(),
                       self.date.day()));
@@ -105,7 +109,7 @@ pub struct ParsedCommit {
     pub footer: Vec<FooterElement>,
 }
 
-impl Print for ParsedCommit {
+impl PrintWithTag for ParsedCommit {
     fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // If summary is already filtered out then do not print at all
         if try!(self.summary.print(config, tag)) == Printed::Nothing {
@@ -126,14 +130,14 @@ pub struct SummaryElement {
     pub tags: Vec<String>,
 }
 
-impl Print for SummaryElement {
+impl PrintWithTag for SummaryElement {
     fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // Filter out excluded tags
         if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag(tag) {
+        if self.contains_tag_or_none(tag) {
             let mut t = try!(term::stdout().ok_or(Error::Terminal));
 
             try!(write!(t, "- "));
@@ -153,7 +157,7 @@ impl Print for SummaryElement {
         Ok(Printed::Something)
     }
 
-    fn contains_tag(&self, tag: Option<&str>) -> bool {
+    fn contains_tag_or_none(&self, tag: Option<&str>) -> bool {
         if let Some(tag) = tag {
             !(!self.tags.contains(&tag.to_owned()))
         } else {
@@ -182,7 +186,7 @@ pub struct ParagraphElement {
 }
 
 
-impl Print for BodyElement {
+impl PrintWithTag for BodyElement {
     fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         match *self {
             BodyElement::List(ref vec) => {
@@ -198,18 +202,22 @@ impl Print for BodyElement {
     }
 }
 
-impl Print for ListElement {
+impl PrintWithTag for ListElement {
     fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // Check if list item contains excluded tag
         if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
-        let space_4: String = iter::repeat(' ').take(4).collect();
-
-        if self.contains_tag(tag) {
+        if self.contains_tag_or_none(tag) {
             let mut t = try!(term::stdout().ok_or(Error::Terminal));
-            try!(write!(t, "{}- ", space_4));
+            try!(write!(t, "{}- ", {
+                if tag.is_none() {
+                    iter::repeat(' ').take(4).collect::<String>()
+                } else {
+                    String::new()
+                }
+            }));
             if !self.category.is_empty() {
                 if config.colored_output {
                     try!(t.fg(term::color::BRIGHT_BLUE));
@@ -226,7 +234,7 @@ impl Print for ListElement {
         Ok(Printed::Something)
     }
 
-    fn contains_tag(&self, tag: Option<&str>) -> bool {
+    fn contains_tag_or_none(&self, tag: Option<&str>) -> bool {
         if let Some(tag) = tag {
             !(!self.tags.contains(&tag.to_owned()))
         } else {
@@ -235,24 +243,32 @@ impl Print for ListElement {
     }
 }
 
-impl Print for ParagraphElement {
+impl PrintWithTag for ParagraphElement {
     fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // Check if paragraph contains excluded tag
         if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
-        let space_4: String = iter::repeat(' ').take(4).collect();
 
-        if self.contains_tag(tag) {
-            for line in self.text.lines().map(|x| space_4.clone() + x).collect::<Vec<String>>() {
+        if self.contains_tag_or_none(tag) {
+            for line in self.text
+                .lines()
+                .map(|x| {
+                    if tag.is_none() {
+                        iter::repeat(' ').take(4).collect::<String>()
+                    } else {
+                        String::new()
+                    }
+                } + x)
+                .collect::<Vec<String>>() {
                 println!("{}", line);
             }
         }
         Ok(Printed::Something)
     }
 
-    fn contains_tag(&self, tag: Option<&str>) -> bool {
+    fn contains_tag_or_none(&self, tag: Option<&str>) -> bool {
         if let Some(tag) = tag {
             !(!self.tags.contains(&tag.to_owned()))
         } else {
@@ -413,7 +429,7 @@ impl Parser {
         try!(file.read_to_string(&mut toml_string));
         let toml = try!(toml::Parser::new(&toml_string).parse().ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
         for &(ref tag, ref commits) in parsed_commits {
-            try!(tag.print(config, None));
+            try!(tag.print(config));
             try!(Parser::print_commits_in_table(&toml, &mut 1, commits, config));
         }
         Ok(())

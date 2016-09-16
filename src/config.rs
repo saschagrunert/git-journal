@@ -55,6 +55,9 @@ pub struct Config {
     /// Excluded tags in an array, e.g. "internal"
     pub excluded_tags: Vec<String>,
 
+    /// The output file where the changelog should be written to
+    pub output_file: String,
+
     /// Show or hide the commit message prefix, e.g. JIRA-1234
     pub show_prefix: bool,
 
@@ -77,6 +80,7 @@ impl Config {
             colored_output: true,
             enable_debug: true,
             excluded_tags: vec![],
+            output_file: "CHANGELOG.md".to_owned(),
             show_prefix: false,
             template_prefix: "JIRA-1234".to_owned(),
         }
