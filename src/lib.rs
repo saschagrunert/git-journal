@@ -485,17 +485,18 @@ impl GitJournal {
             try!(Parser::parse_template_and_print(template, &self.parse_result, &self.config));
         } else {
             // Print without any template
+            let mut t = try!(term::stdout().ok_or(term::Error::NotSupported));
             for &(ref tag, ref commits) in &self.parse_result {
-                try!(tag.print(&self.config));
+                try!(tag.print(&mut t, &self.config));
                 let mut c = commits.clone();
 
                 // Sort by category
                 c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
                 for commit in c {
                     if compact {
-                        try!(commit.summary.print(&self.config, None));
+                        try!(commit.summary.print(&mut t, &self.config, None));
                     } else {
-                        try!(commit.print(&self.config, None));
+                        try!(commit.print(&mut t, &self.config, None));
                     }
                 }
             }

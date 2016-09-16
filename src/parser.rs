@@ -64,12 +64,12 @@ pub enum Printed {
 }
 
 pub trait PrintWithTag {
-    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error>;
+    fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config, tag: Option<&str>) -> Result<Printed, Error>;
     fn contains_tag(&self, tag: Option<&str>) -> bool;
 }
 
 pub trait Print {
-    fn print(&self, config: &Config) -> Result<Printed, Error>;
+    fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config) -> Result<Printed, Error>;
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -79,8 +79,7 @@ pub struct ParsedTag {
 }
 
 impl Print for ParsedTag {
-    fn print(&self, config: &Config) -> Result<Printed, Error> {
-        let mut t = try!(term::stdout().ok_or(Error::Terminal));
+    fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config) -> Result<Printed, Error> {
         if config.colored_output {
             try!(t.fg(term::color::GREEN));
         }
@@ -108,13 +107,13 @@ pub struct ParsedCommit {
 }
 
 impl PrintWithTag for ParsedCommit {
-    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+    fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // If summary is already filtered out then do not print at all
-        if try!(self.summary.print(config, tag)) == Printed::Nothing {
+        if try!(self.summary.print(t, config, tag)) == Printed::Nothing {
             return Ok(Printed::Nothing);
         }
         for item in &self.body {
-            try!(item.print(config, tag));
+            try!(item.print(t, config, tag));
         }
         Ok(Printed::Something)
     }
@@ -133,15 +132,13 @@ pub struct SummaryElement {
 }
 
 impl PrintWithTag for SummaryElement {
-    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+    fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // Filter out excluded tags
         if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
         if self.contains_tag(tag) {
-            let mut t = try!(term::stdout().ok_or(Error::Terminal));
-
             try!(write!(t, "- "));
             if config.show_prefix && !self.prefix.is_empty() {
                 try!(write!(t, "{} ", self.prefix));
@@ -189,15 +186,15 @@ pub struct ParagraphElement {
 
 
 impl PrintWithTag for BodyElement {
-    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+    fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         match *self {
             BodyElement::List(ref vec) => {
                 for list_item in vec {
-                    try!(list_item.print(config, tag));
+                    try!(list_item.print(t, config, tag));
                 }
             }
             BodyElement::Paragraph(ref paragraph) => {
-                try!(paragraph.print(config, tag));
+                try!(paragraph.print(t, config, tag));
             }
         }
         Ok(Printed::Something)
@@ -212,14 +209,13 @@ impl PrintWithTag for BodyElement {
 }
 
 impl PrintWithTag for ListElement {
-    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+    fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // Check if list item contains excluded tag
         if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
         if self.contains_tag(tag) {
-            let mut t = try!(term::stdout().ok_or(Error::Terminal));
             try!(write!(t, "{}- ", {
                 if tag.is_none() {
                     iter::repeat(' ').take(4).collect::<String>()
@@ -253,7 +249,7 @@ impl PrintWithTag for ListElement {
 }
 
 impl PrintWithTag for ParagraphElement {
-    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+    fn print(&self, t: &mut Box<term::StdoutTerminal>, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // Check if paragraph contains excluded tag
         if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
@@ -270,7 +266,7 @@ impl PrintWithTag for ParagraphElement {
                     }
                 } + x)
                 .collect::<Vec<String>>() {
-                println!("{}", line);
+                try!(writeln!(t, "{}", line));
             }
         }
         Ok(Printed::Something)
@@ -436,14 +432,17 @@ impl Parser {
         let mut toml_string = String::new();
         try!(file.read_to_string(&mut toml_string));
         let toml = try!(toml::Parser::new(&toml_string).parse().ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
+        let mut t = try!(term::stdout().ok_or(Error::Terminal));
         for &(ref tag, ref commits) in parsed_commits {
-            try!(tag.print(config));
-            try!(Parser::print_commits_in_table(&toml, &mut 1, commits, config));
+            try!(tag.print(&mut t, config));
+            try!(Parser::print_commits_in_table(&mut t, &toml, &mut 1, commits, config));
         }
+        try!(t.reset());
         Ok(())
     }
 
-    fn print_commits_in_table(table: &toml::Table,
+    fn print_commits_in_table(t: &mut Box<term::StdoutTerminal>,
+                              table: &toml::Table,
                               level: &mut usize,
                               commits: &[ParsedCommit],
                               config: &Config)
@@ -458,16 +457,20 @@ impl Parser {
 
                 // Do not print at all if none of the commits matches to the section
                 if commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 {
-                    println!("{} {}", header_lvl, name);
+                    try!(t.fg(term::color::RED));
+                    try!(writeln!(t, "{} {}", header_lvl, name));
+                    try!(t.reset());
 
                     // Print commits for this tag
                     for commit in commits {
-                        try!(commit.print(config, Some(tag)));
+                        try!(commit.print(t, config, Some(tag)));
                     }
+
+                    try!(writeln!(t, ""));
                 }
 
                 *level += 1;
-                try!(Parser::print_commits_in_table(table, level, commits, config));
+                try!(Parser::print_commits_in_table(t, table, level, commits, config));
                 *level -= 1;
             }
         }
