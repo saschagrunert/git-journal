@@ -144,7 +144,7 @@ impl GitJournal {
     /// When not providing a path with a valid git repository ('.git' folder or the initial parsing
     /// of the git tags failed.
     ///
-    pub fn new(path: &str) -> Result<GitJournal, Error> {
+    pub fn new(path: &str) -> Result<Self, Error> {
         // Search upwards for the .git directory
         let mut path_buf = if path != "." {
             PathBuf::from(path)
@@ -479,20 +479,20 @@ impl GitJournal {
     ///
     pub fn print_log(&self, compact: bool, template: Option<&str>) -> Result<(), Error> {
         if let Some(template) = template {
-            try!(Parser::parse_template_and_print(template, &self.parse_result));
+            try!(Parser::parse_template_and_print(template, &self.parse_result, &self.config));
         } else {
             // Print without any template
             for &(ref tag, ref commits) in &self.parse_result {
-                try!(tag.print(&self.config));
+                try!(tag.print(&self.config, None));
                 let mut c = commits.clone();
 
                 // Sort by category
                 c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
                 for commit in c {
                     if compact {
-                        try!(commit.summary.print(&self.config));
+                        try!(commit.summary.print(&self.config, None));
                     } else {
-                        try!(commit.print(&self.config));
+                        try!(commit.print(&self.config, None));
                     }
                 }
             }

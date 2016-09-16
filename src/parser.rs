@@ -57,8 +57,18 @@ impl From<toml::Error> for Error {
     }
 }
 
+#[derive(PartialEq)]
+pub enum Printed {
+    Nothing,
+    Something,
+}
+
 pub trait Print {
-    fn print(&self, config: &Config) -> Result<bool, Error>;
+    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error>;
+
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
+        true
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -68,21 +78,23 @@ pub struct ParsedTag {
 }
 
 impl Print for ParsedTag {
-    fn print(&self, config: &Config) -> Result<bool, Error> {
+    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         let mut t = try!(term::stdout().ok_or(Error::Terminal));
         if config.colored_output {
             try!(t.fg(term::color::GREEN));
         }
-        print!("\n{} ", self.name);
+        try!(write!(t, "\n{} ", self.name));
         if config.colored_output {
             try!(t.fg(term::color::YELLOW));
         }
-        println!("({}-{:02}-{:02}):",
-                 self.date.year(),
-                 self.date.month(),
-                 self.date.day());
-        try!(t.reset());
-        Ok(true)
+        try!(writeln!(t, "({}-{:02}-{:02}):",
+                      self.date.year(),
+                      self.date.month(),
+                      self.date.day()));
+        if config.colored_output {
+            try!(t.reset());
+        }
+        Ok(Printed::Something)
     }
 }
 
@@ -94,46 +106,15 @@ pub struct ParsedCommit {
 }
 
 impl Print for ParsedCommit {
-    fn print(&self, config: &Config) -> Result<bool, Error> {
-        // If summary is already filtered out than dont print at all
-        if !try!(self.summary.print(config)) {
-            return Ok(false);
+    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+        // If summary is already filtered out then do not print at all
+        if try!(self.summary.print(config, tag)) == Printed::Nothing {
+            return Ok(Printed::Nothing);
         }
-        let mut t = try!(term::stdout().ok_or(Error::Terminal));
         for item in &self.body {
-            let space_4: String = iter::repeat(' ').take(4).collect();
-            match *item {
-                BodyElement::List(ref vec) => {
-                    for item in vec {
-                        // Check if list item contains excluded tag
-                        if item.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
-                            continue;
-                        }
-                        print!("{}- ", space_4);
-                        if !item.category.is_empty() {
-                            if config.colored_output {
-                                try!(t.fg(term::color::BRIGHT_BLUE));
-                            }
-                            print!("[{}]", item.category);
-                            if config.colored_output {
-                                try!(t.fg(term::color::WHITE));
-                            }
-                        }
-                        println!("{}", item.text);
-                    }
-                }
-                BodyElement::Paragraph(ref par) => {
-                    // Check if paragraph contains excluded tag
-                    if par.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() == 0usize {
-                        for line in par.text.lines().map(|x| space_4.clone() + x).collect::<Vec<String>>() {
-                            println!("{}", line);
-                        }
-                    }
-                }
-            }
+            try!(item.print(config, tag));
         }
-        try!(t.reset());
-        Ok(true)
+        Ok(Printed::Something)
     }
 }
 
@@ -146,26 +127,38 @@ pub struct SummaryElement {
 }
 
 impl Print for SummaryElement {
-    fn print(&self, config: &Config) -> Result<bool, Error> {
+    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
         // Filter out excluded tags
         if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
-            return Ok(false);
+            return Ok(Printed::Nothing);
         }
-        let mut t = try!(term::stdout().ok_or(Error::Terminal));
-        print!("- ");
-        if config.show_prefix && !self.prefix.is_empty() {
-            print!("{} ", self.prefix);
+
+        if self.contains_tag(tag) {
+            let mut t = try!(term::stdout().ok_or(Error::Terminal));
+
+            try!(write!(t, "- "));
+            if config.show_prefix && !self.prefix.is_empty() {
+                try!(write!(t, "{} ", self.prefix));
+            }
+            if config.colored_output {
+                try!(t.fg(term::color::BRIGHT_BLUE));
+            }
+            print!("[{}]", self.category);
+            if config.colored_output {
+                try!(t.fg(term::color::WHITE));
+            }
+            try!(writeln!(t, "{}", self.text));
+            try!(t.reset());
         }
-        if config.colored_output {
-            try!(t.fg(term::color::BRIGHT_BLUE));
+        Ok(Printed::Something)
+    }
+
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
+        if let Some(tag) = tag {
+            !(!self.tags.contains(&tag.to_owned()))
+        } else {
+            true
         }
-        print!("[{}]", self.category);
-        if config.colored_output {
-            try!(t.fg(term::color::WHITE));
-        }
-        println!("{}", self.text);
-        try!(t.reset());
-        Ok(true)
     }
 }
 
@@ -186,6 +179,86 @@ pub struct ListElement {
 pub struct ParagraphElement {
     pub text: String,
     pub tags: Vec<String>,
+}
+
+
+impl Print for BodyElement {
+    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+        match *self {
+            BodyElement::List(ref vec) => {
+                for list_item in vec {
+                    try!(list_item.print(config, tag));
+                }
+            }
+            BodyElement::Paragraph(ref paragraph) => {
+                try!(paragraph.print(config, tag));
+            }
+        }
+        Ok(Printed::Something)
+    }
+}
+
+impl Print for ListElement {
+    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+        // Check if list item contains excluded tag
+        if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
+            return Ok(Printed::Nothing);
+        }
+
+        let space_4: String = iter::repeat(' ').take(4).collect();
+
+        if self.contains_tag(tag) {
+            let mut t = try!(term::stdout().ok_or(Error::Terminal));
+            try!(write!(t, "{}- ", space_4));
+            if !self.category.is_empty() {
+                if config.colored_output {
+                    try!(t.fg(term::color::BRIGHT_BLUE));
+                }
+                try!(write!(t, "[{}]", self.category));
+                if config.colored_output {
+                    try!(t.fg(term::color::WHITE));
+                }
+            }
+            try!(writeln!(t, "{}", self.text));
+            try!(t.reset());
+        }
+
+        Ok(Printed::Something)
+    }
+
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
+        if let Some(tag) = tag {
+            !(!self.tags.contains(&tag.to_owned()))
+        } else {
+            true
+        }
+    }
+}
+
+impl Print for ParagraphElement {
+    fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error> {
+        // Check if paragraph contains excluded tag
+        if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
+            return Ok(Printed::Nothing);
+        }
+
+        let space_4: String = iter::repeat(' ').take(4).collect();
+
+        if self.contains_tag(tag) {
+            for line in self.text.lines().map(|x| space_4.clone() + x).collect::<Vec<String>>() {
+                println!("{}", line);
+            }
+        }
+        Ok(Printed::Something)
+    }
+
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
+        if let Some(tag) = tag {
+            !(!self.tags.contains(&tag.to_owned()))
+        } else {
+            true
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -332,34 +405,45 @@ impl Parser {
 
     /// Parses a toml output template and filters it through parsed commits
     pub fn parse_template_and_print(template: &str,
-                                    parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)])
+                                    parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)],
+                                    config: &Config)
                                     -> Result<(), Error> {
         let mut file = try!(File::open(template));
         let mut toml_string = String::new();
         try!(file.read_to_string(&mut toml_string));
         let toml = try!(toml::Parser::new(&toml_string).parse().ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
-        Parser::iterate_table(&toml, &mut 0);
+        for &(ref tag, ref commits) in parsed_commits {
+            try!(tag.print(config, None));
+            try!(Parser::print_commits_in_table(&toml, &mut 1, commits, config));
+        }
         Ok(())
     }
 
-    fn iterate_table(table: &toml::Table, level: &mut usize) {
-        for (key, value) in table {
-            match *value {
-                toml::Value::Table(ref table) => {
-                    let spaces: String = iter::repeat(' ').take(4 * *level).collect();
-                    print!("\n{}{}", spaces, key);
-                    *level += 1;
-                    Parser::iterate_table(table, level);
-                    *level -= 1;
+    fn print_commits_in_table(table: &toml::Table,
+                              level: &mut usize,
+                              commits: &[ParsedCommit],
+                              config: &Config)
+                              -> Result<(), Error> {
+        for (tag, value) in table {
+            if let toml::Value::Table(ref table) = *value {
+                let header: String = iter::repeat('#').take(*level).collect();
+                let name = match table.get("name") {
+                    Some(name_value) => name_value.as_str().unwrap_or(tag),
+                    None => tag,
+                };
+                println!("{} {}", header, name);
+
+                // Print commits for this tag
+                for commit in commits {
+                    try!(commit.print(config, Some(tag)));
                 }
-                toml::Value::String(ref string) => {
-                    if key == "name" {
-                        print!(" == {}", string);
-                    }
-                }
-                _ => {}
+
+                *level += 1;
+                try!(Parser::print_commits_in_table(table, level, commits, config));
+                *level -= 1;
             }
         }
+        Ok(())
     }
 }
 
@@ -390,7 +474,7 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
-            assert!(commit.print(&config::Config::new()).is_ok());
+            assert!(commit.print(&config::Config::new(), None).is_ok());
         }
     }
 
@@ -406,7 +490,7 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
-            assert!(commit.print(&config::Config::new()).is_ok());
+            assert!(commit.print(&config::Config::new(), None).is_ok());
         }
     }
 
@@ -422,7 +506,7 @@ mod tests {
             assert_eq!(commit.summary.category, "Fixed");
             assert_eq!(commit.summary.text, " some ____ commit");
             assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
-            assert!(commit.print(&config::Config::new()).is_ok());
+            assert!(commit.print(&config::Config::new(), None).is_ok());
         }
     }
 
@@ -439,7 +523,7 @@ mod tests {
             assert_eq!(commit.summary.category, "Added");
             assert_eq!(commit.summary.text, " my commit 💖 summary");
             assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
-            assert!(commit.print(&config::Config::new()).is_ok());
+            assert!(commit.print(&config::Config::new(), None).is_ok());
         }
     }
 

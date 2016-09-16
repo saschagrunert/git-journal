@@ -72,7 +72,7 @@ impl Config {
     /// let config = Config::new();
     /// ```
     ///
-    pub fn new() -> Config {
+    pub fn new() -> Self {
         Config {
             colored_output: true,
             enable_debug: true,
