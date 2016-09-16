@@ -513,6 +513,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use term;
     use config;
 
     fn parse_and_print_error(message: &str) {
@@ -537,7 +538,8 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
-            assert!(commit.print(&config::Config::new(), None).is_ok());
+            let mut t = term::stdout().unwrap();
+            assert!(commit.print(&mut t, &config::Config::new(), None).is_ok());
         }
     }
 
@@ -553,7 +555,8 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
-            assert!(commit.print(&config::Config::new(), None).is_ok());
+            let mut t = term::stdout().unwrap();
+            assert!(commit.print(&mut t, &config::Config::new(), None).is_ok());
         }
     }
 
@@ -569,7 +572,8 @@ mod tests {
             assert_eq!(commit.summary.category, "Fixed");
             assert_eq!(commit.summary.text, " some ____ commit");
             assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
-            assert!(commit.print(&config::Config::new(), None).is_ok());
+            let mut t = term::stdout().unwrap();
+            assert!(commit.print(&mut t, &config::Config::new(), None).is_ok());
         }
     }
 
@@ -586,7 +590,8 @@ mod tests {
             assert_eq!(commit.summary.category, "Added");
             assert_eq!(commit.summary.text, " my commit 💖 summary");
             assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
-            assert!(commit.print(&config::Config::new(), None).is_ok());
+            let mut t = term::stdout().unwrap();
+            assert!(commit.print(&mut t, &config::Config::new(), None).is_ok());
         }
     }
 
