@@ -65,9 +65,7 @@ pub enum Printed {
 
 pub trait PrintWithTag {
     fn print(&self, config: &Config, tag: Option<&str>) -> Result<Printed, Error>;
-    fn contains_tag_or_none(&self, tag: Option<&str>) -> bool {
-        tag.is_some()
-    }
+    fn contains_tag(&self, tag: Option<&str>) -> bool;
 }
 
 pub trait Print {
@@ -120,6 +118,10 @@ impl PrintWithTag for ParsedCommit {
         }
         Ok(Printed::Something)
     }
+
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
+        self.summary.contains_tag(tag) || self.body.iter().filter(|x| x.contains_tag(tag)).count() > 0
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -137,7 +139,7 @@ impl PrintWithTag for SummaryElement {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag_or_none(tag) {
+        if self.contains_tag(tag) {
             let mut t = try!(term::stdout().ok_or(Error::Terminal));
 
             try!(write!(t, "- "));
@@ -157,7 +159,7 @@ impl PrintWithTag for SummaryElement {
         Ok(Printed::Something)
     }
 
-    fn contains_tag_or_none(&self, tag: Option<&str>) -> bool {
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
         if let Some(tag) = tag {
             !(!self.tags.contains(&tag.to_owned()))
         } else {
@@ -200,6 +202,13 @@ impl PrintWithTag for BodyElement {
         }
         Ok(Printed::Something)
     }
+
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
+        match *self {
+            BodyElement::List(ref vec) => vec.iter().filter(|x| x.contains_tag(tag)).count() > 0,
+            BodyElement::Paragraph(ref paragraph) => paragraph.contains_tag(tag),
+        }
+    }
 }
 
 impl PrintWithTag for ListElement {
@@ -209,7 +218,7 @@ impl PrintWithTag for ListElement {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag_or_none(tag) {
+        if self.contains_tag(tag) {
             let mut t = try!(term::stdout().ok_or(Error::Terminal));
             try!(write!(t, "{}- ", {
                 if tag.is_none() {
@@ -234,7 +243,7 @@ impl PrintWithTag for ListElement {
         Ok(Printed::Something)
     }
 
-    fn contains_tag_or_none(&self, tag: Option<&str>) -> bool {
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
         if let Some(tag) = tag {
             !(!self.tags.contains(&tag.to_owned()))
         } else {
@@ -250,8 +259,7 @@ impl PrintWithTag for ParagraphElement {
             return Ok(Printed::Nothing);
         }
 
-
-        if self.contains_tag_or_none(tag) {
+        if self.contains_tag(tag) {
             for line in self.text
                 .lines()
                 .map(|x| {
@@ -268,7 +276,7 @@ impl PrintWithTag for ParagraphElement {
         Ok(Printed::Something)
     }
 
-    fn contains_tag_or_none(&self, tag: Option<&str>) -> bool {
+    fn contains_tag(&self, tag: Option<&str>) -> bool {
         if let Some(tag) = tag {
             !(!self.tags.contains(&tag.to_owned()))
         } else {
@@ -442,16 +450,20 @@ impl Parser {
                               -> Result<(), Error> {
         for (tag, value) in table {
             if let toml::Value::Table(ref table) = *value {
-                let header: String = iter::repeat('#').take(*level).collect();
+                let header_lvl: String = iter::repeat('#').take(*level).collect();
                 let name = match table.get("name") {
                     Some(name_value) => name_value.as_str().unwrap_or(tag),
                     None => tag,
                 };
-                println!("{} {}", header, name);
 
-                // Print commits for this tag
-                for commit in commits {
-                    try!(commit.print(config, Some(tag)));
+                // Do not print at all if none of the commits matches to the section
+                if commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 {
+                    println!("{} {}", header_lvl, name);
+
+                    // Print commits for this tag
+                    for commit in commits {
+                        try!(commit.print(config, Some(tag)));
+                    }
                 }
 
                 *level += 1;
