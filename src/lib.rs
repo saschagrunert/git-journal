@@ -490,19 +490,18 @@ impl GitJournal {
         }
 
         // Do not overwrite the template via the CLI but use it if nothing else specified
-        let output_vec: Vec<u8>;
-        if default_template.exists() && template.is_none() {
+        let output_vec = if default_template.exists() && template.is_none() {
             if self.config.enable_debug {
                 println_ok!("Using default template '{}'.", default_template.display());
             }
             let path_str = default_template.to_str().unwrap_or("");
-            output_vec = try!(Parser::parse_template_and_print(path_str, &self.parse_result, &self.config, &compact));
+            try!(Parser::parse_template_and_print(path_str, &self.parse_result, &self.config, &compact))
         } else {
-            output_vec = match template {
+            match template {
                 Some(t) => try!(Parser::parse_template_and_print(t, &self.parse_result, &self.config, &compact)),
                 None => try!(Parser::print(&self.parse_result, &self.config, &compact)),
-            };
-        }
+            }
+        };
 
         if let Some(output) = output {
             let mut output_file = try!(OpenOptions::new().create(true).append(true).open(output));
