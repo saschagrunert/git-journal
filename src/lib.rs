@@ -485,8 +485,9 @@ impl GitJournal {
         let mut default_template = PathBuf::from(&self.path);
         default_template.push(&self.config.default_template);
 
-        if !default_template.exists() && self.config.enable_debug {
-            println_warn!("The default template '{}' does not exist.", default_template.display());
+        if !default_template.exists() && template.is_none() && self.config.enable_debug {
+            println_warn!("The default template '{}' does not exist.",
+                          default_template.display());
         }
 
         // Do not overwrite the template via the CLI but use it if nothing else specified

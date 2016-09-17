@@ -587,6 +587,15 @@ impl Parser {
         Ok(output)
     }
 
+    /// Parses a toml template and returns the table (BTreeMap) it on success
+    pub fn parse_template(template: &str) -> Result<toml::Table, Error> {
+        let mut file = try!(File::open(template));
+        let mut toml_string = String::new();
+        try!(file.read_to_string(&mut toml_string));
+        Ok(try!(toml::Parser::new(&toml_string).parse()
+                .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned()))))
+    }
+
     /// Parses a toml output template and filters it through parsed commits
     pub fn parse_template_and_print(template: &str,
                                     parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)],
@@ -594,11 +603,7 @@ impl Parser {
                                     compact: &bool)
                                     -> Result<Vec<u8>, Error> {
         // Parse toml from file
-        let mut file = try!(File::open(template));
-        let mut toml_string = String::new();
-        try!(file.read_to_string(&mut toml_string));
-        let toml = try!(toml::Parser::new(&toml_string).parse()
-                        .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
+        let toml = try!(Parser::parse_template(template));
 
         // Print the commits
         let mut v = vec![];
