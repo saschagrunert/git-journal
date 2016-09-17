@@ -63,7 +63,7 @@ pub enum Printed {
     Something,
 }
 
-trait PrintWithTag {
+pub trait PrintWithTag {
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
                                 config: &Config,
@@ -89,7 +89,7 @@ trait PrintWithTag {
     }
 }
 
-trait Print {
+pub trait Print {
     fn print<T: Write, F, G, H>(&self, t: &mut T, config: &Config, c1: &F, c2: &G, c3: &H) -> Result<Printed, Error>
         where F: Fn(&mut T) -> Result<(), Error>,
               G: Fn(&mut T) -> Result<(), Error>,
@@ -111,7 +111,7 @@ impl Print for ParsedTag {
         if config.colored_output {
             try!(c1(t));
         }
-        try!(write!(t, "\n{} ", self.name));
+        try!(write!(t, "\n# {} ", self.name));
         if config.colored_output {
             try!(c2(t));
         }
@@ -200,7 +200,7 @@ impl PrintWithTag for SummaryElement {
             if config.colored_output {
                 try!(c1(t));
             }
-            print!("[{}]", self.category);
+            try!(write!(t, "[{}]", self.category));
             if config.colored_output {
                 try!(c2(t));
             }
@@ -534,8 +534,10 @@ impl Parser {
     pub fn print(parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)],
                  config: &Config,
                  compact: &bool)
-                 -> Result<(), Error> {
+                 -> Result<Vec<u8>, Error> {
         let mut t = try!(term::stdout().ok_or(term::Error::NotSupported));
+        let mut output = vec![];
+
         for &(ref tag, ref commits) in parsed_commits {
             try!(tag.print(&mut t, config, &|t| {
                 try!(t.fg(term::color::GREEN));
@@ -547,10 +549,13 @@ impl Parser {
                 try!(t.reset());
                 Ok(())
             }));
+            try!(tag.print(&mut output, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+
             let mut c = commits.clone();
 
             // Sort by category
             c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
+
             for commit in c {
                 if *compact {
                     try!(commit.summary.print(&mut t, config, None, &|t| {
@@ -563,6 +568,7 @@ impl Parser {
                         try!(t.reset());
                         Ok(())
                     }));
+                    try!(commit.summary.print(&mut output, config, None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
                 } else {
                     try!(commit.print(&mut t, config, None, &|t| {
                         try!(t.fg(term::color::BRIGHT_BLUE));
@@ -574,11 +580,11 @@ impl Parser {
                         try!(t.reset());
                         Ok(())
                     }));
+                    try!(commit.print(&mut output, config, None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
                 }
             }
         }
-        try!(t.reset());
-        Ok(())
+        Ok(output)
     }
 
     /// Parses a toml output template and filters it through parsed commits
@@ -586,14 +592,16 @@ impl Parser {
                                     parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)],
                                     config: &Config,
                                     compact: &bool)
-                                    -> Result<(), Error> {
+                                    -> Result<Vec<u8>, Error> {
         // Parse toml from file
         let mut file = try!(File::open(template));
         let mut toml_string = String::new();
         try!(file.read_to_string(&mut toml_string));
-        let toml = try!(toml::Parser::new(&toml_string).parse().ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
+        let toml = try!(toml::Parser::new(&toml_string).parse()
+                        .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
 
         // Print the commits
+        let mut v = vec![];
         let mut t = try!(term::stdout().ok_or(Error::Terminal));
         for &(ref tag, ref commits) in parsed_commits {
             try!(tag.print(&mut t, config, &|t| {
@@ -606,13 +614,14 @@ impl Parser {
                 try!(t.reset());
                 Ok(())
             }));
-            try!(Parser::print_commits_in_table(&mut t, &toml, &mut 1, commits, config, &compact));
+            try!(tag.print(&mut v, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+            try!(Parser::print_commits_in_table(&mut t, &mut v, &toml, &mut 2, commits, config, &compact));
         }
-        try!(t.reset());
-        Ok(())
+        Ok(v)
     }
 
     fn print_commits_in_table(mut t: &mut Box<term::StdoutTerminal>,
+                              mut v: &mut Vec<u8>,
                               table: &toml::Table,
                               level: &mut usize,
                               commits: &[ParsedCommit],
@@ -638,6 +647,7 @@ impl Parser {
 
                     try!(t.fg(term::color::BRIGHT_RED));
                     try!(writeln!(t, "{} {}", header_lvl, name));
+                    try!(writeln!(v, "{} {}", header_lvl, name));
                     try!(t.reset());
 
                     // Print commits for this tag
@@ -652,13 +662,15 @@ impl Parser {
                             try!(t.reset());
                             Ok(())
                         }));
+                        try!(commit.print(v, config, Some(tag), &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
                     }
 
                     try!(writeln!(t, ""));
+                    try!(writeln!(v, ""));
                 }
 
                 *level += 1;
-                try!(Parser::print_commits_in_table(t, table, level, commits, config, compact));
+                try!(Parser::print_commits_in_table(t, v, table, level, commits, config, compact));
                 *level -= 1;
             }
         }
@@ -695,7 +707,7 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print(&mut t, &config::Config::new(), None).is_ok());
+            assert!(commit.print(&mut t, &config::Config::new(), None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())).is_ok());
         }
     }
 
@@ -712,7 +724,7 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print(&mut t, &config::Config::new(), None).is_ok());
+            assert!(commit.print(&mut t, &config::Config::new(), None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())).is_ok());
         }
     }
 
@@ -729,7 +741,7 @@ mod tests {
             assert_eq!(commit.summary.text, " some ____ commit");
             assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print(&mut t, &config::Config::new(), None).is_ok());
+            assert!(commit.print(&mut t, &config::Config::new(), None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())).is_ok());
         }
     }
 
@@ -747,7 +759,7 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit 💖 summary");
             assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print(&mut t, &config::Config::new(), None).is_ok());
+            assert!(commit.print(&mut t, &config::Config::new(), None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())).is_ok());
         }
     }
 

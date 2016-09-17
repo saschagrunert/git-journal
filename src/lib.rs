@@ -18,7 +18,7 @@
 //! use gitjournal::GitJournal;
 //! let mut journal = GitJournal::new(".").unwrap();
 //! journal.parse_log("HEAD", "rc", &1, &false, &true);
-//! journal.print_log(true, None).expect("Could not print short log.");
+//! journal.print_log(true, None, None).expect("Could not print short log.");
 //! ```
 //!
 //! Simply create a new git-journal struct from a given path (`.` in this example). Then parse the
@@ -209,17 +209,14 @@ impl GitJournal {
     /// # Set to false if the output should not be colored
     /// colored_output = true
     ///
-    /// # The default template for the changelog printing
-    /// default_template = "changelog_template.toml"
+    /// # Specifies the default template. Will be used for tag validation and printing.
+    /// default_template = "CHANGELOG.toml"
     ///
     /// # Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
     /// enable_debug = true
     ///
     /// # Excluded tags in an array, e.g. "internal"
     /// excluded_tags = []
-    ///
-    /// # The output file where the changelog should be written to
-    /// output_file = "CHANGELOG.md"
     ///
     /// # Show or hide the commit message prefix, e.g. JIRA-1234
     /// show_prefix = false
@@ -259,7 +256,8 @@ impl GitJournal {
         if hook_path.exists() {
             if self.config.enable_debug {
                 println_warn!("There is already a hook available in '{}'. Please verifiy \
-                               the hook by hand after the installation.", hook_path.display());
+                               the hook by hand after the installation.",
+                              hook_path.display());
             }
             hook_file = try!(OpenOptions::new().read(true).append(true).open(hook_path.clone()));
             let mut hook_content = String::new();
@@ -476,19 +474,44 @@ impl GitJournal {
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
     /// journal.parse_log("HEAD", "rc", &1, &false, &false);
-    /// journal.print_log(true, None).expect("Could not print short log.");
-    /// journal.print_log(false, None).expect("Could not print detailed log.");
+    /// journal.print_log(true, None, None).expect("Could not print short log.");
+    /// journal.print_log(false, None, None).expect("Could not print detailed log.");
     /// ```
     ///
     /// # Errors
     /// If some commit message could not be print.
     ///
-    pub fn print_log(&self, compact: bool, template: Option<&str>) -> Result<(), Error> {
-        if let Some(template) = template {
-            try!(Parser::parse_template_and_print(template, &self.parse_result, &self.config, &compact));
-        } else {
-            try!(Parser::print(&self.parse_result, &self.config, &compact));
+    pub fn print_log(&self, compact: bool, template: Option<&str>, output: Option<&str>) -> Result<(), Error> {
+        let mut default_template = PathBuf::from(&self.path);
+        default_template.push(&self.config.default_template);
+
+        if !default_template.exists() && self.config.enable_debug {
+            println_warn!("The default template '{}' does not exist.", default_template.display());
         }
+
+        // Do not overwrite the template via the CLI but use it if nothing else specified
+        let output_vec: Vec<u8>;
+        if default_template.exists() && template.is_none() {
+            if self.config.enable_debug {
+                println_ok!("Using default template '{}'.", default_template.display());
+            }
+            let path_str = default_template.to_str().unwrap_or("");
+            output_vec = try!(Parser::parse_template_and_print(path_str, &self.parse_result, &self.config, &compact));
+        } else {
+            output_vec = match template {
+                Some(t) => try!(Parser::parse_template_and_print(t, &self.parse_result, &self.config, &compact)),
+                None => try!(Parser::print(&self.parse_result, &self.config, &compact)),
+            };
+        }
+
+        if let Some(output) = output {
+            let mut output_file = try!(OpenOptions::new().create(true).append(true).open(output));
+            try!(output_file.write_all(&output_vec));
+            if self.config.enable_debug {
+                println_ok!("Output written to '{}'.", output);
+            }
+        }
+
         Ok(())
     }
 }
@@ -603,10 +626,10 @@ mod tests {
         assert_eq!(journal.parse_result[0].1.len(), 4);
         assert_eq!(journal.parse_result[1].1.len(), 1);
         assert_eq!(journal.parse_result[2].1.len(), 2);
-        assert!(journal.print_log(false, None).is_ok());
-        assert!(journal.print_log(true, None).is_ok());
-        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
-        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
     }
 
     #[test]
@@ -616,10 +639,10 @@ mod tests {
         assert_eq!(journal.parse_result.len(), 2);
         assert_eq!(journal.parse_result[0].0.name, "Unreleased");
         assert_eq!(journal.parse_result[1].0.name, "v2");
-        assert!(journal.print_log(false, None).is_ok());
-        assert!(journal.print_log(true, None).is_ok());
-        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
-        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
     }
 
     #[test]
@@ -628,10 +651,10 @@ mod tests {
         assert!(journal.parse_log("HEAD", "rc", &1, &false, &true).is_ok());
         assert_eq!(journal.parse_result.len(), 1);
         assert_eq!(journal.parse_result[0].0.name, "v2");
-        assert!(journal.print_log(false, None).is_ok());
-        assert!(journal.print_log(true, None).is_ok());
-        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
-        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
     }
 
     #[test]
@@ -641,10 +664,10 @@ mod tests {
         assert_eq!(journal.parse_result.len(), 2);
         assert_eq!(journal.parse_result[0].0.name, "v2");
         assert_eq!(journal.parse_result[1].0.name, "v1");
-        assert!(journal.print_log(false, None).is_ok());
-        assert!(journal.print_log(true, None).is_ok());
-        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
-        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
     }
 
     #[test]
@@ -653,10 +676,10 @@ mod tests {
         assert!(journal.parse_log("v1..v2", "rc", &0, &false, &true).is_ok());
         assert_eq!(journal.parse_result.len(), 1);
         assert_eq!(journal.parse_result[0].0.name, "v2");
-        assert!(journal.print_log(false, None).is_ok());
-        assert!(journal.print_log(true, None).is_ok());
-        assert!(journal.print_log(false, Some("./tests/template.toml")).is_ok());
-        assert!(journal.print_log(true, Some("./tests/template.toml")).is_ok());
+        assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
+        assert!(journal.print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
     }
 
     #[test]

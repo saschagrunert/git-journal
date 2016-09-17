@@ -1,0 +1,203 @@
+_git-journal() {
+    local i cur prev opts cmds
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    cmd=""
+    opts=""
+
+    for i in ${COMP_WORDS[@]}
+    do
+        case "${i}" in
+            git-journal)
+                cmd="git-journal"
+                ;;
+            
+            help)
+                cmd+="_help"
+                ;;
+            p)
+                cmd+="_p"
+                ;;
+            prepare)
+                cmd+="_prepare"
+                ;;
+            s)
+                cmd+="_s"
+                ;;
+            setup)
+                cmd+="_setup"
+                ;;
+            v)
+                cmd+="_v"
+                ;;
+            verify)
+                cmd+="_verify"
+                ;;
+            *)
+                ;;
+        esac
+    done
+
+    case "${cmd}" in
+        git-journal)
+            opts=" -p -a -s -u -n -e -t -o -h -V  --path --all --short --skip-unreleased --tags-count --template --output --help --version  <revision range>  prepare setup verify help  p  s  v"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+                return 0
+            fi
+            case "${prev}" in
+                
+                --path)
+                    COMPREPLY=("<PATH>")
+                    return 0
+                    ;;
+                    -p)
+                    COMPREPLY=("<PATH>")
+                    return 0
+                    ;;
+                --tags-count)
+                    COMPREPLY=("<number of tags>")
+                    return 0
+                    ;;
+                    -n)
+                    COMPREPLY=("<number of tags>")
+                    return 0
+                    ;;
+                    -e)
+                    COMPREPLY=("<exclude git tag pattern>")
+                    return 0
+                    ;;
+                --template)
+                    COMPREPLY=("<template>")
+                    return 0
+                    ;;
+                    -t)
+                    COMPREPLY=("<template>")
+                    return 0
+                    ;;
+                --output)
+                    COMPREPLY=("<output>")
+                    return 0
+                    ;;
+                    -o)
+                    COMPREPLY=("<output>")
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
+        
+        git_journal_help)
+            opts=" -h -V  --help --version  "
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+                return 0
+            fi
+            case "${prev}" in
+                
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
+        git_journal_p)
+            opts=" -h -V  --help --version  <COMMIT> "
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+                return 0
+            fi
+            case "${prev}" in
+                
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
+        git_journal_prepare)
+            opts=" -h -V  --help --version  <COMMIT> "
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+                return 0
+            fi
+            case "${prev}" in
+                
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
+        git_journal_s)
+            opts=" -h -V  --help --version  "
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+                return 0
+            fi
+            case "${prev}" in
+                
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
+        git_journal_setup)
+            opts=" -h -V  --help --version  "
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+                return 0
+            fi
+            case "${prev}" in
+                
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
+        git_journal_v)
+            opts=" -h -V  --help --version  <COMMIT> "
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+                return 0
+            fi
+            case "${prev}" in
+                
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
+        git_journal_verify)
+            opts=" -h -V  --help --version  <COMMIT> "
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+                return 0
+            fi
+            case "${prev}" in
+                
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            return 0
+            ;;
+    esac
+}
+
+complete -F _git-journal git-journal

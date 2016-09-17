@@ -50,6 +50,11 @@ args:
       long: template
       help: Use a custom output template.
       takes_value: true
+  - output:
+      short: o
+      long: output
+      help: The output file for the changelog.
+      takes_value: true
 
 subcommands:
   - prepare:

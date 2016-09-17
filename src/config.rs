@@ -49,7 +49,7 @@ pub struct Config {
     /// Set to false if the output should not be colored
     pub colored_output: bool,
 
-    /// The default template for the changelog printing
+    /// Specifies the default template. Will be used for tag validation and printing.
     pub default_template: String,
 
     /// Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
@@ -57,9 +57,6 @@ pub struct Config {
 
     /// Excluded tags in an array, e.g. "internal"
     pub excluded_tags: Vec<String>,
-
-    /// The output file where the changelog should be written to
-    pub output_file: String,
 
     /// Show or hide the commit message prefix, e.g. JIRA-1234
     pub show_prefix: bool,
@@ -81,10 +78,9 @@ impl Config {
     pub fn new() -> Self {
         Config {
             colored_output: true,
-            default_template: "changelog_template.toml".to_owned(),
+            default_template: "CHANGELOG.toml".to_owned(),
             enable_debug: true,
             excluded_tags: vec![],
-            output_file: "CHANGELOG.md".to_owned(),
             show_prefix: false,
             template_prefix: "JIRA-1234".to_owned(),
         }

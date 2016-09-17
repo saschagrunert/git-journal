@@ -129,7 +129,9 @@ fn run() -> Result<(), Error> {
                                                   &matches.is_present("skip_unreleased")) {
                 try!(print_err_exit("Log parsing error", Error::GitJournal(error)));
             }
-            try!(journal.print_log(matches.is_present("short"), matches.value_of("template")));
+            try!(journal.print_log(matches.is_present("short"),
+                                   matches.value_of("template"),
+                                   matches.value_of("output")));
         }
     };
     Ok(())
