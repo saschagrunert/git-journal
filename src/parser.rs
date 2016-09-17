@@ -166,7 +166,11 @@ impl Print for ParsedTag {
         if config.colored_output {
             try!(c2(t));
         }
-        trywln!(t, "({}-{:02}-{:02}):", self.date.year(), self.date.month(), self.date.day());
+        trywln!(t,
+                "({}-{:02}-{:02}):",
+                self.date.year(),
+                self.date.month(),
+                self.date.day());
         if config.colored_output {
             try!(c3(t));
         }
@@ -654,13 +658,18 @@ impl Parser {
                 // Do not print at all if none of the commits matches to the section
                 // Differenciate between compact and non compact prints
                 if (*compact &&
-                    (commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 ||
+                    ((commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
+                      !config.excluded_tags.contains(tag)) ||
                      (tag == "default" && commits.iter().filter(|c| c.summary.contains_untagged()).count() > 0))) ||
                    (!*compact &&
-                    (commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 ||
+                    ((commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
+                      !config.excluded_tags.contains(tag)) ||
                      (tag == "default" && commits.iter().filter(|c| c.contains_untagged()).count() > 0))) {
 
-                    try!(term.fg(term::color::BRIGHT_RED));
+
+                    if config.colored_output {
+                        try!(term.fg(term::color::BRIGHT_RED));
+                    }
                     trywln!(term, "{} {}", header_lvl, name);
                     try!(term.reset());
 
