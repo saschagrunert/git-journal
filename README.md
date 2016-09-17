@@ -23,13 +23,10 @@ release:
     * [x] Provide an initial configuration file with default values.
 * [x] Commit Message validation based on config
 * [x] Commit Message preparation based on config
-* [ ] Changelog generation
+* [x] Changelog generation
     * [x] Parse until the last tag or in a commit range.
     * [x] Add the possibility to parse the last n Releases.
     * [x] Filter out excluded tags
-    * [ ] Generate output regarding template (tags mapping and order)
-    * [ ] Output formats:
-        * [ ] Markdown
-        * [ ] HTML
-        * [ ] PDF
+    * [x] Generate output regarding template
+    * [x] Markdown output format
 

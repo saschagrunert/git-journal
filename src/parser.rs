@@ -530,7 +530,7 @@ impl Parser {
         })
     }
 
-    /// Prints the commits without any template (sorted by category)
+    /// Prints the commits without any template
     pub fn print(parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)],
                  config: &Config,
                  compact: &bool)
@@ -551,12 +551,7 @@ impl Parser {
             }));
             try!(tag.print(&mut output, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
 
-            let mut c = commits.clone();
-
-            // Sort by category
-            c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
-
-            for commit in c {
+            for commit in commits {
                 if *compact {
                     try!(commit.summary.print(&mut t, config, None, &|t| {
                         try!(t.fg(term::color::BRIGHT_BLUE));
