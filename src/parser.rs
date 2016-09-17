@@ -76,6 +76,34 @@ pub trait PrintWithTag {
               G: Fn(&mut T) -> Result<(), Error>,
               H: Fn(&mut T) -> Result<(), Error>;
 
+    fn print_default<T: Write>(&self, t: &mut T, config: &Config, tag: Option<&str>) -> Result<(), Error> {
+        try!(self.print(t, config, tag, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+        Ok(())
+    }
+
+    fn print_default_term(&self,
+                          mut t: &mut Box<term::StdoutTerminal>,
+                          config: &Config,
+                          tag: Option<&str>)
+                          -> Result<(), Error> {
+        try!(self.print(&mut t,
+                        config,
+                        tag,
+                        &|t| {
+                            try!(t.fg(term::color::BRIGHT_BLUE));
+                            Ok(())
+                        },
+                        &|t| {
+                            try!(t.fg(term::color::WHITE));
+                            Ok(())
+                        },
+                        &|t| {
+                            try!(t.reset());
+                            Ok(())
+                        }));
+        Ok(())
+    }
+
     fn contains_tag(&self, tag: Option<&str>) -> bool;
 
     fn contains_untagged(&self) -> bool;
@@ -94,6 +122,29 @@ pub trait Print {
         where F: Fn(&mut T) -> Result<(), Error>,
               G: Fn(&mut T) -> Result<(), Error>,
               H: Fn(&mut T) -> Result<(), Error>;
+
+    fn print_default<T: Write>(&self, t: &mut T, config: &Config) -> Result<(), Error> {
+        try!(self.print(t, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+        Ok(())
+    }
+
+    fn print_default_term(&self, mut t: &mut Box<term::StdoutTerminal>, config: &Config) -> Result<(), Error> {
+        try!(self.print(&mut t,
+                        config,
+                        &|t| {
+                            try!(t.fg(term::color::GREEN));
+                            Ok(())
+                        },
+                        &|t| {
+                            try!(t.fg(term::color::YELLOW));
+                            Ok(())
+                        },
+                        &|t| {
+                            try!(t.reset());
+                            Ok(())
+                        }));
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -111,15 +162,11 @@ impl Print for ParsedTag {
         if config.colored_output {
             try!(c1(t));
         }
-        try!(write!(t, "\n# {} ", self.name));
+        tryw!(t, "\n# {} ", self.name);
         if config.colored_output {
             try!(c2(t));
         }
-        try!(writeln!(t,
-                      "({}-{:02}-{:02}):",
-                      self.date.year(),
-                      self.date.month(),
-                      self.date.day()));
+        trywln!(t, "({}-{:02}-{:02}):", self.date.year(), self.date.month(), self.date.day());
         if config.colored_output {
             try!(c3(t));
         }
@@ -193,18 +240,18 @@ impl PrintWithTag for SummaryElement {
         }
 
         if self.contains_tag(tag) || self.matches_default_tag(tag) {
-            try!(write!(t, "- "));
+            tryw!(t, "- ");
             if config.show_prefix && !self.prefix.is_empty() {
-                try!(write!(t, "{} ", self.prefix));
+                tryw!(t, "{} ", self.prefix);
             }
             if config.colored_output {
                 try!(c1(t));
             }
-            try!(write!(t, "[{}]", self.category));
+            tryw!(t, "[{}]", self.category);
             if config.colored_output {
                 try!(c2(t));
             }
-            try!(writeln!(t, "{}", self.text));
+            trywln!(t, "{}", self.text);
             try!(c3(t));
         }
         Ok(Printed::Something)
@@ -303,23 +350,23 @@ impl PrintWithTag for ListElement {
         }
 
         if self.contains_tag(tag) || self.matches_default_tag(tag) {
-            try!(write!(t, "{}- ", {
+            tryw!(t, "{}- ", {
                 if tag.is_none() {
                     iter::repeat(' ').take(4).collect::<String>()
                 } else {
                     String::new()
                 }
-            }));
+            });
             if !self.category.is_empty() {
                 if config.colored_output {
                     try!(c1(t));
                 }
-                try!(write!(t, "[{}]", self.category));
+                tryw!(t, "[{}]", self.category);
                 if config.colored_output {
                     try!(c2(t));
                 }
             }
-            try!(writeln!(t, "{}", self.text));
+            trywln!(t, "{}", self.text);
             try!(c3(t));
         }
 
@@ -359,17 +406,21 @@ impl PrintWithTag for ParagraphElement {
         }
 
         if self.contains_tag(tag) || self.matches_default_tag(tag) {
-            for line in self.text
+            for (index, line) in self.text
                 .lines()
                 .map(|x| {
-                    if tag.is_none() {
-                        iter::repeat(' ').take(4).collect::<String>()
-                    } else {
-                        String::new()
-                    }
+                    let indent = if tag.is_none() { 4 } else { 2 };
+                    iter::repeat(' ').take(indent).collect::<String>()
                 } + x)
-                .collect::<Vec<String>>() {
-                try!(writeln!(t, "{}", line));
+                .collect::<Vec<String>>()
+                .iter()
+                .enumerate() {
+                if tag.is_some() && index == 0 {
+                    // Paragraphs will be transformed into lists when using templates
+                    trywln!(t, "{}", line.replace("  ", "- "));
+                } else {
+                    trywln!(t, "{}", line);
+                }
             }
         }
         Ok(Printed::Something)
@@ -535,51 +586,24 @@ impl Parser {
                  config: &Config,
                  compact: &bool)
                  -> Result<Vec<u8>, Error> {
-        let mut t = try!(term::stdout().ok_or(term::Error::NotSupported));
-        let mut output = vec![];
+        let mut term = try!(term::stdout().ok_or(term::Error::NotSupported));
+        let mut output_vec = vec![];
 
         for &(ref tag, ref commits) in parsed_commits {
-            try!(tag.print(&mut t, config, &|t| {
-                try!(t.fg(term::color::GREEN));
-                Ok(())
-            }, &|t| {
-                try!(t.fg(term::color::YELLOW));
-                Ok(())
-            }, &|t| {
-                try!(t.reset());
-                Ok(())
-            }));
-            try!(tag.print(&mut output, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+            try!(tag.print_default_term(&mut term, config));
+            try!(tag.print_default(&mut output_vec, config));
 
             for commit in commits {
                 if *compact {
-                    try!(commit.summary.print(&mut t, config, None, &|t| {
-                        try!(t.fg(term::color::BRIGHT_BLUE));
-                        Ok(())
-                    }, &|t| {
-                        try!(t.fg(term::color::WHITE));
-                        Ok(())
-                    }, &|t| {
-                        try!(t.reset());
-                        Ok(())
-                    }));
-                    try!(commit.summary.print(&mut output, config, None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+                    try!(commit.summary.print_default_term(&mut term, config, None));
+                    try!(commit.summary.print_default(&mut output_vec, config, None));
                 } else {
-                    try!(commit.print(&mut t, config, None, &|t| {
-                        try!(t.fg(term::color::BRIGHT_BLUE));
-                        Ok(())
-                    }, &|t| {
-                        try!(t.fg(term::color::WHITE));
-                        Ok(())
-                    }, &|t| {
-                        try!(t.reset());
-                        Ok(())
-                    }));
-                    try!(commit.print(&mut output, config, None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+                    try!(commit.print_default_term(&mut term, config, None));
+                    try!(commit.print_default(&mut output_vec, config, None));
                 }
             }
         }
-        Ok(output)
+        Ok(output_vec)
     }
 
     /// Parses a toml template and returns the table (BTreeMap) it on success
@@ -601,27 +625,18 @@ impl Parser {
         let toml = try!(Parser::parse_template(template));
 
         // Print the commits
-        let mut v = vec![];
-        let mut t = try!(term::stdout().ok_or(Error::Terminal));
+        let mut output_vec = vec![];
+        let mut term = try!(term::stdout().ok_or(Error::Terminal));
         for &(ref tag, ref commits) in parsed_commits {
-            try!(tag.print(&mut t, config, &|t| {
-                try!(t.fg(term::color::GREEN));
-                Ok(())
-            }, &|t| {
-                try!(t.fg(term::color::YELLOW));
-                Ok(())
-            }, &|t| {
-                try!(t.reset());
-                Ok(())
-            }));
-            try!(tag.print(&mut v, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
-            try!(Parser::print_commits_in_table(&mut t, &mut v, &toml, &mut 2, commits, config, &compact));
+            try!(tag.print_default_term(&mut term, config));
+            try!(tag.print_default(&mut output_vec, config));
+            try!(Parser::print_commits_in_table(&mut term, &mut output_vec, &toml, &mut 2, commits, config, &compact));
         }
-        Ok(v)
+        Ok(output_vec)
     }
 
-    fn print_commits_in_table(mut t: &mut Box<term::StdoutTerminal>,
-                              mut v: &mut Vec<u8>,
+    fn print_commits_in_table(mut term: &mut Box<term::StdoutTerminal>,
+                              mut output_vec: &mut Vec<u8>,
                               table: &toml::Table,
                               level: &mut usize,
                               commits: &[ParsedCommit],
@@ -645,32 +660,29 @@ impl Parser {
                     (commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 ||
                      (tag == "default" && commits.iter().filter(|c| c.contains_untagged()).count() > 0))) {
 
-                    try!(t.fg(term::color::BRIGHT_RED));
-                    try!(writeln!(t, "{} {}", header_lvl, name));
-                    try!(writeln!(v, "{} {}", header_lvl, name));
-                    try!(t.reset());
+                    try!(term.fg(term::color::BRIGHT_RED));
+                    trywln!(term, "{} {}", header_lvl, name);
+                    try!(term.reset());
+
+                    trywln!(output_vec, "{} {}", header_lvl, name);
 
                     // Print commits for this tag
                     for commit in commits {
-                        try!(commit.print(&mut t, config, Some(tag), &|t| {
-                            try!(t.fg(term::color::BRIGHT_BLUE));
-                            Ok(())
-                        }, &|t| {
-                            try!(t.fg(term::color::WHITE));
-                            Ok(())
-                        }, &|t| {
-                            try!(t.reset());
-                            Ok(())
-                        }));
-                        try!(commit.print(v, config, Some(tag), &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+                        if *compact {
+                            try!(commit.summary.print_default_term(term, config, Some(tag)));
+                            try!(commit.summary.print_default(output_vec, config, Some(tag)));
+                        } else {
+                            try!(commit.print_default_term(term, config, Some(tag)));
+                            try!(commit.print_default(output_vec, config, Some(tag)));
+                        }
                     }
 
-                    try!(writeln!(t, ""));
-                    try!(writeln!(v, ""));
+                    trywln!(term, "");
+                    trywln!(output_vec, "");
                 }
 
                 *level += 1;
-                try!(Parser::print_commits_in_table(t, v, table, level, commits, config, compact));
+                try!(Parser::print_commits_in_table(term, output_vec, table, level, commits, config, compact));
                 *level -= 1;
             }
         }
@@ -707,7 +719,8 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print(&mut t, &config::Config::new(), None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())).is_ok());
+            assert!(commit.print_default_term(&mut t, &config::Config::new(), None).is_ok());
+            assert!(commit.print_default_term(&mut t, &config::Config::new(), Some("tag")).is_ok());
         }
     }
 
@@ -724,7 +737,8 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print(&mut t, &config::Config::new(), None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())).is_ok());
+            assert!(commit.print_default_term(&mut t, &config::Config::new(), None).is_ok());
+            assert!(commit.print_default_term(&mut t, &config::Config::new(), Some("tag")).is_ok());
         }
     }
 
@@ -741,7 +755,8 @@ mod tests {
             assert_eq!(commit.summary.text, " some ____ commit");
             assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print(&mut t, &config::Config::new(), None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())).is_ok());
+            assert!(commit.print_default_term(&mut t, &config::Config::new(), None).is_ok());
+            assert!(commit.print_default_term(&mut t, &config::Config::new(), Some("tag3")).is_ok());
         }
     }
 
@@ -759,7 +774,8 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit 💖 summary");
             assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print(&mut t, &config::Config::new(), None, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())).is_ok());
+            assert!(commit.print_default_term(&mut t, &config::Config::new(), None).is_ok());
+            assert!(commit.print_default_term(&mut t, &config::Config::new(), Some("some tag")).is_ok());
         }
     }
 

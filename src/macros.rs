@@ -27,3 +27,15 @@ macro_rules! println_warn(
         println_color_category!(term::color::BRIGHT_YELLOW, "WARN", $($arg)*);
     }}
 );
+
+macro_rules! trywln(
+    ($($arg:tt)*) => {{
+        try!(writeln!($($arg)*));
+    }}
+);
+
+macro_rules! tryw(
+    ($($arg:tt)*) => {{
+        try!(write!($($arg)*));
+    }}
+);
