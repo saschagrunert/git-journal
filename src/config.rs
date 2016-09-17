@@ -49,6 +49,9 @@ pub struct Config {
     /// Set to false if the output should not be colored
     pub colored_output: bool,
 
+    /// The default template for the changelog printing
+    pub default_template: String,
+
     /// Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
     pub enable_debug: bool,
 
@@ -78,6 +81,7 @@ impl Config {
     pub fn new() -> Self {
         Config {
             colored_output: true,
+            default_template: "changelog_template.toml".to_owned(),
             enable_debug: true,
             excluded_tags: vec![],
             output_file: "CHANGELOG.md".to_owned(),

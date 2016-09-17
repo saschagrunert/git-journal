@@ -43,7 +43,7 @@ extern crate lazy_static;
 use git2::{ObjectType, Oid, Repository};
 use chrono::{UTC, TimeZone};
 
-use parser::{Parser, ParsedCommit, ParsedTag, Print, PrintWithTag};
+use parser::{Parser, ParsedCommit, ParsedTag};
 pub use config::Config;
 
 use std::{fmt, fs};
@@ -208,6 +208,9 @@ impl GitJournal {
     /// ```toml
     /// # Set to false if the output should not be colored
     /// colored_output = true
+    ///
+    /// # The default template for the changelog printing
+    /// default_template = "changelog_template.toml"
     ///
     /// # Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
     /// enable_debug = true
@@ -484,22 +487,7 @@ impl GitJournal {
         if let Some(template) = template {
             try!(Parser::parse_template_and_print(template, &self.parse_result, &self.config, &compact));
         } else {
-            // Print without any template
-            let mut t = try!(term::stdout().ok_or(term::Error::NotSupported));
-            for &(ref tag, ref commits) in &self.parse_result {
-                try!(tag.print(&mut t, &self.config));
-                let mut c = commits.clone();
-
-                // Sort by category
-                c.sort_by(|a, b| a.summary.category.cmp(&b.summary.category));
-                for commit in c {
-                    if compact {
-                        try!(commit.summary.print(&mut t, &self.config, None));
-                    } else {
-                        try!(commit.print(&mut t, &self.config, None));
-                    }
-                }
-            }
+            try!(Parser::print(&self.parse_result, &self.config, &compact));
         }
         Ok(())
     }
