@@ -641,7 +641,7 @@ mod tests {
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert_eq!(journal.parse_result.len(), journal.tags.len() + 1);
-        assert_eq!(journal.parse_result[0].1.len(), 5);
+        assert_eq!(journal.parse_result[0].1.len(), 6);
         assert_eq!(journal.parse_result[1].1.len(), 1);
         assert_eq!(journal.parse_result[2].1.len(), 2);
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
@@ -714,7 +714,7 @@ mod tests {
 
     #[test]
     fn prepare_message_success_3() {
-        let journal = GitJournal::new(".").unwrap();
+        let journal = GitJournal::new("./tests/commit_messages").unwrap();
         assert!(journal.prepare("./tests/commit_messages/prepare_2", None).is_ok());
     }
 
