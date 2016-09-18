@@ -239,7 +239,7 @@ impl PrintWithTag for SummaryElement {
               H: Fn(&mut T) -> Result<(), Error>
     {
         // Filter out excluded tags
-        if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
+        if self.tags.iter().filter(|x| config.excluded_commit_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
@@ -349,7 +349,7 @@ impl PrintWithTag for ListElement {
               H: Fn(&mut T) -> Result<(), Error>
     {
         // Check if list item contains excluded tag
-        if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
+        if self.tags.iter().filter(|x| config.excluded_commit_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
@@ -405,7 +405,7 @@ impl PrintWithTag for ParagraphElement {
               H: Fn(&mut T) -> Result<(), Error>
     {
         // Check if paragraph contains excluded tag
-        if self.tags.iter().filter(|x| config.excluded_tags.contains(x)).count() > 0usize {
+        if self.tags.iter().filter(|x| config.excluded_commit_tags.contains(x)).count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
@@ -662,11 +662,11 @@ impl Parser {
                 // Differenciate between compact and non compact prints
                 if (*compact &&
                     ((commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
-                      !config.excluded_tags.contains(tag)) ||
+                      !config.excluded_commit_tags.contains(tag)) ||
                      (tag == "default" && commits.iter().filter(|c| c.summary.contains_untagged()).count() > 0))) ||
                    (!*compact &&
                     ((commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
-                      !config.excluded_tags.contains(tag)) ||
+                      !config.excluded_commit_tags.contains(tag)) ||
                      (tag == "default" && commits.iter().filter(|c| c.contains_untagged()).count() > 0))) {
 
 

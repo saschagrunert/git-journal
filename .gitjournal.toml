@@ -1,5 +1,5 @@
 colored_output = true
 enable_debug = true
-excluded_tags = []
+excluded_commit_tags = []
 show_prefix = false
 template_prefix = "JIRA-1234"
