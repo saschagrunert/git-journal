@@ -63,8 +63,11 @@ subcommands:
       args:
         - message:
             required: true
-            value_name: COMMIT
-            help: The commit message which should be prepared.
+            value_name: COMMIT_MSG
+            help: The path to the commit message which should be prepared.
+        - type:
+            value_name: TYPE
+            help: The type of the commit. For example "message".
   - setup:
       about: Creates all necessary git hooks and an initial configuration file.
         Shell completions for bash and fish will be available inside the current
@@ -76,5 +79,5 @@ subcommands:
       args:
         - message:
             required: true
-            value_name: COMMIT
-            help: The commit message which should be prepared.
+            value_name: COMMIT_MSG
+            help: The path to the commit message which should be prepared.

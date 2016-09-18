@@ -243,7 +243,7 @@ impl GitJournal {
         try!(self.install_git_hook("commit-msg", "git journal v $1\n"));
 
         // Install the prepare commit message hook
-        try!(self.install_git_hook("prepare-commit-msg", "git journal p $1\n"));
+        try!(self.install_git_hook("prepare-commit-msg", "git journal p $1 $2\n"));
 
         Ok(())
     }
@@ -296,9 +296,17 @@ impl GitJournal {
     /// # Errors
     /// When the path is not available or writing the commit message fails.
     ///
-    pub fn prepare(&self, path: &str) -> Result<(), Error> {
-        // If the message is not valid, assume a new commit and provide the template
-        if let Err(_) = self.verify(path) {
+    pub fn prepare(&self, path: &str, commit_type: Option<&str>) -> Result<(), Error> {
+        // If the message is not valid, assume a new commit and provide the template.
+        if let Err(error) = self.verify(path) {
+            // But if the message is provided via the cli with `-m`, then abort since
+            // the user can not edit this message any more.
+            if let Some(commit_type) = commit_type {
+                if commit_type == "message" {
+                    return Err(error);
+                }
+            }
+
             // Read the file contents to get the actual commit message string
             let mut read_file = try!(File::open(path));
             let mut commit_message = String::new();

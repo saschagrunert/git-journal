@@ -88,7 +88,8 @@ fn run() -> Result<(), Error> {
         Some("prepare") => {
             // Prepare a commit message before editing by the user
             if let Some(sub_matches) = matches.subcommand_matches("prepare") {
-                match journal.prepare(try!(sub_matches.value_of("message").ok_or(Error::Cli))) {
+                match journal.prepare(try!(sub_matches.value_of("message").ok_or(Error::Cli)),
+                                      sub_matches.value_of("type")) {
                     Ok(()) => try!(print_ok("Commit message prepared.")),
                     Err(error) => {
                         try!(print_err_exit("Commit message preparation failed",

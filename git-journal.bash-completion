@@ -108,7 +108,7 @@ _git-journal() {
             return 0
             ;;
         git_journal_p)
-            opts=" -h -V  --help --version  <COMMIT> "
+            opts=" -h -V  --help --version  <COMMIT> <TYPE> "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
                 return 0
@@ -123,7 +123,7 @@ _git-journal() {
             return 0
             ;;
         git_journal_prepare)
-            opts=" -h -V  --help --version  <COMMIT> "
+            opts=" -h -V  --help --version  <COMMIT> <TYPE> "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
                 return 0

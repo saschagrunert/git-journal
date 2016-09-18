@@ -27,9 +27,9 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::SummaryParsing(ref line) => write!(f, "Summary parsing: {}", line),
-            Error::ParagraphParsing(ref line) => write!(f, "Paragraph parsing: {}", line),
-            Error::FooterParsing(ref line) => write!(f, "Footer parsing: {}", line),
+            Error::SummaryParsing(ref line) => write!(f, "Summary parsing: '{}'", line),
+            Error::ParagraphParsing(ref line) => write!(f, "Paragraph parsing: '{}'", line),
+            Error::FooterParsing(ref line) => write!(f, "Footer parsing: '{}'", line),
             Error::CommitMessageLength => write!(f, "Commit message length too small."),
             Error::Terminal => write!(f, "Could not print to terminal."),
             Error::Io(ref e) => write!(f, "Io: {}", e),
