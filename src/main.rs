@@ -3,7 +3,9 @@ extern crate clap;
 extern crate gitjournal;
 extern crate term;
 
+use std::env;
 use std::fmt;
+use std::fs;
 use std::process::exit;
 
 use clap::{App, Shell};
@@ -67,6 +69,18 @@ impl fmt::Display for Error {
     }
 }
 
+fn is_program_in_path(program: &str) -> bool {
+    if let Ok(path) = env::var("PATH") {
+        for p in path.split(':') {
+            let p_str = format!("{}/{}", p, program);
+            if fs::metadata(p_str).is_ok() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn main() {
     if let Err(error) = run() {
         print_err_exit("Main", error).expect("Cannot print error message");
@@ -102,9 +116,15 @@ fn run() -> Result<(), Error> {
             // Do the setup procedure
             try!(journal.setup());
 
-            // Generate completions
-            app.gen_completions("git-journal", Shell::Bash, env!("PWD"));
-            app.gen_completions("git-journal", Shell::Fish, env!("PWD"));
+            // Generate completions if necessary
+            if is_program_in_path("bash") {
+                app.gen_completions("git-journal", Shell::Bash, env!("PWD"));
+                try!(print_ok("Installed bash completions to your current working path."));
+            }
+            if is_program_in_path("fish") {
+                app.gen_completions("git-journal", Shell::Fish, env!("PWD"));
+                try!(print_ok("Installed fish completions to your current working path."));
+            }
         }
         Some("verify") => {
             // Verify a commit message
