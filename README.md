@@ -6,10 +6,9 @@ Table of contents:
 * [TL;DR](#tldr)
 * [Installation](#installation)
 * [Usage](#usage)
-    * [Default output](#default-output)
-    * [Template output](#template-output)
-    * [Commit message preparation and verification](#prep-verify)
-    * [The configuration file](#config)
+    * [Default output](#defaultoutput)
+    * [Template output](#templateoutput)
+    * [Commit message preparation and verification](#prepverify)
 * [Current Features](#features)
 * [Planned features and improvements](#planned)
 * [Contributing](#contributing)
@@ -61,7 +60,7 @@ application to write customized solutions. [This repository](https://github.com/
 example for the following explanations.
 
 ### Default output
-[default-output]: #default-output
+[defaultoutput]: #defaultoutput
 
 If you run `git journal` anywhere inside this repository, the output will be a nice looking
 [Markdown](https://en.wikipedia.org/wiki/Markdown) formatted changelog based on your repositories git log:
@@ -170,7 +169,7 @@ customized via `-e`.
 For more information please refer to the help `git journal -h`.
 
 ### Template output
-[template-output]: #template-output
+[templateoutput]: #templateoutput
 
 The design of commit message templates is described in
 [RFC0002](https://github.com/saschagrunert/git-journal/blob/master/rfc/0002-output-templating.md). From now on we are
@@ -220,7 +219,7 @@ are converted to single list items to always provide a clean markdown. The comma
 output are available as well.
 
 ### Commit message preparation and verification
-[prep-verify]: #prep-verify
+[prepverify]: #prepverify
 
 To use the automatic commit message preparation and verification the git journal setup has to be executed on every local
 repository:
@@ -315,13 +314,13 @@ repository:
 ## Planned features and improvements
 [planned]: #planned
 
-* [] Multi threading support for parsing.
-* [] Custom category support.
-* [] Custom commit message template support, which will be used for commit preparation.
-* [] Multiple template extensions, like custom header/footer or other different custom fields.
-* [] Generation of default templates based on commits within a given commit rage.
-* [] Custom sorting methods for the default and template based output.
-* [] Commit message validation via provided template
+* [ ] Multi threading support for parsing.
+* [ ] Custom category support.
+* [ ] Custom commit message template support, which will be used for commit preparation.
+* [ ] Multiple template extensions, like custom header/footer or other different custom fields.
+* [ ] Generation of default templates based on commits within a given commit rage.
+* [ ] Custom sorting methods for the default and template based output.
+* [ ] Commit message validation via provided template
 
 ## Contributing
 [contributing]: #contributing
