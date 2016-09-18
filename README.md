@@ -316,6 +316,7 @@ repository:
 ## Planned features and improvements
 [planned]: #planned
 
+* [ ] Automatic escape of code in git commits, e.g. DEFINE_A to `DEFINE_A`
 * [ ] Multi threading support for parsing.
 * [ ] Custom category support.
 * [ ] Custom commit message template support, which will be used for commit preparation.
