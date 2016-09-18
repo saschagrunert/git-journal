@@ -14,15 +14,15 @@ description = "The Git Commit Message and Changelog Generation Framework"
 name = "gitjournal"
 
 [dependencies]
-chrono = "*"
-clap = { version = "*", features = ["yaml"] }
-git2 = "*"
-lazy_static = "*"
-nom = { version = "*", features = ["regexp_macros"] }
-regex = "*"
-rustc-serialize = "*"
-term = "*"
-toml = "*"
+chrono = "0"
+clap = { version = "2", features = ["yaml"] }
+git2 = "0"
+lazy_static = "0"
+nom = { version = "1", features = ["regexp_macros"] }
+regex = "0"
+rustc-serialize = "0"
+term = "0"
+toml = "0"
 
 [[bin]]
 name = "git-journal"
