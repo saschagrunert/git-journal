@@ -286,7 +286,7 @@ If everything went fine it should look like this:
 This means in detail that _git-journal_ will build up two gates (one for preparation and one for verification) during
 doing the commit by the user. This graphic will sum up where _git-journal_ will take influence on the local git
 repository:
-![git-journal flow](./.github/flow.svg)
+![git-journal flow](./.github/flow.png)
 
 ## Current Features
 [features]: #features
