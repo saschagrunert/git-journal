@@ -1,7 +1,5 @@
 # [git-journal 📖](https://saschagrunert.github.io/git-journal) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/git-journal/blob/master/LICENSE) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)  [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/git-journal/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/git-journal?branch=master)
-The Git Commit Message and Changelog Generation Framework
-
----
+## The Git Commit Message and Changelog Generation Framework
 
 Table of contents:
 
@@ -27,7 +25,7 @@ described in a standardized way. This results in a much cleaner git history and 
 about the actual change.
 
 Furthermore it should be easier to generate nice looking changelogs directly from your commit history. This is where
-`git-journal` solves common problems.
+_git-journal_ solves common problems.
 
 Two RFCs, one for a
 [commit message syntax extension](https://github.com/saschagrunert/git-journal/blob/master/rfc/0001-commit-msg.md)
@@ -38,7 +36,7 @@ is the base for this.
 ## Installation
 [installation]: #installation
 
-To use `git-journal` as a git extension a [Rust installation](https://www.rust-lang.org/en-US/downloads.html) is needed
+To use _git-journal_ as a git extension a [Rust installation](https://www.rust-lang.org/en-US/downloads.html) is needed
 including the package manager [cargo](https://crates.io/install). Different package managers will provide these as well,
 for example via [Pacman](https://wiki.archlinux.de/title/pacman) on Arch Linux:
 
@@ -46,7 +44,7 @@ for example via [Pacman](https://wiki.archlinux.de/title/pacman) on Arch Linux:
 sudo pacman -S rust cargo
 ```
 
-Once these two dependencies are installed, `git-journal` can be installed via:
+Once these two dependencies are installed, _git-journal_ can be installed via:
 
 ```terminal
 cargo install git-journal
@@ -236,14 +234,14 @@ repository:
 [git-journal] [OKAY] Installed fish completions to your current working path.
 ```
 
-If there already exists these hooks git-journal tries to append the needed commands, which has to be verified by hand
+If there already exists these hooks _git-journal_ tries to append the needed commands, which has to be verified by hand
 afterwards. The generated command line completions for bash and fish needs to be put in the correct directory of your
 shell. The default configuration file is a [toml](https://github.com/toml-lang/toml) file which represents
 [this structure](https://saschagrunert.github.io/git-journal/gitjournal/config/struct.Config.html). A default
 configuration with comments can also be
 [found here](https://saschagrunert.github.io/git-journal/gitjournal/struct.GitJournal.html#examples-1).
 
-If the setup is done git-journal will verify your inserted commit message as well as doing a preparation. For example,
+If the setup is done _git-journal_ will verify your inserted commit message as well as doing a preparation. For example,
 if we are now trying to commit something which can not be parsed:
 
 ```terminal
@@ -253,7 +251,7 @@ if we are now trying to commit something which can not be parsed:
 [git-journal] [ERROR] Commit message preparation failed: GitJournal: Parser: Summary parsing: 'This commit contains no cactegory'
 ```
 
-Since we are using the `-m` flag there is no chance for the user to edit the message any more and git-journal will
+Since we are using the `-m` flag there is no chance for the user to edit the message any more and _git-journal_ will
 reject it. If we are using a commit message editor via the usual `git commit` without the `-m` we will get a default
 commit message template:
 
@@ -286,8 +284,8 @@ If everything went fine it should look like this:
  create mode 100644 my_file
 ```
 
-This means in detail that git-journal will build up two gates (one for preparation and one for verification) during
-doing the commit by the user. This graphic will sum up where git-journal will take influence on the local git
+This means in detail that _git-journal_ will build up two gates (one for preparation and one for verification) during
+doing the commit by the user. This graphic will sum up where _git-journal_ will take influence on the local git
 repository:
 ![git-journal flow](./.github/flow.svg)
 
