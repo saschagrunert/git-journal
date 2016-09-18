@@ -1,5 +1,6 @@
-# [git-journal 📖](https://saschagrunert.github.io/git-journal) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/git-journal/blob/master/LICENSE) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)  [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/git-journal/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/git-journal?branch=master)
+# [git-journal 📖](https://saschagrunert.github.io/git-journal)
 ## The Git Commit Message and Changelog Generation Framework
+[![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/git-journal/blob/master/LICENSE) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)  [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/git-journal/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/git-journal?branch=master)
 
 Table of contents:
 
