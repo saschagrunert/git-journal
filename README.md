@@ -1,6 +1,7 @@
 # git-journal 📖
 ## The Git Commit Message and Changelog Generation Framework
-[![Crates.io](https://img.shields.io/crates/v/git-journal.svg)](https://crates.io/crates/git-journal) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/git-journal/blob/master/LICENSE) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)  [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/git-journal/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/git-journal?branch=master) [![doc gitjournal](https://img.shields.io/badge/doc-gitjournal-blue.svg)](https://saschagrunert.github.io/git-journal)
+[![Crates.io](https://img.shields.io/crates/v/git-journal.svg)](https://crates.io/crates/git-journal) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/git-journal/blob/master/LICENSE) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)  [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/git-journal/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/git-journal?branch=master) [![doc gitjournal](https://img.shields.io/badge/doc-gitjournal-blue.svg)](https://saschagrunert.github.io/git-journal) [![doc.rs](https://docs.rs/git-journal/badge.svg)](https://docs.rs/git-journal)
+
 
 Table of contents:
 
