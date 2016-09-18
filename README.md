@@ -6,11 +6,11 @@ Table of contents:
 * [TL;DR](#tldr)
 * [Installation](#installation)
 * [Usage](#usage)
-    * [Default output](#defaultoutput)
-    * [Template output](#templateoutput)
-    * [Commit message preparation and verification](#prepverify)
-* [Current Features](#features)
-* [Planned features and improvements](#planned)
+    * [Default output](#default-output)
+    * [Template output](#template-output)
+    * [Commit message preparation and verification](#commit-message-preparation-and-verification)
+* [Current Features](#current-features)
+* [Planned features and improvements](#planned-features-and-improvements)
 * [Contributing](#contributing)
 
 ---
