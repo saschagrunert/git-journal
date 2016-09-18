@@ -15,24 +15,24 @@ use config::Config;
 
 #[derive(Debug)]
 pub enum Error {
-    SummaryParsing(String),
-    ParagraphParsing(String),
-    FooterParsing(String),
     CommitMessageLength,
-    Terminal,
+    FooterParsing(String),
     Io(io::Error),
+    ParagraphParsing(String),
+    SummaryParsing(String),
+    Terminal,
     Toml(toml::Error),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::SummaryParsing(ref line) => write!(f, "Summary parsing: '{}'", line),
-            Error::ParagraphParsing(ref line) => write!(f, "Paragraph parsing: '{}'", line),
-            Error::FooterParsing(ref line) => write!(f, "Footer parsing: '{}'", line),
             Error::CommitMessageLength => write!(f, "Commit message length too small."),
-            Error::Terminal => write!(f, "Could not print to terminal."),
+            Error::FooterParsing(ref line) => write!(f, "Footer parsing: '{}'", line),
             Error::Io(ref e) => write!(f, "Io: {}", e),
+            Error::ParagraphParsing(ref line) => write!(f, "Paragraph parsing: '{}'", line),
+            Error::SummaryParsing(ref line) => write!(f, "Summary parsing: '{}'", line),
+            Error::Terminal => write!(f, "Could not print to terminal."),
             Error::Toml(ref e) => write!(f, "Toml: {}", e),
         }
     }
@@ -63,7 +63,7 @@ pub enum Printed {
     Something,
 }
 
-pub trait PrintWithTag {
+pub trait Print {
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
                                 config: &Config,
@@ -106,22 +106,60 @@ pub trait PrintWithTag {
 
     fn contains_tag(&self, tag: Option<&str>) -> bool;
 
-    fn contains_untagged(&self) -> bool;
+    fn contains_untagged_elements(&self) -> bool;
 
     fn matches_default_tag(&self, tag: Option<&str>) -> bool {
-        if let Some(tag) = tag {
-            tag == "default" && self.contains_untagged()
-        } else {
-            false
+        match tag {
+            Some(tag) => tag == "default" && self.contains_untagged_elements(),
+            None => false,
         }
+    }
+
+    fn should_be_printed(&self, tag: Option<&str>) -> bool {
+        self.contains_tag(tag) || self.matches_default_tag(tag)
+    }
+
+    fn print_to_term_and_write_to_vector(&self,
+                                         mut term: &mut Box<term::StdoutTerminal>,
+                                         mut vec: &mut Vec<u8>,
+                                         config: &Config,
+                                         tag: Option<&str>)
+                                         -> Result<(), Error> {
+        try!(self.print_default_term(&mut term, config, tag));
+        try!(self.print_default(&mut vec, config, tag));
+        Ok(())
     }
 }
 
-pub trait Print {
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
+pub struct ParsedTag {
+    pub name: String,
+    pub date: Date<UTC>,
+}
+
+impl ParsedTag {
     fn print<T: Write, F, G, H>(&self, t: &mut T, config: &Config, c1: &F, c2: &G, c3: &H) -> Result<Printed, Error>
         where F: Fn(&mut T) -> Result<(), Error>,
               G: Fn(&mut T) -> Result<(), Error>,
-              H: Fn(&mut T) -> Result<(), Error>;
+              H: Fn(&mut T) -> Result<(), Error>
+    {
+        if config.colored_output {
+            try!(c1(t));
+        }
+        tryw!(t, "\n# {} ", self.name);
+        if config.colored_output {
+            try!(c2(t));
+        }
+        trywln!(t,
+                "({}-{:02}-{:02}):",
+                self.date.year(),
+                self.date.month(),
+                self.date.day());
+        if config.colored_output {
+            try!(c3(t));
+        }
+        Ok(Printed::Something)
+    }
 
     fn print_default<T: Write>(&self, t: &mut T, config: &Config) -> Result<(), Error> {
         try!(self.print(t, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
@@ -145,36 +183,15 @@ pub trait Print {
                         }));
         Ok(())
     }
-}
 
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
-pub struct ParsedTag {
-    pub name: String,
-    pub date: Date<UTC>,
-}
-
-impl Print for ParsedTag {
-    fn print<T: Write, F, G, H>(&self, t: &mut T, config: &Config, c1: &F, c2: &G, c3: &H) -> Result<Printed, Error>
-        where F: Fn(&mut T) -> Result<(), Error>,
-              G: Fn(&mut T) -> Result<(), Error>,
-              H: Fn(&mut T) -> Result<(), Error>
-    {
-        if config.colored_output {
-            try!(c1(t));
-        }
-        tryw!(t, "\n# {} ", self.name);
-        if config.colored_output {
-            try!(c2(t));
-        }
-        trywln!(t,
-                "({}-{:02}-{:02}):",
-                self.date.year(),
-                self.date.month(),
-                self.date.day());
-        if config.colored_output {
-            try!(c3(t));
-        }
-        Ok(Printed::Something)
+    fn print_to_term_and_write_to_vector(&self,
+                                         mut term: &mut Box<term::StdoutTerminal>,
+                                         mut vec: &mut Vec<u8>,
+                                         config: &Config)
+                                         -> Result<(), Error> {
+        try!(self.print_default_term(&mut term, config));
+        try!(self.print_default(&mut vec, config));
+        Ok(())
     }
 }
 
@@ -185,7 +202,7 @@ pub struct ParsedCommit {
     pub footer: Vec<FooterElement>,
 }
 
-impl PrintWithTag for ParsedCommit {
+impl Print for ParsedCommit {
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
                                 config: &Config,
@@ -212,8 +229,9 @@ impl PrintWithTag for ParsedCommit {
         self.summary.contains_tag(tag) || self.body.iter().filter(|x| x.contains_tag(tag)).count() > 0
     }
 
-    fn contains_untagged(&self) -> bool {
-        self.summary.contains_untagged() || self.body.iter().filter(|x| x.contains_untagged()).count() > 0
+    fn contains_untagged_elements(&self) -> bool {
+        self.summary.contains_untagged_elements() ||
+        self.body.iter().filter(|x| x.contains_untagged_elements()).count() > 0
     }
 }
 
@@ -225,7 +243,7 @@ pub struct SummaryElement {
     pub tags: Vec<String>,
 }
 
-impl PrintWithTag for SummaryElement {
+impl Print for SummaryElement {
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
                                 config: &Config,
@@ -243,7 +261,7 @@ impl PrintWithTag for SummaryElement {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag(tag) || self.matches_default_tag(tag) {
+        if self.should_be_printed(tag) {
             tryw!(t, "- ");
             if config.show_prefix && !self.prefix.is_empty() {
                 tryw!(t, "{} ", self.prefix);
@@ -262,14 +280,13 @@ impl PrintWithTag for SummaryElement {
     }
 
     fn contains_tag(&self, tag: Option<&str>) -> bool {
-        if let Some(tag) = tag {
-            !(!self.tags.contains(&tag.to_owned()))
-        } else {
-            true
+        match tag {
+            Some(tag) => self.tags.contains(&tag.to_owned()),
+            None => true,
         }
     }
 
-    fn contains_untagged(&self) -> bool {
+    fn contains_untagged_elements(&self) -> bool {
         self.tags.is_empty()
     }
 }
@@ -294,7 +311,7 @@ pub struct ParagraphElement {
 }
 
 
-impl PrintWithTag for BodyElement {
+impl Print for BodyElement {
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
                                 config: &Config,
@@ -327,15 +344,15 @@ impl PrintWithTag for BodyElement {
         }
     }
 
-    fn contains_untagged(&self) -> bool {
+    fn contains_untagged_elements(&self) -> bool {
         match *self {
-            BodyElement::List(ref vec) => vec.iter().filter(|x| x.contains_untagged()).count() > 0,
-            BodyElement::Paragraph(ref paragraph) => paragraph.contains_untagged(),
+            BodyElement::List(ref vec) => vec.iter().filter(|x| x.contains_untagged_elements()).count() > 0,
+            BodyElement::Paragraph(ref paragraph) => paragraph.contains_untagged_elements(),
         }
     }
 }
 
-impl PrintWithTag for ListElement {
+impl Print for ListElement {
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
                                 config: &Config,
@@ -353,7 +370,7 @@ impl PrintWithTag for ListElement {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag(tag) || self.matches_default_tag(tag) {
+        if self.should_be_printed(tag) {
             tryw!(t, "{}- ", {
                 if tag.is_none() {
                     iter::repeat(' ').take(4).collect::<String>()
@@ -378,19 +395,18 @@ impl PrintWithTag for ListElement {
     }
 
     fn contains_tag(&self, tag: Option<&str>) -> bool {
-        if let Some(tag) = tag {
-            !(!self.tags.contains(&tag.to_owned()))
-        } else {
-            true
+        match tag {
+            Some(tag) => self.tags.contains(&tag.to_owned()),
+            None => true,
         }
     }
 
-    fn contains_untagged(&self) -> bool {
+    fn contains_untagged_elements(&self) -> bool {
         self.tags.is_empty()
     }
 }
 
-impl PrintWithTag for ParagraphElement {
+impl Print for ParagraphElement {
     #[allow(unused_variables)]
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
@@ -409,7 +425,7 @@ impl PrintWithTag for ParagraphElement {
             return Ok(Printed::Nothing);
         }
 
-        if self.contains_tag(tag) || self.matches_default_tag(tag) {
+        if self.should_be_printed(tag) {
             for (index, line) in self.text
                 .lines()
                 .map(|x| {
@@ -431,14 +447,13 @@ impl PrintWithTag for ParagraphElement {
     }
 
     fn contains_tag(&self, tag: Option<&str>) -> bool {
-        if let Some(tag) = tag {
-            !(!self.tags.contains(&tag.to_owned()))
-        } else {
-            true
+        match tag {
+            Some(tag) => self.tags.contains(&tag.to_owned()),
+            None => true,
         }
     }
 
-    fn contains_untagged(&self) -> bool {
+    fn contains_untagged_elements(&self) -> bool {
         self.tags.is_empty()
     }
 }
@@ -594,16 +609,15 @@ impl Parser {
         let mut output_vec = vec![];
 
         for &(ref tag, ref commits) in parsed_commits {
-            try!(tag.print_default_term(&mut term, config));
-            try!(tag.print_default(&mut output_vec, config));
+            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut output_vec, config));
 
             for commit in commits {
-                if *compact {
-                    try!(commit.summary.print_default_term(&mut term, config, None));
-                    try!(commit.summary.print_default(&mut output_vec, config, None));
-                } else {
-                    try!(commit.print_default_term(&mut term, config, None));
-                    try!(commit.print_default(&mut output_vec, config, None));
+                match *compact {
+                    true => {
+                        try!(commit.summary.print_to_term_and_write_to_vector(&mut term, &mut output_vec, config, None))
+                    }
+                    false => try!(commit.print_to_term_and_write_to_vector(&mut term, &mut output_vec, config, None)),
+
                 }
             }
         }
@@ -634,8 +648,7 @@ impl Parser {
         let mut output_vec = vec![];
         let mut term = try!(term::stdout().ok_or(Error::Terminal));
         for &(ref tag, ref commits) in parsed_commits {
-            try!(tag.print_default_term(&mut term, config));
-            try!(tag.print_default(&mut output_vec, config));
+            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut output_vec, config));
             try!(Parser::print_commits_in_table(&mut term, &mut output_vec, &toml, &mut 2, commits, config, &compact));
         }
         trywln!(output_vec, "---");
@@ -663,11 +676,12 @@ impl Parser {
                 if (*compact &&
                     ((commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
                       !config.excluded_commit_tags.contains(tag)) ||
-                     (tag == "default" && commits.iter().filter(|c| c.summary.contains_untagged()).count() > 0))) ||
+                     (tag == "default" &&
+                      commits.iter().filter(|c| c.summary.contains_untagged_elements()).count() > 0))) ||
                    (!*compact &&
                     ((commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
                       !config.excluded_commit_tags.contains(tag)) ||
-                     (tag == "default" && commits.iter().filter(|c| c.contains_untagged()).count() > 0))) {
+                     (tag == "default" && commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
 
 
                     if config.colored_output {
@@ -680,12 +694,19 @@ impl Parser {
 
                     // Print commits for this tag
                     for commit in commits {
-                        if *compact {
-                            try!(commit.summary.print_default_term(term, config, Some(tag)));
-                            try!(commit.summary.print_default(output_vec, config, Some(tag)));
-                        } else {
-                            try!(commit.print_default_term(term, config, Some(tag)));
-                            try!(commit.print_default(output_vec, config, Some(tag)));
+                        match *compact {
+                            true => {
+                                try!(commit.summary.print_to_term_and_write_to_vector(&mut term,
+                                                                                      &mut output_vec,
+                                                                                      config,
+                                                                                      Some(tag)))
+                            }
+                            false => {
+                                try!(commit.print_to_term_and_write_to_vector(&mut term,
+                                                                              &mut output_vec,
+                                                                              config,
+                                                                              Some(tag)))
+                            }
                         }
                     }
 
@@ -731,8 +752,10 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_default_term(&mut t, &config::Config::new(), None).is_ok());
-            assert!(commit.print_default_term(&mut t, &config::Config::new(), Some("tag")).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
+                                                             &config::Config::new(), None).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
+                                                             &config::Config::new(), Some("tag")).is_ok());
         }
     }
 
@@ -749,8 +772,10 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_default_term(&mut t, &config::Config::new(), None).is_ok());
-            assert!(commit.print_default_term(&mut t, &config::Config::new(), Some("tag")).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
+                                                             &config::Config::new(), None).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
+                                                             &config::Config::new(), Some("tag")).is_ok());
         }
     }
 
@@ -767,8 +792,10 @@ mod tests {
             assert_eq!(commit.summary.text, " some ____ commit");
             assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_default_term(&mut t, &config::Config::new(), None).is_ok());
-            assert!(commit.print_default_term(&mut t, &config::Config::new(), Some("tag3")).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
+                                                             &config::Config::new(), None).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
+                                                             &config::Config::new(), Some("tag3")).is_ok());
         }
     }
 
@@ -786,8 +813,10 @@ mod tests {
             assert_eq!(commit.summary.text, " my commit 💖 summary");
             assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_default_term(&mut t, &config::Config::new(), None).is_ok());
-            assert!(commit.print_default_term(&mut t, &config::Config::new(), Some("some tag")).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
+                                                             &config::Config::new(), None).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
+                                                             &config::Config::new(), Some("some tag")).is_ok());
         }
     }
 
