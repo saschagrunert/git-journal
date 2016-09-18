@@ -1,16 +1,11 @@
 #![doc(html_root_url = "https://saschagrunert.github.io/git-journal/")]
 #![deny(missing_docs)]
 
-//! # The Git Commit Message Framework
+//! # The Git Commit Message and Changelog Generation Framework
 //!
-//! Target of the project is to provide a Rust based framework to write more sensible commit
-//! messages. Single commit messages should contain one logical change of the project which is
-//! described in a standardized way. This results in a much cleaner git history and provides
-//! contributors more information about the actual change.
-//!
-//! To gain very clean commit message history it is necessary to use git rebase, squashed and
-//! amended commits. git-journal will simplify these development approaches by providing sensible
-//! conventions and strong defaults.
+//! This crate contains the library for the
+//! [`git-journal`](https://github.com/saschagrunert/git-journal) executable. It handles all the
+//! parsing and commit message modification stuff which is provided by the executable.
 //!
 //! ### Example usage
 //!
@@ -209,14 +204,15 @@ impl GitJournal {
     /// # Set to false if the output should not be colored
     /// colored_output = true
     ///
-    /// # Specifies the default template. Will be used for tag validation and printing.
+    /// # Specifies the default template. Will be used for tag validation and printing. Can be
+    /// removed from the configuration file as well.
     /// default_template = "CHANGELOG.toml"
     ///
     /// # Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
     /// enable_debug = true
     ///
     /// # Excluded tags in an array, e.g. "internal"
-    /// excluded_tags = []
+    /// excluded_commit_tags = []
     ///
     /// # Show or hide the commit message prefix, e.g. JIRA-1234
     /// show_prefix = false
@@ -290,7 +286,8 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let journal = GitJournal::new(".").unwrap();
-    /// journal.prepare("./tests/commit_messages/success_1").expect("Commit message preparation error");
+    /// journal.prepare("./tests/commit_messages/success_1", None)
+    ///        .expect("Commit message preparation error");
     /// ```
     ///
     /// # Errors
@@ -490,28 +487,41 @@ impl GitJournal {
     /// If some commit message could not be print.
     ///
     pub fn print_log(&self, compact: bool, template: Option<&str>, output: Option<&str>) -> Result<(), Error> {
+
+        // Choose the template
         let mut default_template = PathBuf::from(&self.path);
-        default_template.push(&self.config.default_template);
+        let used_template = match self.config.default_template {
+            Some(ref default_template_file) => {
+                default_template.push(default_template_file);
 
-        if !default_template.exists() && template.is_none() && self.config.enable_debug {
-            println_warn!("The default template '{}' does not exist.",
-                          default_template.display());
-        }
-
-        // Do not overwrite the template via the CLI but use it if nothing else specified
-        let output_vec = if default_template.exists() && template.is_none() {
-            if self.config.enable_debug {
-                println_ok!("Using default template '{}'.", default_template.display());
+                match template {
+                    None => {
+                        if default_template.exists() {
+                            if self.config.enable_debug {
+                                println_ok!("Using default template '{}'.", default_template.display());
+                            }
+                            default_template.to_str()
+                        } else {
+                            if self.config.enable_debug {
+                                println_warn!("The default template '{}' does not exist.",
+                                              default_template.display());
+                            }
+                            None
+                        }
+                    }
+                    Some(t) => Some(t),
+                }
             }
-            let path_str = default_template.to_str().unwrap_or("");
-            try!(Parser::parse_template_and_print(path_str, &self.parse_result, &self.config, &compact))
-        } else {
-            match template {
-                Some(t) => try!(Parser::parse_template_and_print(t, &self.parse_result, &self.config, &compact)),
-                None => try!(Parser::print(&self.parse_result, &self.config, &compact)),
-            }
+            None => template,
         };
 
+        // Print the log
+        let output_vec = match used_template {
+            Some(t) => try!(Parser::parse_template_and_print(t, &self.parse_result, &self.config, &compact)),
+            None => try!(Parser::print(&self.parse_result, &self.config, &compact)),
+        };
+
+        // Print the log to the file if necessary
         if let Some(output) = output {
             let mut output_file = try!(OpenOptions::new().create(true).append(true).open(output));
             try!(output_file.write_all(&output_vec));
@@ -628,7 +638,7 @@ mod tests {
         assert_eq!(journal.parse_result.len(), 0);
         assert_eq!(journal.config.show_prefix, false);
         assert_eq!(journal.config.colored_output, true);
-        assert_eq!(journal.config.excluded_tags.len(), 0);
+        assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert_eq!(journal.parse_result.len(), journal.tags.len() + 1);
         assert_eq!(journal.parse_result[0].1.len(), 4);
@@ -693,31 +703,32 @@ mod tests {
     #[test]
     fn prepare_message_success_1() {
         let journal = GitJournal::new(".").unwrap();
-        assert!(journal.prepare("./tests/COMMIT_EDITMSG").is_ok());
+        assert!(journal.prepare("./tests/COMMIT_EDITMSG", None).is_ok());
     }
 
     #[test]
     fn prepare_message_success_2() {
         let journal = GitJournal::new(".").unwrap();
-        assert!(journal.prepare("./tests/commit_messages/prepare_1").is_ok());
+        assert!(journal.prepare("./tests/commit_messages/prepare_1", None).is_ok());
     }
 
     #[test]
     fn prepare_message_success_3() {
         let journal = GitJournal::new(".").unwrap();
-        assert!(journal.prepare("./tests/commit_messages/prepare_2").is_ok());
-    }
-
-    #[test]
-    fn prepare_message_success_4() {
-        let journal = GitJournal::new(".").unwrap();
-        assert!(journal.prepare("./tests/commit_messages/prepare_3").is_ok());
+        assert!(journal.prepare("./tests/commit_messages/prepare_2", None).is_ok());
     }
 
     #[test]
     fn prepare_message_failure_1() {
         let journal = GitJournal::new(".").unwrap();
-        assert!(journal.prepare("TEST").is_err());
+        assert!(journal.prepare("TEST", None).is_err());
+        assert!(journal.prepare("TEST", Some("message")).is_err());
+    }
+
+    #[test]
+    fn prepare_message_failure_2() {
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.prepare("./tests/commit_messages/prepare_3", Some("message")).is_err());
     }
 
     #[test]

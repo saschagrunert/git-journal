@@ -50,13 +50,13 @@ pub struct Config {
     pub colored_output: bool,
 
     /// Specifies the default template. Will be used for tag validation and printing.
-    pub default_template: String,
+    pub default_template: Option<String>,
 
     /// Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
     pub enable_debug: bool,
 
     /// Excluded tags in an array, e.g. "internal"
-    pub excluded_tags: Vec<String>,
+    pub excluded_commit_tags: Vec<String>,
 
     /// Show or hide the commit message prefix, e.g. JIRA-1234
     pub show_prefix: bool,
@@ -78,9 +78,9 @@ impl Config {
     pub fn new() -> Self {
         Config {
             colored_output: true,
-            default_template: "CHANGELOG.toml".to_owned(),
+            default_template: None,
             enable_debug: true,
-            excluded_tags: vec![],
+            excluded_commit_tags: vec![],
             show_prefix: false,
             template_prefix: "JIRA-1234".to_owned(),
         }

@@ -1,5 +1,4 @@
 colored_output = true
-default_template = "CHANGELOG.toml"
 enable_debug = true
 excluded_tags = []
 show_prefix = false

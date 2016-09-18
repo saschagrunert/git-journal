@@ -607,6 +607,8 @@ impl Parser {
                 }
             }
         }
+        trywln!(term, "");
+        trywln!(output_vec, "\n---");
         Ok(output_vec)
     }
 
@@ -636,6 +638,7 @@ impl Parser {
             try!(tag.print_default(&mut output_vec, config));
             try!(Parser::print_commits_in_table(&mut term, &mut output_vec, &toml, &mut 2, commits, config, &compact));
         }
+        trywln!(output_vec, "---");
         Ok(output_vec)
     }
 
