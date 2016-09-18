@@ -8,6 +8,7 @@ authors = ["Sascha Grunert <mail@saschagruenrt.de>"]
 repository = "https://github.com/saschagrunert/git-journal"
 homepage = "https://github.com/saschagrunert/git-journal"
 documentation = "https://saschagrunert.github.io/git-journal"
+description = "The Git Commit Message and Changelog Generation Framework"
 
 [lib]
 name = "gitjournal"
