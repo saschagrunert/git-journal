@@ -200,7 +200,6 @@ impl ParsedTag {
             Some(template) => {
                 let toml = try!(Parser::parse_template(template));
                 try!(self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 2, config, &compact));
-                trywln!(vec, "\n---");
             }
             None => {
                 for commit in &self.commits {
@@ -211,7 +210,7 @@ impl ParsedTag {
                     }
                 }
                 trywln!(term, "");
-                trywln!(vec, "\n\n---");
+                trywln!(vec, "");
             }
         }
 
@@ -290,7 +289,7 @@ impl ParsedTag {
         for footer in self.commits.iter().flat_map(|commit| commit.footer.clone()).collect::<Vec<FooterElement>>() {
             footer_map.entry(footer.key).or_insert_with(|| vec![]).push(footer.value);
         }
-        for (key, values) in footer_map.iter() {
+        for (key, values) in &footer_map {
             if config.colored_output {
                 try!(term.fg(term::color::BRIGHT_RED));
             }
@@ -723,6 +722,7 @@ impl Parser {
             try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, config, template));
         }
 
+        trywln!(term, "");
         Ok(vec)
     }
 
