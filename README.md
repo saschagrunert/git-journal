@@ -307,7 +307,6 @@ repository:
     * [x] Enable/Disable colored output via the command line.
     * [x] Automatic wrapping of commit message categories in square brackets.
     * [x] Templating support including tag and name mapping.
-    * [x] Support for accumulating footer data (also for templating engine).
 * Preparation and Verification of commit messages
     * [x] Automatic installation of git hooks inside the local repository.
     * [x] Generation of default configuration file during setup.
@@ -317,6 +316,7 @@ repository:
 ## Planned features and improvements
 [planned]: #planned
 
+* [x] Support for accumulating footer data (also for templating engine).
 * [ ] Custom category support.
 * [ ] Custom commit message template support, which will be used for commit preparation.
 * [ ] Multiple template extensions, like custom header/footer or other different custom fields.
