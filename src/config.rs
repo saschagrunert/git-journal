@@ -84,7 +84,7 @@ impl Config {
             default_template: None,
             enable_debug: true,
             excluded_commit_tags: vec![],
-            enable_footers: true,
+            enable_footers: false,
             show_prefix: false,
             template_prefix: "JIRA-1234".to_owned(),
         }
