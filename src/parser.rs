@@ -4,6 +4,7 @@ use chrono::{Date, UTC, Datelike};
 use term;
 use toml;
 
+use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
@@ -135,6 +136,7 @@ pub trait Print {
 pub struct ParsedTag {
     pub name: String,
     pub date: Date<UTC>,
+    pub commits: Vec<ParsedCommit>,
 }
 
 impl ParsedTag {
@@ -150,11 +152,11 @@ impl ParsedTag {
         if config.colored_output {
             try!(c2(t));
         }
-        trywln!(t,
-                "({}-{:02}-{:02}):",
-                self.date.year(),
-                self.date.month(),
-                self.date.day());
+        tryw!(t,
+              "({}-{:02}-{:02}):",
+              self.date.year(),
+              self.date.month(),
+              self.date.day());
         if config.colored_output {
             try!(c3(t));
         }
@@ -187,10 +189,117 @@ impl ParsedTag {
     fn print_to_term_and_write_to_vector(&self,
                                          mut term: &mut Box<term::StdoutTerminal>,
                                          mut vec: &mut Vec<u8>,
-                                         config: &Config)
+                                         compact: &bool,
+                                         config: &Config,
+                                         template: Option<&str>)
                                          -> Result<(), Error> {
         try!(self.print_default_term(&mut term, config));
         try!(self.print_default(&mut vec, config));
+
+        match template {
+            Some(template) => {
+                let toml = try!(Parser::parse_template(template));
+                try!(self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 2, config, &compact));
+                trywln!(vec, "\n---");
+            }
+            None => {
+                for commit in &self.commits {
+                    if *compact {
+                        try!(commit.summary.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None));
+                    } else {
+                        try!(commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None));
+                    }
+                }
+                trywln!(term, "");
+                trywln!(vec, "\n\n---");
+            }
+        }
+
+        if !*compact && config.enable_footers {
+            try!(self.print_footers(&mut term, &mut vec, &config));
+        }
+        Ok(())
+    }
+
+    fn print_commits_in_table(&self,
+                              mut term: &mut Box<term::StdoutTerminal>,
+                              mut vec: &mut Vec<u8>,
+                              table: &toml::Table,
+                              level: &mut usize,
+                              config: &Config,
+                              compact: &bool)
+                              -> Result<(), Error> {
+        for (tag, value) in table {
+            if let toml::Value::Table(ref table) = *value {
+                let header_lvl: String = iter::repeat('#').take(*level).collect();
+                let name = match table.get("name") {
+                    Some(name_value) => name_value.as_str().unwrap_or(tag),
+                    None => tag,
+                };
+
+                // Do not print at all if none of the commits matches to the section
+                // Differenciate between compact and non compact prints
+                if (*compact &&
+                    ((self.commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
+                      !config.excluded_commit_tags.contains(tag)) ||
+                     (tag == "default" &&
+                      self.commits.iter().filter(|c| c.summary.contains_untagged_elements()).count() > 0))) ||
+                   (!*compact &&
+                    ((self.commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
+                      !config.excluded_commit_tags.contains(tag)) ||
+                     (tag == "default" &&
+                      self.commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
+
+
+                    if config.colored_output {
+                        try!(term.fg(term::color::BRIGHT_RED));
+                    }
+                    tryw!(term, "\n{} {}", header_lvl, name);
+                    tryw!(vec, "\n{} {}", header_lvl, name);
+
+                    try!(term.reset());
+
+                    // Print commits for this tag
+                    for commit in &self.commits {
+                        if *compact {
+                            try!(commit.summary
+                                .print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag)));
+                        } else {
+                            try!(commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag)));
+                        }
+                    }
+
+                    trywln!(term, "");
+                    trywln!(vec, "");
+                }
+
+                *level += 1;
+                try!(self.print_commits_in_table(term, vec, table, level, config, compact));
+                *level -= 1;
+            }
+        }
+        Ok(())
+    }
+
+    fn print_footers(&self,
+                     mut term: &mut Box<term::StdoutTerminal>,
+                     mut vec: &mut Vec<u8>,
+                     config: &Config)
+                     -> Result<(), Error> {
+        let mut footer_map: HashMap<String, Vec<String>> = HashMap::new();
+        for footer in self.commits.iter().flat_map(|commit| commit.footer.clone()).collect::<Vec<FooterElement>>() {
+            footer_map.entry(footer.key).or_insert_with(|| vec![]).push(footer.value);
+        }
+        for (key, values) in footer_map.iter() {
+            if config.colored_output {
+                try!(term.fg(term::color::BRIGHT_RED));
+            }
+            trywln!(term, "\n{}:", key);
+            trywln!(vec, "\n{}:", key);
+            try!(term.reset());
+            trywln!(term, "{}", values.join(", "));
+            trywln!(vec, "{}", values.join(", "));
+        }
         Ok(())
     }
 }
@@ -262,7 +371,7 @@ impl Print for SummaryElement {
         }
 
         if self.should_be_printed(tag) {
-            tryw!(t, "- ");
+            tryw!(t, "\n- ");
             if config.show_prefix && !self.prefix.is_empty() {
                 tryw!(t, "{} ", self.prefix);
             }
@@ -273,7 +382,7 @@ impl Print for SummaryElement {
             if config.colored_output {
                 try!(c2(t));
             }
-            trywln!(t, "{}", self.text);
+            tryw!(t, "{}", self.text);
             try!(c3(t));
         }
         Ok(Printed::Something)
@@ -371,7 +480,7 @@ impl Print for ListElement {
         }
 
         if self.should_be_printed(tag) {
-            tryw!(t, "{}- ", {
+            tryw!(t, "\n{}- ", {
                 if tag.is_none() {
                     iter::repeat(' ').take(4).collect::<String>()
                 } else {
@@ -387,7 +496,7 @@ impl Print for ListElement {
                     try!(c2(t));
                 }
             }
-            trywln!(t, "{}", self.text);
+            tryw!(t, "{}", self.text);
             try!(c3(t));
         }
 
@@ -437,9 +546,9 @@ impl Print for ParagraphElement {
                 .enumerate() {
                 if tag.is_some() && index == 0 {
                     // Paragraphs will be transformed into lists when using templates
-                    trywln!(t, "{}", line.replace("  ", "- "));
+                    tryw!(t, "\n{}", line.replace("  ", "- "));
                 } else {
-                    trywln!(t, "{}", line);
+                    tryw!(t, "\n{}", line);
                 }
             }
         }
@@ -601,29 +710,20 @@ impl Parser {
     }
 
     /// Prints the commits without any template
-    pub fn print(parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)],
+    pub fn print(parsed_tags: &[ParsedTag],
                  config: &Config,
-                 compact: &bool)
+                 compact: &bool,
+                 template: Option<&str>)
                  -> Result<Vec<u8>, Error> {
-        let mut term = try!(term::stdout().ok_or(term::Error::NotSupported));
-        let mut output_vec = vec![];
 
-        for &(ref tag, ref commits) in parsed_commits {
-            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut output_vec, config));
+        let mut term = try!(term::stdout().ok_or(Error::Terminal));
+        let mut vec = vec![];
 
-            for commit in commits {
-                match *compact {
-                    true => {
-                        try!(commit.summary.print_to_term_and_write_to_vector(&mut term, &mut output_vec, config, None))
-                    }
-                    false => try!(commit.print_to_term_and_write_to_vector(&mut term, &mut output_vec, config, None)),
-
-                }
-            }
+        for tag in parsed_tags {
+            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, config, template));
         }
-        trywln!(term, "");
-        trywln!(output_vec, "\n---");
-        Ok(output_vec)
+
+        Ok(vec)
     }
 
     /// Parses a toml template and returns the table (BTreeMap) it on success
@@ -633,93 +733,6 @@ impl Parser {
         try!(file.read_to_string(&mut toml_string));
         Ok(try!(toml::Parser::new(&toml_string).parse()
                 .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned()))))
-    }
-
-    /// Parses a toml output template and filters it through parsed commits
-    pub fn parse_template_and_print(template: &str,
-                                    parsed_commits: &[(ParsedTag, Vec<ParsedCommit>)],
-                                    config: &Config,
-                                    compact: &bool)
-                                    -> Result<Vec<u8>, Error> {
-        // Parse toml from file
-        let toml = try!(Parser::parse_template(template));
-
-        // Print the commits
-        let mut output_vec = vec![];
-        let mut term = try!(term::stdout().ok_or(Error::Terminal));
-        for &(ref tag, ref commits) in parsed_commits {
-            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut output_vec, config));
-            try!(Parser::print_commits_in_table(&mut term, &mut output_vec, &toml, &mut 2, commits, config, &compact));
-        }
-        trywln!(output_vec, "---");
-        Ok(output_vec)
-    }
-
-    fn print_commits_in_table(mut term: &mut Box<term::StdoutTerminal>,
-                              mut output_vec: &mut Vec<u8>,
-                              table: &toml::Table,
-                              level: &mut usize,
-                              commits: &[ParsedCommit],
-                              config: &Config,
-                              compact: &bool)
-                              -> Result<(), Error> {
-        for (tag, value) in table {
-            if let toml::Value::Table(ref table) = *value {
-                let header_lvl: String = iter::repeat('#').take(*level).collect();
-                let name = match table.get("name") {
-                    Some(name_value) => name_value.as_str().unwrap_or(tag),
-                    None => tag,
-                };
-
-                // Do not print at all if none of the commits matches to the section
-                // Differenciate between compact and non compact prints
-                if (*compact &&
-                    ((commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
-                      !config.excluded_commit_tags.contains(tag)) ||
-                     (tag == "default" &&
-                      commits.iter().filter(|c| c.summary.contains_untagged_elements()).count() > 0))) ||
-                   (!*compact &&
-                    ((commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
-                      !config.excluded_commit_tags.contains(tag)) ||
-                     (tag == "default" && commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
-
-
-                    if config.colored_output {
-                        try!(term.fg(term::color::BRIGHT_RED));
-                    }
-                    trywln!(term, "{} {}", header_lvl, name);
-                    try!(term.reset());
-
-                    trywln!(output_vec, "{} {}", header_lvl, name);
-
-                    // Print commits for this tag
-                    for commit in commits {
-                        match *compact {
-                            true => {
-                                try!(commit.summary.print_to_term_and_write_to_vector(&mut term,
-                                                                                      &mut output_vec,
-                                                                                      config,
-                                                                                      Some(tag)))
-                            }
-                            false => {
-                                try!(commit.print_to_term_and_write_to_vector(&mut term,
-                                                                              &mut output_vec,
-                                                                              config,
-                                                                              Some(tag)))
-                            }
-                        }
-                    }
-
-                    trywln!(term, "");
-                    trywln!(output_vec, "");
-                }
-
-                *level += 1;
-                try!(Parser::print_commits_in_table(term, output_vec, table, level, commits, config, compact));
-                *level -= 1;
-            }
-        }
-        Ok(())
     }
 }
 

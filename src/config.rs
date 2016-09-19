@@ -58,6 +58,9 @@ pub struct Config {
     /// Excluded tags in an array, e.g. "internal"
     pub excluded_commit_tags: Vec<String>,
 
+    /// Enable or disable the output and accumulation of commit footers
+    pub enable_footers: bool,
+
     /// Show or hide the commit message prefix, e.g. JIRA-1234
     pub show_prefix: bool,
 
@@ -81,6 +84,7 @@ impl Config {
             default_template: None,
             enable_debug: true,
             excluded_commit_tags: vec![],
+            enable_footers: true,
             show_prefix: false,
             template_prefix: "JIRA-1234".to_owned(),
         }
