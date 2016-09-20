@@ -82,15 +82,22 @@ If you run `git journal` anywhere inside this repository, the output will be a n
 - [Added] file1.txt again
 - [Removed] file1.txt
 
+Fixes:
+#1, #2
+
 # v2 (2016-09-12):
 - [Added] file3.txt
+
 ```
 
 All commits are sorted by time, which means that the newest elements occur at the top. The parsing of the commit message
 will be done regarding [RFC0001](https://github.com/saschagrunert/git-journal/blob/master/rfc/0001-commit-msg.md), which
 describes the different syntax elements within a commit message. Categories (`[Added]`, `[Fixed]`, ...) are
 automatically wrapped in square brackets if available. The journal automatically lists the log from the last release and
-the unreleased entries. It is also possible to skip the unreleased entries:
+the unreleased entries.
+
+The footers of the commit messages (described in RFC0001) are automatically accumulated and printed after the changelog
+list ordered by their values. It is also possible to skip the unreleased entries:
 
 ```terminal
 > git journal -u
@@ -184,6 +191,7 @@ using this template for the test repository:
 name = "Section 1"
 
 [tag1.tag2]
+footers = ["Fixes"]
 ```
 
 To use such a template just use the `-t` option:
@@ -193,8 +201,16 @@ To use such a template just use the `-t` option:
 [git-journal] [INFO] Skipping commit: Summary parsing: 'Merge branch 'test_branch''
 [git-journal] [OKAY] Parsing done.
 
-# Unreleased (2016-09-18):
+# Unreleased (2016-09-20):
 ## default
+- [Removed] file3.txt
+- [Removed] file4.txt
+- [Removed] file5.txt
+- [Added] new .gitjournal
+- [Improved] file5.txt
+- [Fixed] this
+- [Removed] that
+- [Added] .gitjournal.toml file
 - [Removed] not needed things
 - [Removed] file4.txt
 - [Added] file4.txt
@@ -205,9 +221,11 @@ To use such a template just use the `-t` option:
 - [Added] file4 again
 - This paragraph explains the change in detail
 
-### tag2
+## tag2
 - [Fixed] multiple issues
 
+Fixes:
+#1, #2, #1, #2, #3, #5, #6, #7
 
 # v2 (2016-09-12):
 ## default
@@ -217,8 +235,10 @@ To use such a template just use the `-t` option:
 Everything which is untagged will go into the `default` section. The name of `tag1` will be mapped to `Section 1` and
 `tag2` is a subtag of `tag1` (see the markdown header). This also means that it is now possible that list items are
 uncategorized since the templating engine gives the possibility to split commits into multiple pieces. Parsed paragraphs
-are converted to single list items to always provide a clean markdown. The command line options like in the default
-output are available as well.
+are converted to single list items to always provide a clean markdown. The footers are specified as an toml array of
+strings which will output the selected footer keys at the correct position of the log. Please consider that the
+accumulation of the tags are related to the complete tag, not just the section where there printed. Other command line
+options like in the default output are available as well.
 
 ### Commit message preparation and verification
 [prepverify]: #prepverify
@@ -307,6 +327,7 @@ repository:
     * [x] Enable/Disable colored output via the command line.
     * [x] Automatic wrapping of commit message categories in square brackets.
     * [x] Templating support including tag and name mapping.
+    * [x] Support for accumulating footer data (also for templating engine).
 * Preparation and Verification of commit messages
     * [x] Automatic installation of git hooks inside the local repository.
     * [x] Generation of default configuration file during setup.
@@ -316,7 +337,6 @@ repository:
 ## Planned features and improvements
 [planned]: #planned
 
-* [x] Support for accumulating footer data (also for templating engine).
 * [ ] Custom category support.
 * [ ] Custom commit message template support, which will be used for commit preparation.
 * [ ] Multiple template extensions, like custom header/footer or other different custom fields.

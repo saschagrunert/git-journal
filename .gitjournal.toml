@@ -1,6 +1,6 @@
 colored_output = true
 enable_debug = true
-enable_footers = true
+enable_footers = false
 excluded_commit_tags = []
 show_prefix = false
 template_prefix = "JIRA-1234"

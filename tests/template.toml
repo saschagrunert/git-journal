@@ -6,3 +6,4 @@ name = "Section 1"
 [tag1.subtag2]
 
 [tag2]
+footers = ["Fixes", "Change-ID"]

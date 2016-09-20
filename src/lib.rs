@@ -642,7 +642,7 @@ mod tests {
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert_eq!(journal.parse_result.len(), journal.tags.len() + 1);
-        assert_eq!(journal.parse_result[0].commits.len(), 8);
+        assert_eq!(journal.parse_result[0].commits.len(), 11);
         assert_eq!(journal.parse_result[1].commits.len(), 1);
         assert_eq!(journal.parse_result[2].commits.len(), 2);
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());

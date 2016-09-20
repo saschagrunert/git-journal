@@ -13,13 +13,10 @@ script:
   - cargo doc --no-deps
 after_success:
   - travis-cargo --only nightly doc-upload
-  - travis-cargo coveralls --no-sudo --verify
-  - ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/gitjournal*
+  - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then travis-cargo coveralls --no-sudo --verify; fi
+  - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/gitjournal*; fi
 os:
   - linux
-matrix:
-  allow_failures:
-    - rust: nightly
 notifications:
   email:
     on_success: never

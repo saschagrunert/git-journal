@@ -1,10 +1,10 @@
+use chrono::{Date, UTC, Datelike};
 use nom::{IResult, alpha, digit, space, rest};
 use regex::{Regex, RegexBuilder};
-use chrono::{Date, UTC, Datelike};
 use term;
 use toml;
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
@@ -13,6 +13,10 @@ use std::iter;
 use std::str;
 
 use config::Config;
+
+static DEFAULT_TAG: &'static str = "default";
+static FOOTER_TAG: &'static str = "footers";
+static NAME_TAG: &'static str = "name";
 
 #[derive(Debug)]
 pub enum Error {
@@ -111,7 +115,7 @@ pub trait Print {
 
     fn matches_default_tag(&self, tag: Option<&str>) -> bool {
         match tag {
-            Some(tag) => tag == "default" && self.contains_untagged_elements(),
+            Some(tag) => tag == DEFAULT_TAG && self.contains_untagged_elements(),
             None => false,
         }
     }
@@ -211,12 +215,12 @@ impl ParsedTag {
                 }
                 trywln!(term, "");
                 trywln!(vec, "");
+                if !*compact && config.enable_footers {
+                    try!(self.print_footers(&mut term, &mut vec, None, &config));
+                }
             }
         }
 
-        if !*compact && config.enable_footers {
-            try!(self.print_footers(&mut term, &mut vec, &config));
-        }
         Ok(())
     }
 
@@ -231,7 +235,9 @@ impl ParsedTag {
         for (tag, value) in table {
             if let toml::Value::Table(ref table) = *value {
                 let header_lvl: String = iter::repeat('#').take(*level).collect();
-                let name = match table.get("name") {
+
+                // Get the corresponding name for the section, as fallback use the tag name
+                let name = match table.get(NAME_TAG) {
                     Some(name_value) => name_value.as_str().unwrap_or(tag),
                     None => tag,
                 };
@@ -241,12 +247,12 @@ impl ParsedTag {
                 if (*compact &&
                     ((self.commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
                       !config.excluded_commit_tags.contains(tag)) ||
-                     (tag == "default" &&
+                     (tag == DEFAULT_TAG &&
                       self.commits.iter().filter(|c| c.summary.contains_untagged_elements()).count() > 0))) ||
                    (!*compact &&
                     ((self.commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
                       !config.excluded_commit_tags.contains(tag)) ||
-                     (tag == "default" &&
+                     (tag == DEFAULT_TAG &&
                       self.commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
 
 
@@ -272,6 +278,13 @@ impl ParsedTag {
                     trywln!(vec, "");
                 }
 
+                // Print footers is specified in template
+                if let Some(footers) = table.get(FOOTER_TAG) {
+                    if let toml::Value::Array(ref array) = *footers {
+                        try!(self.print_footers(term, vec, Some(array), config));
+                    }
+                }
+
                 *level += 1;
                 try!(self.print_commits_in_table(term, vec, table, level, config, compact));
                 *level -= 1;
@@ -283,21 +296,63 @@ impl ParsedTag {
     fn print_footers(&self,
                      mut term: &mut Box<term::StdoutTerminal>,
                      mut vec: &mut Vec<u8>,
+                     footer_keys: Option<&[toml::Value]>,
                      config: &Config)
                      -> Result<(), Error> {
-        let mut footer_map: HashMap<String, Vec<String>> = HashMap::new();
-        for footer in self.commits.iter().flat_map(|commit| commit.footer.clone()).collect::<Vec<FooterElement>>() {
-            footer_map.entry(footer.key).or_insert_with(|| vec![]).push(footer.value);
+
+        let mut footer_tree: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+        // Collect valid footer keys into one vector
+        let valid_footer_keys = match footer_keys {
+            Some(keys) => {
+                let mut vec = vec![];
+                for key in keys {
+                    if let toml::Value::String(ref footer_key) = *key {
+                        vec.push(footer_key.clone());
+                    }
+                }
+                vec
+            }
+            None => vec![],
+        };
+
+        // Map the parsed results into a BTreeMap
+        for footer in self.commits
+            .iter()
+            .flat_map(|commit| commit.footer.clone())
+            .collect::<Vec<FooterElement>>() {
+            if valid_footer_keys.is_empty() || valid_footer_keys.contains(&footer.key) {
+                footer_tree.entry(footer.key).or_insert_with(|| vec![]).push(footer.value);
+            }
         }
-        for (key, values) in &footer_map {
+
+        // Sort the values by the containing strings
+        for value in footer_tree.values_mut() {
+            value.sort();
+        }
+
+        // Print the mapped footers
+        for (key, values) in &footer_tree {
             if config.colored_output {
                 try!(term.fg(term::color::BRIGHT_RED));
             }
             trywln!(term, "\n{}:", key);
             trywln!(vec, "\n{}:", key);
             try!(term.reset());
-            trywln!(term, "{}", values.join(", "));
-            trywln!(vec, "{}", values.join(", "));
+            let footer_string = values.join(", ");
+            let mut char_count = 0;
+            let mut footer_lines = String::new();
+            for cur_char in footer_string.chars() {
+                if char_count > 80 && cur_char == ' ' {
+                    footer_lines.push('\n');
+                    char_count = 0;
+                } else {
+                    footer_lines.push(cur_char);
+                    char_count += 1;
+                }
+            }
+            trywln!(term, "{}", footer_lines);
+            trywln!(vec, "{}", footer_lines);
         }
         Ok(())
     }
