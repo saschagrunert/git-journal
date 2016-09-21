@@ -17,6 +17,7 @@ use config::Config;
 static DEFAULT_TAG: &'static str = "default";
 static FOOTER_TAG: &'static str = "footers";
 static NAME_TAG: &'static str = "name";
+static TAG: &'static str = "tag";
 
 #[derive(Debug)]
 pub enum Error {
@@ -205,9 +206,10 @@ impl ParsedTag {
                 let mut file = try!(File::open(template));
                 let mut toml_string = String::new();
                 try!(file.read_to_string(&mut toml_string));
-                let toml = try!(toml::Parser::new(&toml_string).parse()
-                                .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
-                try!(self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 2, config, &compact));
+                let toml = try!(toml::Parser::new(&toml_string)
+                    .parse()
+                    .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
+                try!(self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 1, config, &compact));
             }
             None => {
                 for commit in &self.commits {
@@ -236,64 +238,68 @@ impl ParsedTag {
                               config: &Config,
                               compact: &bool)
                               -> Result<(), Error> {
-        for (tag, value) in table {
-            if let toml::Value::Table(ref table) = *value {
-                let header_lvl: String = iter::repeat('#').take(*level).collect();
-
-                // Get the corresponding name for the section, as fallback use the tag name
-                let name = match table.get(NAME_TAG) {
-                    Some(name_value) => name_value.as_str().unwrap_or(tag),
-                    None => tag,
-                };
-
-                // Do not print at all if none of the commits matches to the section
-                // Differenciate between compact and non compact prints
-                if (*compact &&
-                    ((self.commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
-                      !config.excluded_commit_tags.contains(tag)) ||
-                     (tag == DEFAULT_TAG &&
-                      self.commits.iter().filter(|c| c.summary.contains_untagged_elements()).count() > 0))) ||
-                   (!*compact &&
-                    ((self.commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
-                      !config.excluded_commit_tags.contains(tag)) ||
-                     (tag == DEFAULT_TAG &&
-                      self.commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
-
-
-                    if config.colored_output {
-                        try!(term.fg(term::color::BRIGHT_RED));
-                    }
-                    tryw!(term, "\n{} {}", header_lvl, name);
-                    tryw!(vec, "\n{} {}", header_lvl, name);
-
-                    try!(term.reset());
-
-                    // Print commits for this tag
-                    for commit in &self.commits {
-                        if *compact {
-                            try!(commit.summary
-                                .print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag)));
-                        } else {
-                            try!(commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag)));
-                        }
-                    }
-
-                    trywln!(term, "");
-                    trywln!(vec, "");
-                }
-
-                // Print footers is specified in template
-                if let Some(footers) = table.get(FOOTER_TAG) {
-                    if let toml::Value::Array(ref array) = *footers {
-                        try!(self.print_footers(term, vec, Some(array), config));
+        for value in table {
+            if let toml::Value::Array(ref array) = *value.1 {
+                for item in array {
+                    if let toml::Value::Table(ref table) = *item {
+                        *level += 1;
+                        try!(self.print_commits_in_table(term, vec, table, level, config, compact));
+                        *level -= 1;
                     }
                 }
-
-                *level += 1;
-                try!(self.print_commits_in_table(term, vec, table, level, config, compact));
-                *level -= 1;
             }
         }
+
+        let header_lvl: String = iter::repeat('#').take(*level).collect();
+        let tag = match table.get(TAG) {
+            Some(t) => t.as_str().unwrap_or(""),
+            None => return Ok(()),
+        };
+        let name = match table.get(NAME_TAG) {
+            Some(name_value) => name_value.as_str().unwrap_or(tag),
+            None => tag,
+        };
+
+        if (*compact &&
+            ((self.commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
+              !config.excluded_commit_tags.contains(&tag.to_owned())) ||
+             (tag == DEFAULT_TAG &&
+              self.commits.iter().filter(|c| c.summary.contains_untagged_elements()).count() > 0))) ||
+           (!*compact &&
+            ((self.commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
+              !config.excluded_commit_tags.contains(&tag.to_owned())) ||
+             (tag == DEFAULT_TAG && self.commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
+
+
+            if config.colored_output {
+                try!(term.fg(term::color::BRIGHT_RED));
+            }
+            tryw!(term, "\n{} {}", header_lvl, name);
+            tryw!(vec, "\n{} {}", header_lvl, name);
+
+            try!(term.reset());
+
+            // Print commits for this tag
+            for commit in &self.commits {
+                if *compact {
+                    try!(commit.summary
+                        .print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag)));
+                } else {
+                    try!(commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag)));
+                }
+            }
+
+            trywln!(term, "");
+            trywln!(vec, "");
+        }
+
+        // Print footers is specified in template
+        if let Some(footers) = table.get(FOOTER_TAG) {
+            if let toml::Value::Array(ref array) = *footers {
+                try!(self.print_footers(term, vec, Some(array), config));
+            }
+        }
+
         Ok(())
     }
 

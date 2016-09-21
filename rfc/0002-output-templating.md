@@ -18,17 +18,33 @@ Changelog. The format of an output template consists of
 example for such a template looks like this:
 
 ```toml
-[default]
+[[tag]]
+tag = "feature"
+name = "Feature"
 
-[tag1]
-name = "Section 1"
-[tag1.subtag1]
-[tag1.subtag2]
+[[tag]]
+tag = "doc"
+name = "Documentation"
 
-[tag2]
-footers = ["Fixes", "Reviewed-by"]
+[[tag]]
+[[tag.subtag]]
+tag = "doc_internal"
+name = "Internal documentation"
+
+[[tag]]
+[[tag.subtag]]
+tag = "doc_cust"
+name = "Customer documentation"
+
+[[tag]]
+tag = "internal"
+name = "Internal"
+footers = ["Fixes"]
 ```
 
-Every tag represents a toml table which can be nested as well. The `name` field inside the table maps the related tag to
-a chosen name. The `default` table can be used to specify every commit item which contains no tag at all. The `footers`
-array specifies the to be printed commit footers.
+Every tag represents a toml table which can be nested as well. Arrays of tables can be used to keep the order of the
+items, whereas the name of the array does not matter at all. The `tag` fields corresponds to the commit message tag and
+the `name` field inside the table maps the related tag to a chosen name.
+
+The `default` table can be used to specify every commit item which contains no tag at all. The `footers` array specifies
+the to be printed commit footers.

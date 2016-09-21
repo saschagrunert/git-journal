@@ -1,9 +1,13 @@
-[default]
+[[tag]]
+tag = "default"
+name = "Default"
 
-[tag1]
+[[tag]]
+tag = "tag1"
 name = "Section 1"
-[tag1.par]
-[tag1.subtag2]
 
-[tag2]
-footers = ["Fixes", "Change-ID"]
+[[tag]]
+[[tag.subtag]]
+tag = "tag2"
+name = "Subsection 1"
+footers = ["Fixes"]

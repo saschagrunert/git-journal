@@ -185,12 +185,18 @@ The design of commit message templates is described in
 using this template for the test repository:
 
 ```toml
-[default]
+[[tag]]
+tag = "default"
+name = "Default"
 
-[tag1]
+[[tag]]
+tag = "tag1"
 name = "Section 1"
 
-[tag1.tag2]
+[[tag]]
+[[tag.subtag]]
+tag = "tag2"
+name = "Subsection 1"
 footers = ["Fixes"]
 ```
 
@@ -201,8 +207,8 @@ To use such a template just use the `-t` option:
 [git-journal] [INFO] Skipping commit: Summary parsing: 'Merge branch 'test_branch''
 [git-journal] [OKAY] Parsing done.
 
-# Unreleased (2016-09-20):
-## default
+# Unreleased (2016-09-21):
+## Default
 - [Removed] file3.txt
 - [Removed] file4.txt
 - [Removed] file5.txt
@@ -221,14 +227,14 @@ To use such a template just use the `-t` option:
 - [Added] file4 again
 - This paragraph explains the change in detail
 
-## tag2
+### Subsection 1
 - [Fixed] multiple issues
 
 Fixes:
 #1, #2, #1, #2, #3, #5, #6, #7
 
 # v2 (2016-09-12):
-## default
+## Default
 - [Added] file3.txt
 ```
 
@@ -237,8 +243,8 @@ Everything which is untagged will go into the `default` section. The name of `ta
 uncategorized since the templating engine gives the possibility to split commits into multiple pieces. Parsed paragraphs
 are converted to single list items to always provide a clean markdown. The footers are specified as an toml array of
 strings which will output the selected footer keys at the correct position of the log. Please consider that the
-accumulation of the tags are related to the complete tag, not just the section where there printed. Other command line
-options like in the default output are available as well.
+accumulation of the footers are related to the complete tag, not just the section where there printed. Other command
+line options like in the default output are available as well.
 
 ### Commit message preparation and verification
 [prepverify]: #prepverify
