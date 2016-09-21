@@ -118,12 +118,12 @@ fn run() -> Result<(), Error> {
 
             // Generate completions if necessary
             if is_program_in_path("bash") {
-                app.gen_completions("git-journal", Shell::Bash, env!("PWD"));
-                try!(print_ok("Installed bash completions to your current working path."));
+                app.gen_completions("git-journal", Shell::Bash, path);
+                try!(print_ok("Installed bash completions to the path."));
             }
             if is_program_in_path("fish") {
-                app.gen_completions("git-journal", Shell::Fish, env!("PWD"));
-                try!(print_ok("Installed fish completions to your current working path."));
+                app.gen_completions("git-journal", Shell::Fish, path);
+                try!(print_ok("Installed fish completions to the path."));
             }
         }
         Some("verify") => {
