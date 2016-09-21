@@ -2,7 +2,6 @@
 ## The Git Commit Message and Changelog Generation Framework
 [![Crates.io](https://img.shields.io/crates/v/git-journal.svg)](https://crates.io/crates/git-journal) [![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/saschagrunert/git-journal/blob/master/LICENSE) [![Build Status](https://travis-ci.org/saschagrunert/git-journal.svg?branch=master)](https://travis-ci.org/saschagrunert/git-journal)  [![Coverage Status](https://coveralls.io/repos/github/saschagrunert/git-journal/badge.svg?branch=master)](https://coveralls.io/github/saschagrunert/git-journal?branch=master) [![doc gitjournal](https://img.shields.io/badge/doc-gitjournal-blue.svg)](https://saschagrunert.github.io/git-journal) [![doc.rs](https://docs.rs/git-journal/badge.svg)](https://docs.rs/git-journal)
 
-
 Table of contents:
 
 * [TL;DR](#tldr)
@@ -20,6 +19,7 @@ Table of contents:
 ## TL;DR
 [tldr]: #tldr
 
+<img src="./.github/example.jpg" align="right" height="230px" style="-webkit-box-shadow: 2px 2px 10px 0px rgba(112,112,112,1);">
 Target of the project is to provide a framework to write more sensible commit messages for the
 [git scm](https://git-scm.com/). Single commit messages should contain one logical change of the project which is
 described in a standardized way. This results in a much cleaner git history and provides contributors more information
@@ -308,7 +308,7 @@ If everything went fine it should look like this:
 This means in detail that _git-journal_ will build up two gates (one for preparation and one for verification) during
 doing the commit by the user. This graphic will sum up where _git-journal_ will take influence on the local git
 repository:
-![git-journal flow](./.github/flow.png)
+<img src="./.github/flow.png" height="350px">
 
 ## Current Features
 [features]: #features
