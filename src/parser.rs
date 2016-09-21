@@ -202,7 +202,11 @@ impl ParsedTag {
 
         match template {
             Some(template) => {
-                let toml = try!(Parser::parse_template(template));
+                let mut file = try!(File::open(template));
+                let mut toml_string = String::new();
+                try!(file.read_to_string(&mut toml_string));
+                let toml = try!(toml::Parser::new(&toml_string).parse()
+                                .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
                 try!(self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 2, config, &compact));
             }
             None => {
@@ -779,15 +783,6 @@ impl Parser {
 
         trywln!(term, "");
         Ok(vec)
-    }
-
-    /// Parses a toml template and returns the table (BTreeMap) it on success
-    pub fn parse_template(template: &str) -> Result<toml::Table, Error> {
-        let mut file = try!(File::open(template));
-        let mut toml_string = String::new();
-        try!(file.read_to_string(&mut toml_string));
-        Ok(try!(toml::Parser::new(&toml_string).parse()
-                .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned()))))
     }
 }
 

@@ -26,7 +26,9 @@ name = "Section 1"
 [tag1.subtag2]
 
 [tag2]
+footers = ["Fixes", "Reviewed-by"]
 ```
 
 Every tag represents a toml table which can be nested as well. The `name` field inside the table maps the related tag to
-a chosen name. The `default` table can be used to specify every commit item which contains no tag at all.
+a chosen name. The `default` table can be used to specify every commit item which contains no tag at all. The `footers`
+array specifies the to be printed commit footers.
