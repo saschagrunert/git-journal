@@ -19,7 +19,7 @@ Table of contents:
 ## TL;DR
 [tldr]: #tldr
 
-<img src="./.github/example.jpg" align="right" height="230px" style="-webkit-box-shadow: 2px 2px 10px 0px rgba(112,112,112,1);">
+<img src="./.github/example.jpg" align="right" height="230px">
 Target of the project is to provide a framework to write more sensible commit messages for the
 [git scm](https://git-scm.com/). Single commit messages should contain one logical change of the project which is
 described in a standardized way. This results in a much cleaner git history and provides contributors more information
