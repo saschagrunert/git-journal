@@ -442,7 +442,7 @@ impl Print for SummaryElement {
             if config.colored_output {
                 try!(c1(t));
             }
-            tryw!(t, "[{}]", self.category);
+            tryw!(t, "[{}] ", self.category);
             if config.colored_output {
                 try!(c2(t));
             }
@@ -555,7 +555,7 @@ impl Print for ListElement {
                 if config.colored_output {
                     try!(c1(t));
                 }
-                tryw!(t, "[{}]", self.category);
+                tryw!(t, "[{}] ", self.category);
                 if config.colored_output {
                     try!(c2(t));
                 }
@@ -669,6 +669,7 @@ impl Parser {
             tag!("-") ~
             space? ~
             p_category: call_m!(self.parse_category)? ~
+            space? ~
             p_tags_rest: map!(rest, Self::parse_and_consume_tags),
             || ListElement {
                 category: p_category.unwrap_or("").to_owned(),
@@ -683,6 +684,7 @@ impl Parser {
             p_prefix: separated_pair!(alpha, char!('-'), digit)? ~
             space? ~
             p_category: call_m!(self.parse_category) ~
+            space ~
             p_tags_rest: map!(rest, Self::parse_and_consume_tags),
         || SummaryElement {
             prefix: p_prefix.map_or("".to_owned(), |p| {
@@ -826,7 +828,7 @@ mod tests {
             assert_eq!(commit.footer.len(), 0);
             assert_eq!(commit.summary.prefix, "JIRA-1234");
             assert_eq!(commit.summary.category, "Changed");
-            assert_eq!(commit.summary.text, " my commit summary");
+            assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
@@ -846,7 +848,7 @@ mod tests {
             assert_eq!(commit.footer.len(), 0);
             assert_eq!(commit.summary.prefix, "");
             assert_eq!(commit.summary.category, "Changed");
-            assert_eq!(commit.summary.text, " my commit summary");
+            assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
@@ -867,7 +869,7 @@ mod tests {
             assert_eq!(commit.footer.len(), 3);
             assert_eq!(commit.summary.prefix, "PREFIX-666");
             assert_eq!(commit.summary.category, "Fixed");
-            assert_eq!(commit.summary.text, " some ____ commit");
+            assert_eq!(commit.summary.text, "some ____ commit");
             assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
             let mut t = term::stdout().unwrap();
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
@@ -889,7 +891,7 @@ mod tests {
             assert_eq!(commit.footer.len(), 1);
             assert_eq!(commit.summary.prefix, "");
             assert_eq!(commit.summary.category, "Added");
-            assert_eq!(commit.summary.text, " my commit 💖 summary");
+            assert_eq!(commit.summary.text, "my commit 💖 summary");
             assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
             let mut t = term::stdout().unwrap();
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
@@ -906,7 +908,7 @@ mod tests {
 
     #[test]
     fn parse_commit_failure_2() {
-        parse_and_print_error("PREFIX+1234 Changed some stuff");
+        parse_and_print_error("PREFIX+1234 Changing some stuff");
     }
 
     #[test]
