@@ -43,7 +43,8 @@ system and are not mandatory.
 
 ### Categories
 A category is used to indicate with one word what has been done in the commit. Valid categories are: `[Added]`,
-`[Changed]`, `[Fixed]`, `[Improved]` and `[Removed]`. Rules for categories are:
+`[Changed]`, `[Fixed]`, `[Improved]` and `[Removed]`. It is also possible to define own categories. Usually categories
+should follow the rules:
 
 - A verb always in simple past form
 - Wrapped in square brackets

@@ -656,7 +656,7 @@ impl Parser {
         chain!(
             tag!("[")? ~
             p_category: map_res!(
-                re_bytes_find!(&self.categories.join("|")),
+                re_bytes_find!(&self.categories.join("|")), // TODO: this is slow
                 str::from_utf8
             ) ~
             tag!("]")? ,

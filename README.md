@@ -93,8 +93,8 @@ Fixes:
 All commits are sorted by time, which means that the newest elements occur at the top. The parsing of the commit message
 will be done regarding [RFC0001](https://github.com/saschagrunert/git-journal/blob/master/rfc/0001-commit-msg.md), which
 describes the different syntax elements within a commit message. Categories (`[Added]`, `[Fixed]`, ...) are
-automatically wrapped in square brackets if available. The journal automatically lists the log from the last release and
-the unreleased entries.
+automatically wrapped in square brackets if available. It is also possible to define own categories within the
+configuration file. The journal automatically lists the log from the last release and the unreleased entries.
 
 The footers of the commit messages (described in RFC0001) are automatically accumulated and printed after the changelog
 list ordered by their values. It is also possible to skip the unreleased entries:
@@ -257,8 +257,8 @@ repository:
 [git-journal] [OKAY] Defaults written to '.gitjournal.toml' file.
 [git-journal] [OKAY] Git hook installed to '.git/hooks/commit-msg'.
 [git-journal] [OKAY] Git hook installed to '.git/hooks/prepare-commit-msg'.
-[git-journal] [OKAY] Installed bash completions to your current working path.
-[git-journal] [OKAY] Installed fish completions to your current working path.
+[git-journal] [OKAY] Installed bash completions to the path.
+[git-journal] [OKAY] Installed fish completions to the path.
 ```
 
 If there already exists these hooks _git-journal_ tries to append the needed commands, which has to be verified by hand
@@ -321,6 +321,7 @@ repository:
 
 * General
     * [x] Generation of completions for bash and fish shell during setup.
+    * [x] Custom category support for commit preparation, validation and output
 * Journal generation and output
     * [x] Automatic up-level repository search if a sub path of a git repository was specified.
     * [x] Custom commit ranges or different git commit starting points for parsing.
@@ -343,7 +344,6 @@ repository:
 ## Planned features and improvements
 [planned]: #planned
 
-* [ ] Custom category support.
 * [ ] Custom commit message template support, which will be used for commit preparation.
 * [ ] Multiple template extensions, like custom header/footer or other different custom fields.
 * [ ] Generation of default templates based on commits within a given commit rage.
