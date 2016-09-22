@@ -83,11 +83,7 @@ impl Config {
     ///
     pub fn new() -> Self {
         Config {
-            categories: vec!["Added".to_owned(),
-                             "Changed".to_owned(),
-                             "Fixed".to_owned(),
-                             "Improved".to_owned(),
-                             "Removed".to_owned()],
+            categories: Self::get_default_categories(),
             colored_output: true,
             default_template: None,
             enable_debug: true,
@@ -96,6 +92,14 @@ impl Config {
             show_prefix: false,
             template_prefix: "JIRA-1234".to_owned(),
         }
+    }
+
+    fn get_default_categories() -> Vec<String> {
+        vec!["Added".to_owned(),
+        "Changed".to_owned(),
+        "Fixed".to_owned(),
+        "Improved".to_owned(),
+        "Removed".to_owned()]
     }
 
     /// Save the default configuration file in a certain path.
@@ -147,6 +151,12 @@ impl Config {
             .ok_or(toml::Error::Custom("Could not parse toml configuration.".to_owned())));
         *self = try!(decode(Value::Table(toml))
             .ok_or(toml::Error::Custom("Could not decode toml configuration.".to_owned())));
+
+        // If the categories are not found within the toml it will return an empty array
+        // which will break the parser. So use the default ones instead.
+        if self.categories.is_empty() {
+            self.categories = Self::get_default_categories();
+        }
         Ok(())
     }
 
