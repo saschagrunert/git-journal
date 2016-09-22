@@ -46,6 +46,9 @@ impl fmt::Display for Error {
 /// The configuration structure for git-journal.
 #[derive(Default, Debug, PartialEq, RustcEncodable, RustcDecodable)]
 pub struct Config {
+    /// Specifies the available categories for the commit message
+    pub categories: Vec<String>,
+
     /// Set to false if the output should not be colored
     pub colored_output: bool,
 
@@ -80,6 +83,11 @@ impl Config {
     ///
     pub fn new() -> Self {
         Config {
+            categories: vec!["Added".to_owned(),
+                             "Changed".to_owned(),
+                             "Fixed".to_owned(),
+                             "Improved".to_owned(),
+                             "Removed".to_owned()],
             colored_output: true,
             default_template: None,
             enable_debug: true,

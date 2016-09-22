@@ -117,7 +117,7 @@ impl fmt::Display for Error {
 pub struct GitJournal {
     /// The configuration structure
     pub config: Config,
-    parse_result: Vec<ParsedTag>,
+    parser: Parser,
     path: String,
     repo: Repository,
     tags: Vec<(Oid, String)>,
@@ -176,10 +176,16 @@ impl GitJournal {
         let mut new_config = Config::new();
         new_config.load(path).is_ok();
 
+        // Create a new parser with empty results
+        let new_parser = Parser {
+            categories: new_config.categories.clone(),
+            result: vec![],
+        };
+
         // Return the git journal object
         Ok(GitJournal {
             config: new_config,
-            parse_result: vec![],
+            parser: new_parser,
             path: path_buf.to_str().unwrap_or("").to_owned(),
             repo: new_repo,
             tags: new_tags,
@@ -201,6 +207,9 @@ impl GitJournal {
     /// like:
     ///
     /// ```toml
+    /// # Specifies the available categories for the commit message
+    /// categories = ["Added", "Changed", "Fixed", "Improved", "Removed"]
+    ///
     /// # Set to false if the output should not be colored
     /// colored_output = true
     ///
@@ -330,16 +339,13 @@ impl GitJournal {
             if !old_msg_vec.is_empty() {
                 old_msg_vec.insert(0, "# The provided commit message:".to_owned());
             }
-            let new_content = self.get_default_commit_template() + &old_msg_vec.join("\n");
+            let new_content = self.config.template_prefix.clone() + " " + &self.config.categories[0] +
+                              " ...\n\n# Add a more detailed description if needed\n\n# - " +
+                              &self.config.categories.join("\n# - ") + "\n\n" +
+                              &old_msg_vec.join("\n");
             try!(file.write_all(&new_content.as_bytes()));
         }
         Ok(())
-    }
-
-    fn get_default_commit_template(&self) -> String {
-        self.config.template_prefix.clone() +
-        " Added ...\n\n# Add a more detailed description if needed\n\n# - Added ...\n# - Changed ...\n# - Fixed \
-         ...\n# - Improved ...\n# - Removed ...\n\n"
     }
 
     /// Verify a given commit message against the parsing rules of
@@ -361,7 +367,7 @@ impl GitJournal {
         let mut file = try!(File::open(path));
         let mut commit_message = String::new();
         try!(file.read_to_string(&mut commit_message));
-        try!(Parser::parse_commit_message(&commit_message));
+        try!(self.parser.parse_commit_message(&commit_message));
         Ok(())
     }
 
@@ -426,7 +432,7 @@ impl GitJournal {
 
                 // Parsing entries of the last tag done
                 if !current_tag.commits.is_empty() {
-                    self.parse_result.push(current_tag.clone());
+                    self.parser.result.push(current_tag.clone());
                     current_tag.commits.clear();
                 }
 
@@ -453,7 +459,7 @@ impl GitJournal {
             // Add the commit message to the current entries of the tag
             let message = try!(commit.message().ok_or(git2::Error::from_str("Parsing error:")));
 
-            match Parser::parse_commit_message(message) {
+            match self.parser.parse_commit_message(message) {
                 Ok(parsed_message) => current_tag.commits.push(parsed_message),
                 Err(e) => {
                     if self.config.enable_debug {
@@ -464,7 +470,7 @@ impl GitJournal {
         }
         // Add the last processed items as well
         if !current_tag.commits.is_empty() {
-            self.parse_result.push(current_tag);
+            self.parser.result.push(current_tag);
         }
 
         if self.config.enable_debug {
@@ -520,7 +526,7 @@ impl GitJournal {
         };
 
         // Print the log
-        let output_vec = try!(Parser::print(&self.parse_result, &self.config, &compact, used_template));
+        let output_vec = try!(self.parser.print(&self.parser.result, &self.config, &compact, used_template));
 
         // Print the log to the file if necessary
         if let Some(output) = output {
@@ -636,15 +642,15 @@ mod tests {
     fn parse_and_print_log_1() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert_eq!(journal.tags.len(), 2);
-        assert_eq!(journal.parse_result.len(), 0);
+        assert_eq!(journal.parser.result.len(), 0);
         assert_eq!(journal.config.show_prefix, false);
         assert_eq!(journal.config.colored_output, true);
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
-        assert_eq!(journal.parse_result.len(), journal.tags.len() + 1);
-        assert_eq!(journal.parse_result[0].commits.len(), 11);
-        assert_eq!(journal.parse_result[1].commits.len(), 1);
-        assert_eq!(journal.parse_result[2].commits.len(), 2);
+        assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
+        assert_eq!(journal.parser.result[0].commits.len(), 11);
+        assert_eq!(journal.parser.result[1].commits.len(), 1);
+        assert_eq!(journal.parser.result[2].commits.len(), 2);
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
@@ -655,9 +661,9 @@ mod tests {
     fn parse_and_print_log_2() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal.parse_log("HEAD", "rc", &1, &false, &false).is_ok());
-        assert_eq!(journal.parse_result.len(), 2);
-        assert_eq!(journal.parse_result[0].name, "Unreleased");
-        assert_eq!(journal.parse_result[1].name, "v2");
+        assert_eq!(journal.parser.result.len(), 2);
+        assert_eq!(journal.parser.result[0].name, "Unreleased");
+        assert_eq!(journal.parser.result[1].name, "v2");
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
@@ -668,8 +674,8 @@ mod tests {
     fn parse_and_print_log_3() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal.parse_log("HEAD", "rc", &1, &false, &true).is_ok());
-        assert_eq!(journal.parse_result.len(), 1);
-        assert_eq!(journal.parse_result[0].name, "v2");
+        assert_eq!(journal.parser.result.len(), 1);
+        assert_eq!(journal.parser.result[0].name, "v2");
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
@@ -680,9 +686,9 @@ mod tests {
     fn parse_and_print_log_4() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal.parse_log("HEAD", "rc", &2, &false, &true).is_ok());
-        assert_eq!(journal.parse_result.len(), 2);
-        assert_eq!(journal.parse_result[0].name, "v2");
-        assert_eq!(journal.parse_result[1].name, "v1");
+        assert_eq!(journal.parser.result.len(), 2);
+        assert_eq!(journal.parser.result[0].name, "v2");
+        assert_eq!(journal.parser.result[1].name, "v1");
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());
@@ -693,8 +699,8 @@ mod tests {
     fn parse_and_print_log_5() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal.parse_log("v1..v2", "rc", &0, &false, &true).is_ok());
-        assert_eq!(journal.parse_result.len(), 1);
-        assert_eq!(journal.parse_result[0].name, "v2");
+        assert_eq!(journal.parser.result.len(), 1);
+        assert_eq!(journal.parser.result[0].name, "v2");
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md")).is_ok());

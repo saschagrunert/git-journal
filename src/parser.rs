@@ -645,87 +645,92 @@ lazy_static! {
     static ref RE_COMMENT: Regex = RegexBuilder::new(r"^#.*").multi_line(true).compile().unwrap();
 }
 
-pub struct Parser;
+#[derive(Clone)]
+pub struct Parser {
+    pub categories: Vec<String>,
+    pub result: Vec<ParsedTag>,
+}
+
 impl Parser {
-    /// Parses a single commit message and returns a changelog ready form
-    pub fn parse_commit_message(message: &str) -> Result<ParsedCommit, Error> {
+    method!(parse_category<Self, &[u8], &str>, self,
+        chain!(
+            tag!("[")? ~
+            p_category: map_res!(
+    // TODO: this is ultra slow
+    // re_bytes_find!(&self.categories.join("|")),
+                alt!(
+                    tag!(self.categories[0].as_str()) |
+                    tag!(self.categories[1].as_str()) |
+                    tag!(self.categories[2].as_str()) |
+                    tag!(self.categories[3].as_str()) |
+                    tag!(self.categories[4].as_str())
+                ),
+                str::from_utf8
+            ) ~
+            tag!("]")? ,
+            || p_category
+    ));
 
-        /// Parses for tags and returns them with the resulting string
-        fn parse_and_consume_tags(input: &[u8]) -> (Vec<String>, String) {
-            let string = str::from_utf8(input).unwrap_or("");
-            let mut tags = vec![];
-            for cap in RE_TAGS.captures_iter(string) {
-                tags.extend(cap.at(1)
-                    .unwrap_or("")
-                    .split(',')
-                    .filter_map(|x| {
-                        // Ignore tags containing dots.
-                        if !x.contains('.') {
-                            Some(x.trim().to_owned())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<String>>());
+    method!(parse_list_item<Self, &[u8], ListElement>, mut self,
+        chain!(
+            many0!(space) ~
+            tag!("-") ~
+            space? ~
+            p_category: call_m!(self.parse_category)? ~
+            p_tags_rest: map!(rest, Self::parse_and_consume_tags),
+            || ListElement {
+                category: p_category.unwrap_or("").to_owned(),
+                tags: p_tags_rest.0.clone(),
+                text: p_tags_rest.1.clone(),
             }
-            (tags, RE_TAGS.replace_all(string, ""))
+        )
+    );
+
+    method!(parse_summary<Self, &[u8], SummaryElement>, mut self,
+        chain!(
+            p_prefix: separated_pair!(alpha, char!('-'), digit)? ~
+            space? ~
+            p_category: call_m!(self.parse_category) ~
+            p_tags_rest: map!(rest, Self::parse_and_consume_tags),
+        || SummaryElement {
+            prefix: p_prefix.map_or("".to_owned(), |p| {
+                format!("{}-{}", str::from_utf8(p.0).unwrap_or(""), str::from_utf8(p.1).unwrap_or(""))
+            }),
+            category: p_category.to_owned(),
+            tags: p_tags_rest.0.clone(),
+            text: p_tags_rest.1.clone(),
+        })
+    );
+
+    fn parse_and_consume_tags(input: &[u8]) -> (Vec<String>, String) {
+        let string = str::from_utf8(input).unwrap_or("");
+        let mut tags = vec![];
+        for cap in RE_TAGS.captures_iter(string) {
+            tags.extend(cap.at(1)
+                .unwrap_or("")
+                .split(',')
+                .filter_map(|x| {
+                    // Ignore tags containing dots.
+                    if !x.contains('.') {
+                        Some(x.trim().to_owned())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<String>>());
         }
+        (tags, RE_TAGS.replace_all(string, ""))
+    }
 
-        named!(parse_category<&str>,
-            chain!(
-                tag!("[")? ~
-                p_category: map_res!(
-                    alt!(
-                        tag!("Added") |
-                        tag!("Changed") |
-                        tag!("Fixed") |
-                        tag!("Improved") |
-                        tag!("Removed")
-                    ),
-                    str::from_utf8
-                ) ~
-                tag!("]")? ,
-                || p_category
-            )
-        );
-
-        named!(parse_list_item<ListElement>,
-            chain!(
-                many0!(space) ~
-                tag!("-") ~
-                space? ~
-                p_category: parse_category? ~
-                p_tags_rest: map!(rest, parse_and_consume_tags),
-                || ListElement {
-                    category: p_category.unwrap_or("").to_owned(),
-                    tags: p_tags_rest.0.clone(),
-                    text: p_tags_rest.1.clone(),
-                }
-            )
-        );
-
+    /// Parses a single commit message and returns a changelog ready form
+    pub fn parse_commit_message(&self, message: &str) -> Result<ParsedCommit, Error> {
         // Every block is split by two newlines
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
         let summary_line = try!(commit_parts.nth(0).ok_or(Error::CommitMessageLength)).trim();
-        named!(parse_summary<SummaryElement>,
-            chain!(
-                p_prefix: separated_pair!(alpha, char!('-'), digit)? ~
-                space? ~
-                p_category: parse_category ~
-                p_tags_rest: map!(rest, parse_and_consume_tags),
-            || SummaryElement {
-                prefix: p_prefix.map_or("".to_owned(), |p| {
-                    format!("{}-{}", str::from_utf8(p.0).unwrap_or(""), str::from_utf8(p.1).unwrap_or(""))
-                }),
-                category: p_category.to_owned(),
-                tags: p_tags_rest.0.clone(),
-                text: p_tags_rest.1.clone(),
-            })
-        );
-        let parsed_summary = match parse_summary(summary_line.as_bytes()) {
-            IResult::Done(_, parsed) => parsed,
+        let parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
+            (_, IResult::Done(_, parsed)) => parsed,
             _ => return Err(Error::SummaryParsing(summary_line.to_owned())),
         };
 
@@ -748,7 +753,7 @@ impl Parser {
                 // Parse list items
                 let mut list = vec![];
                 for list_item in part.lines() {
-                    if let IResult::Done(_, result) = parse_list_item(list_item.as_bytes()) {
+                    if let (_, IResult::Done(_, result)) = self.clone().parse_list_item(list_item.as_bytes()) {
                         list.push(result);
                     };
                 }
@@ -758,7 +763,7 @@ impl Parser {
                 if !RE_PARAGRAPH.is_match(part) {
                     return Err(Error::ParagraphParsing(part.to_owned()));
                 }
-                let (parsed_tags, parsed_text) = parse_and_consume_tags(part.as_bytes());
+                let (parsed_tags, parsed_text) = Self::parse_and_consume_tags(part.as_bytes());
                 parsed_body.push(BodyElement::Paragraph(ParagraphElement {
                     text: parsed_text.trim().to_owned(),
                     tags: parsed_tags,
@@ -774,7 +779,8 @@ impl Parser {
     }
 
     /// Prints the commits without any template
-    pub fn print(parsed_tags: &[ParsedTag],
+    pub fn print(&self,
+                 parsed_tags: &[ParsedTag],
                  config: &Config,
                  compact: &bool,
                  template: Option<&str>)
@@ -797,9 +803,15 @@ mod tests {
     use super::*;
     use term;
     use config;
+    use config::Config;
+
+    fn get_parser() -> Parser {
+        let config = Config::new();
+        Parser { categories: config.categories }
+    }
 
     fn parse_and_print_error(message: &str) {
-        let ret = Parser::parse_commit_message(message);
+        let ret = get_parser().parse_commit_message(message);
         assert!(ret.is_err());
         if let Err(e) = ret {
             println!("{}", e);
@@ -808,8 +820,9 @@ mod tests {
 
     #[test]
     fn parse_commit_ok_1() {
-        let commit = Parser::parse_commit_message("JIRA-1234 [Changed] my commit summary\n\nSome paragraph\n\n# A \
-                                                   comment\n# Another comment");
+        let commit = get_parser()
+            .parse_commit_message("JIRA-1234 [Changed] my commit summary\n\nSome paragraph\n\n# A comment\n# Another \
+                                   comment");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
@@ -830,8 +843,8 @@ mod tests {
 
     #[test]
     fn parse_commit_ok_2() {
-        let commit = Parser::parse_commit_message("Changed my commit summary\n\n- List item 1\n- List item 2\n- List \
-                                                   item 3");
+        let commit = get_parser()
+            .parse_commit_message("Changed my commit summary\n\n- List item 1\n- List item 2\n- List item 3");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
@@ -850,8 +863,9 @@ mod tests {
 
     #[test]
     fn parse_commit_ok_3() {
-        let commit = Parser::parse_commit_message("PREFIX-666 Fixed some ____ commit :tag1: :tag2: :tag3:\n\nSome: \
-                                                   Footer\nAnother: Footer\nMy-ID: IDVALUE");
+        let commit = get_parser()
+            .parse_commit_message("PREFIX-666 Fixed some ____ commit :tag1: :tag2: :tag3:\n\nSome: Footer\nAnother: \
+                                   Footer\nMy-ID: IDVALUE");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 0);
@@ -871,8 +885,9 @@ mod tests {
 
     #[test]
     fn parse_commit_ok_4() {
-        let commit = Parser::parse_commit_message("Added my :1234: commit 💖 summary :some tag:\n\nParagraph\n\n- \
-                                                   List Item\n\nReviewed-by: Me");
+        let commit = get_parser()
+            .parse_commit_message("Added my :1234: commit 💖 summary :some tag:\n\nParagraph\n\n- List \
+                                   Item\n\nReviewed-by: Me");
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 2);

@@ -1,3 +1,4 @@
+categories = ["Added", "Changed", "Fixed", "Improved", "Removed"]
 colored_output = true
 enable_debug = true
 enable_footers = false
