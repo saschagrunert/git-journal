@@ -656,15 +656,7 @@ impl Parser {
         chain!(
             tag!("[")? ~
             p_category: map_res!(
-    // TODO: this is ultra slow
-    // re_bytes_find!(&self.categories.join("|")),
-                alt!(
-                    tag!(self.categories[0].as_str()) |
-                    tag!(self.categories[1].as_str()) |
-                    tag!(self.categories[2].as_str()) |
-                    tag!(self.categories[3].as_str()) |
-                    tag!(self.categories[4].as_str())
-                ),
+                re_bytes_find!(&self.categories.join("|")),
                 str::from_utf8
             ) ~
             tag!("]")? ,
@@ -807,7 +799,10 @@ mod tests {
 
     fn get_parser() -> Parser {
         let config = Config::new();
-        Parser { categories: config.categories }
+        Parser {
+            categories: config.categories,
+            result: vec![],
+        }
     }
 
     fn parse_and_print_error(message: &str) {
