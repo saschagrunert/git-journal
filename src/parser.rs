@@ -638,7 +638,7 @@ pub struct FooterElement {
 }
 
 lazy_static! {
-    static ref RE_TAGS: Regex = Regex::new(r" :(.*?):").unwrap();
+    static ref RE_TAGS: Regex = Regex::new(r"[ \n]:(.*?):").unwrap();
     static ref RE_FOOTER: Regex = RegexBuilder::new(r"^([\w-]+):\s(.*)$").multi_line(true).compile().unwrap();
     static ref RE_LIST: Regex = RegexBuilder::new(r"^-\s.*$(\n^\s+-\s.*)*").multi_line(true).compile().unwrap();
     static ref RE_PARAGRAPH: Regex = RegexBuilder::new(r"^\w").multi_line(true).compile().unwrap();

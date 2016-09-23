@@ -48,9 +48,9 @@ should follow the rules:
 
 - A verb always in simple past form
 - Wrapped in square brackets
-- Appear at the beginning of a list item or a paragraph
+- Appear within a list item or a paragraph
 - Only once per list item, but multiple times in a commit
-- Only mandatory for the commit summary line
+- Only mandatory for the commit summary line, but can occur at the second line
 
 ### Tags
 Tags help to generate a sectioned changelog and filter out certain messages which are only for a special purpose. Valid
