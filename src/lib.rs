@@ -207,7 +207,7 @@ impl GitJournal {
     /// like:
     ///
     /// ```toml
-    /// # Specifies the available categories for the commit message
+    /// # Specifies the available categories for the commit message, allowd regular expressions.
     /// categories = ["Added", "Changed", "Fixed", "Improved", "Removed"]
     ///
     /// # Set to false if the output should not be colored
@@ -223,13 +223,13 @@ impl GitJournal {
     /// # Excluded tags in an array, e.g. "internal"
     /// excluded_commit_tags = []
     ///
-    /// Enable or disable the output and accumulation of commit footers
+    /// Enable or disable the output and accumulation of commit footers.
     /// pub enable_footers: bool,
     ///
     /// # Show or hide the commit message prefix, e.g. JIRA-1234
     /// show_prefix = false
     ///
-    /// # Commit message template prefix which will be added during commit preparation
+    /// # Commit message template prefix which will be added during commit preparation.
     /// template_prefix = "JIRA-1234"
     /// ```
     ///
@@ -416,7 +416,7 @@ impl GitJournal {
         }
 
         // Iterate over the git objects and collect them in a vector of tuples
-        let mut parsed_tags: u32 = 1;
+        let mut num_parsed_tags: u32 = 1;
         let unreleased_str = "Unreleased";
         let mut current_tag = ParsedTag {
             name: unreleased_str.to_owned(),
@@ -437,12 +437,12 @@ impl GitJournal {
                 }
 
                 // If a single revision is given stop at the first seen tag
-                if !all && index > 0 && parsed_tags > *max_tags_count {
+                if !all && index > 0 && num_parsed_tags > *max_tags_count {
                     break 'revloop;
                 }
 
                 // Format the tag and set as current
-                parsed_tags += 1;
+                num_parsed_tags += 1;
                 let date = UTC.timestamp(commit.time().seconds(), 0).date();
                 current_tag = ParsedTag {
                     name: tag.1.clone(),
@@ -526,7 +526,7 @@ impl GitJournal {
         };
 
         // Print the log
-        let output_vec = try!(self.parser.print(&self.parser.result, &self.config, &compact, used_template));
+        let output_vec = try!(self.parser.print(&self.config, &compact, used_template));
 
         // Print the log to the file if necessary
         if let Some(output) = output {

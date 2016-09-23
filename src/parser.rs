@@ -14,10 +14,10 @@ use std::str;
 
 use config::Config;
 
-static DEFAULT_TAG: &'static str = "default";
-static FOOTER_TAG: &'static str = "footers";
-static NAME_TAG: &'static str = "name";
-static TAG: &'static str = "tag";
+static TOML_DEFAULT_KEY: &'static str = "default";
+static TOML_FOOTER_KEY: &'static str = "footers";
+static TOML_NAME_KEY: &'static str = "name";
+static TOML_TAG: &'static str = "tag";
 
 #[derive(Debug)]
 pub enum Error {
@@ -116,7 +116,7 @@ pub trait Print {
 
     fn matches_default_tag(&self, tag: Option<&str>) -> bool {
         match tag {
-            Some(tag) => tag == DEFAULT_TAG && self.contains_untagged_elements(),
+            Some(tag) => tag == TOML_DEFAULT_KEY && self.contains_untagged_elements(),
             None => false,
         }
     }
@@ -251,11 +251,11 @@ impl ParsedTag {
         }
 
         let header_lvl: String = iter::repeat('#').take(*level).collect();
-        let tag = match table.get(TAG) {
+        let tag = match table.get(TOML_TAG) {
             Some(t) => t.as_str().unwrap_or(""),
             None => return Ok(()),
         };
-        let name = match table.get(NAME_TAG) {
+        let name = match table.get(TOML_NAME_KEY) {
             Some(name_value) => name_value.as_str().unwrap_or(tag),
             None => tag,
         };
@@ -263,12 +263,12 @@ impl ParsedTag {
         if (*compact &&
             ((self.commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
               !config.excluded_commit_tags.contains(&tag.to_owned())) ||
-             (tag == DEFAULT_TAG &&
+             (tag == TOML_DEFAULT_KEY &&
               self.commits.iter().filter(|c| c.summary.contains_untagged_elements()).count() > 0))) ||
            (!*compact &&
             ((self.commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
               !config.excluded_commit_tags.contains(&tag.to_owned())) ||
-             (tag == DEFAULT_TAG && self.commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
+             (tag == TOML_DEFAULT_KEY && self.commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
 
 
             if config.colored_output {
@@ -294,7 +294,7 @@ impl ParsedTag {
         }
 
         // Print footers is specified in template
-        if let Some(footers) = table.get(FOOTER_TAG) {
+        if let Some(footers) = table.get(TOML_FOOTER_KEY) {
             if let toml::Value::Array(ref array) = *footers {
                 try!(self.print_footers(term, vec, Some(array), config));
             }
@@ -656,7 +656,7 @@ impl Parser {
         chain!(
             tag!("[")? ~
             p_category: map_res!(
-                re_bytes_find!(&self.categories.join("|")), // TODO: this is slow
+                re_bytes_find!(&self.categories.join("|")),
                 str::from_utf8
             ) ~
             tag!("]")? ,
@@ -774,7 +774,6 @@ impl Parser {
 
     /// Prints the commits without any template
     pub fn print(&self,
-                 parsed_tags: &[ParsedTag],
                  config: &Config,
                  compact: &bool,
                  template: Option<&str>)
@@ -783,7 +782,7 @@ impl Parser {
         let mut term = try!(term::stdout().ok_or(Error::Terminal));
         let mut vec = vec![];
 
-        for tag in parsed_tags {
+        for tag in &self.result {
             try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, config, template));
         }
 
