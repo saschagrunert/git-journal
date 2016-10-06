@@ -14,7 +14,7 @@ script:
 after_success:
   - travis-cargo --only nightly doc-upload
   - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then travis-cargo coveralls --no-sudo --verify; fi
-  - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/gitjournal*; fi
+  - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]]; then ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo --exclude-pattern=*.h target/kcov target/debug/gitjournal*; fi
 os:
   - linux
 notifications:
