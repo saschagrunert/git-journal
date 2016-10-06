@@ -20,6 +20,7 @@ git2 = "0"
 lazy_static = "0"
 nom = { version = "1", features = ["regexp_macros"] }
 regex = "0"
+rayon = "0"
 rustc-serialize = "0"
 term = "0"
 toml = "0"

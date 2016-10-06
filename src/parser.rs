@@ -142,6 +142,7 @@ pub struct ParsedTag {
     pub name: String,
     pub date: Date<UTC>,
     pub commits: Vec<ParsedCommit>,
+    pub message_ids: Vec<usize>,
 }
 
 impl ParsedTag {
@@ -773,12 +774,7 @@ impl Parser {
     }
 
     /// Prints the commits without any template
-    pub fn print(&self,
-                 config: &Config,
-                 compact: &bool,
-                 template: Option<&str>)
-                 -> Result<Vec<u8>, Error> {
-
+    pub fn print(&self, config: &Config, compact: &bool, template: Option<&str>) -> Result<Vec<u8>, Error> {
         let mut term = try!(term::stdout().ok_or(Error::Terminal));
         let mut vec = vec![];
 

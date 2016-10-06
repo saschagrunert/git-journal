@@ -322,6 +322,7 @@ repository:
 * General
     * [x] Generation of completions for bash and fish shell during setup.
     * [x] Custom category support for commit preparation, validation and output
+    * [x] Automatic multi threading support for the parsing.
 * Journal generation and output
     * [x] Automatic up-level repository search if a sub path of a git repository was specified.
     * [x] Custom commit ranges or different git commit starting points for parsing.

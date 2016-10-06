@@ -24,6 +24,7 @@
 
 extern crate chrono;
 extern crate git2;
+extern crate rayon;
 extern crate regex;
 extern crate rustc_serialize;
 extern crate term;
@@ -37,6 +38,7 @@ extern crate lazy_static;
 
 use chrono::{UTC, TimeZone};
 use git2::{ObjectType, Oid, Repository};
+use rayon::prelude::*;
 
 use parser::{Parser, ParsedTag};
 pub use config::Config;
@@ -119,7 +121,6 @@ pub struct GitJournal {
     pub config: Config,
     parser: Parser,
     path: String,
-    repo: Repository,
     tags: Vec<(Oid, String)>,
 }
 
@@ -147,7 +148,7 @@ impl GitJournal {
             try!(std::env::current_dir())
         };
         'git_search: loop {
-            for dir in try!(fs::read_dir(path_buf.clone())) {
+            for dir in try!(fs::read_dir(&path_buf)) {
                 let dir_path = try!(dir).path();
                 if dir_path.ends_with(".git") {
                     break 'git_search;
@@ -159,13 +160,13 @@ impl GitJournal {
         }
 
         // Open the repository
-        let new_repo = try!(Repository::open(path_buf.clone()));
+        let repo = try!(Repository::open(&path_buf));
 
         // Get all available tags in some vector of tuples
         let mut new_tags = vec![];
-        for name in try!(new_repo.tag_names(None)).iter() {
+        for name in try!(repo.tag_names(None)).iter() {
             let name = try!(name.ok_or(git2::Error::from_str("Could not receive tag name")));
-            let obj = try!(new_repo.revparse_single(name));
+            let obj = try!(repo.revparse_single(name));
             if let Ok(tag) = obj.into_tag() {
                 let tag_name = try!(tag.name().ok_or(git2::Error::from_str("Could not parse tag name"))).to_owned();
                 new_tags.push((tag.target_id(), tag_name));
@@ -187,7 +188,6 @@ impl GitJournal {
             config: new_config,
             parser: new_parser,
             path: path_buf.to_str().unwrap_or("").to_owned(),
-            repo: new_repo,
             tags: new_tags,
         })
     }
@@ -267,7 +267,7 @@ impl GitJournal {
                                the hook by hand after the installation.",
                               hook_path.display());
             }
-            hook_file = try!(OpenOptions::new().read(true).append(true).open(hook_path.clone()));
+            hook_file = try!(OpenOptions::new().read(true).append(true).open(&hook_path));
             let mut hook_content = String::new();
             try!(hook_file.read_to_string(&mut hook_content));
             if hook_content.contains(content) {
@@ -277,11 +277,11 @@ impl GitJournal {
                 return Ok(());
             }
         } else {
-            hook_file = try!(File::create(hook_path.clone()));
+            hook_file = try!(File::create(&hook_path));
             try!(hook_file.write_all("#!/usr/bin/env sh\n".as_bytes()));
         }
         try!(hook_file.write_all(content.as_bytes()));
-        try!(std::fs::set_permissions(hook_path.clone(), std::fs::Permissions::from_mode(0o755)));
+        try!(std::fs::set_permissions(&hook_path, std::fs::Permissions::from_mode(0o755)));
 
         if self.config.enable_debug {
             println_ok!("Git hook installed to '{}'.", hook_path.display());
@@ -393,11 +393,12 @@ impl GitJournal {
                      skip_unreleased: &bool)
                      -> Result<(), Error> {
 
-        let mut revwalk = try!(self.repo.revwalk());
+        let repo = try!(Repository::open(&self.path));
+        let mut revwalk = try!(repo.revwalk());
         revwalk.set_sorting(git2::SORT_TIME);
 
         // Fill the revwalk with the selected revisions.
-        let revspec = try!(self.repo.revparse(&revision_range));
+        let revspec = try!(repo.revparse(&revision_range));
         if revspec.mode().contains(git2::REVPARSE_SINGLE) {
             // A single commit was given
             let from = try!(revspec.from().ok_or(git2::Error::from_str("Could not set revision range start")));
@@ -408,8 +409,8 @@ impl GitJournal {
             let to = try!(revspec.to().ok_or(git2::Error::from_str("Could not set revision range end")));
             try!(revwalk.push(to.id()));
             if revspec.mode().contains(git2::REVPARSE_MERGE_BASE) {
-                let base = try!(self.repo.merge_base(from.id(), to.id()));
-                let o = try!(self.repo.find_object(base, Some(ObjectType::Commit)));
+                let base = try!(repo.merge_base(from.id(), to.id()));
+                let o = try!(repo.find_object(base, Some(ObjectType::Commit)));
                 try!(revwalk.push(o.id()));
             }
             try!(revwalk.hide(from.id()));
@@ -422,18 +423,19 @@ impl GitJournal {
             name: unreleased_str.to_owned(),
             date: UTC::today(),
             commits: vec![],
+            message_ids: vec![],
         };
+        let mut worker_vec = vec![];
         'revloop: for (index, id) in revwalk.enumerate() {
             let oid = try!(id);
-            let commit = try!(self.repo.find_commit(oid));
+            let commit = try!(repo.find_commit(oid));
             for tag in self.tags
                 .iter()
                 .filter(|tag| tag.0.as_bytes() == oid.as_bytes() && !tag.1.contains(tag_skip_pattern)) {
 
                 // Parsing entries of the last tag done
-                if !current_tag.commits.is_empty() {
+                if !current_tag.message_ids.is_empty() {
                     self.parser.result.push(current_tag.clone());
-                    current_tag.commits.clear();
                 }
 
                 // If a single revision is given stop at the first seen tag
@@ -448,6 +450,7 @@ impl GitJournal {
                     name: tag.1.clone(),
                     date: date,
                     commits: vec![],
+                    message_ids: vec![],
                 };
             }
 
@@ -456,26 +459,67 @@ impl GitJournal {
                 continue;
             }
 
-            // Add the commit message to the current entries of the tag
-            let message = try!(commit.message().ok_or(git2::Error::from_str("Parsing error:")));
+            // Add the commit message to the parser work to be done, the `id` represents the index
+            // within the worker vector
+            let message = try!(commit.message().ok_or(git2::Error::from_str("Commit message error.")));
+            let id = worker_vec.len();
 
-            match self.parser.parse_commit_message(message) {
-                Ok(parsed_message) => current_tag.commits.push(parsed_message),
-                Err(e) => {
-                    if self.config.enable_debug {
-                        println_info!("Skipping commit: {}", e);
-                    }
-                }
-            }
+            // The worker_vec contains the commit message and the parsed commit (currently none)
+            worker_vec.push((message.to_owned(), None));
+            current_tag.message_ids.push(id);
         }
-        // Add the last processed items as well
-        if !current_tag.commits.is_empty() {
+
+        // Add the last element as well if needed
+        if !current_tag.message_ids.is_empty() && !self.parser.result.contains(&current_tag) {
             self.parser.result.push(current_tag);
         }
 
+        // Process with the full CPU power
+        worker_vec.par_iter_mut().for_each(|&mut (ref message, ref mut result)| {
+            match self.parser.parse_commit_message(message) {
+                Ok(parsed_message) => {
+                    *result = Some(parsed_message);
+                }
+                Err(e) => {
+                    if self.config.enable_debug {
+                        if let Some(mut t) = term::stderr() {
+                            // Since this part is not important for production we
+                            // skip the error handling here.
+                            t.fg(term::color::YELLOW).is_ok();
+                            write!(t, "[git-journal] ").is_ok();
+                            t.fg(term::color::BRIGHT_BLUE).is_ok();
+                            write!(t, "[INFO] ").is_ok();
+                            t.reset().is_ok();
+                            writeln!(t, "Skipping commit: {}.", e).is_ok();
+                        }
+                    }
+                }
+            }
+        });
+
+        // Assemble results together via the message_id
+        self.parser.result = self.parser
+            .result
+            .clone()
+            .into_iter()
+            .filter_map(|mut parsed_tag| {
+                for id in &parsed_tag.message_ids {
+                    if let Some(parsed_commit) = worker_vec[*id].1.clone() {
+                        parsed_tag.commits.push(parsed_commit);
+                    }
+                }
+                if parsed_tag.commits.is_empty() {
+                    None
+                } else {
+                    Some(parsed_tag)
+                }
+            })
+            .collect::<Vec<ParsedTag>>();
+
         if self.config.enable_debug {
-            println_ok!("Parsing done.");
+            println_ok!("Parsing done. Processed {} commit messages.", worker_vec.len());
         }
+
         Ok(())
     }
 

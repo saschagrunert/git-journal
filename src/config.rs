@@ -95,11 +95,7 @@ impl Config {
     }
 
     fn get_default_categories() -> Vec<String> {
-        vec!["Added".to_owned(),
-        "Changed".to_owned(),
-        "Fixed".to_owned(),
-        "Improved".to_owned(),
-        "Removed".to_owned()]
+        vec!["Added".to_owned(), "Changed".to_owned(), "Fixed".to_owned(), "Improved".to_owned(), "Removed".to_owned()]
     }
 
     /// Save the default configuration file in a certain path.
@@ -123,7 +119,7 @@ impl Config {
         let path_string = try!(path_buf.to_str()
             .ok_or(io::Error::new(io::ErrorKind::Other, "Cannot convert path to string")));
 
-        let mut file = try!(File::create(path_buf.clone()));
+        let mut file = try!(File::create(&path_buf));
         try!(file.write_all(toml_string.as_bytes()));
         Ok(path_string.to_owned())
     }
