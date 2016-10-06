@@ -15,9 +15,14 @@ use std::str;
 use config::Config;
 
 static TOML_DEFAULT_KEY: &'static str = "default";
-static TOML_FOOTER_KEY: &'static str = "footers";
+static TOML_FOOTERS_KEY: &'static str = "footers";
 static TOML_NAME_KEY: &'static str = "name";
 static TOML_TAG: &'static str = "tag";
+
+static TOML_TEXT_KEY: &'static str = "text";
+static TOML_ONCE_KEY: &'static str = "once";
+static TOML_HEADER_KEY: &'static str = "header";
+static TOML_FOOTER_KEY: &'static str = "footer";
 
 #[derive(Debug)]
 pub enum Error {
@@ -197,22 +202,58 @@ impl ParsedTag {
                                          mut vec: &mut Vec<u8>,
                                          compact: &bool,
                                          config: &Config,
-                                         template: Option<&str>)
+                                         template: Option<&str>,
+                                         index_len: (usize, usize))
                                          -> Result<(), Error> {
-        try!(self.print_default_term(&mut term, config));
-        try!(self.print_default(&mut vec, config));
-
         match template {
             Some(template) => {
+                // Try to parse the template
                 let mut file = try!(File::open(template));
                 let mut toml_string = String::new();
                 try!(file.read_to_string(&mut toml_string));
                 let toml = try!(toml::Parser::new(&toml_string)
                     .parse()
                     .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
+
+                // Print header in template if exists
+                if let Some(&toml::Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
+                    let mut print_once = false;
+                    if let Some(&toml::Value::Boolean(ref once)) = header_table.get(TOML_ONCE_KEY) {
+                        print_once = *once;
+                    }
+                    if let Some(&toml::Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
+                        if index_len.0 == 0 || !print_once {
+                            tryw!(term, "\n{}", header);
+                            tryw!(vec, "\n{}", header);
+                        }
+                    }
+                }
+
+                // Print the tags
+                try!(self.print_default_term(&mut term, config));
+                try!(self.print_default(&mut vec, config));
+
+                // Print commits
                 try!(self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 1, config, &compact));
+
+                // Print footer in template if exists
+                if let Some(&toml::Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
+                    let mut print_once = false;
+                    if let Some(&toml::Value::Boolean(ref once)) = footer_table.get(TOML_ONCE_KEY) {
+                        print_once = *once;
+                    }
+                    if let Some(&toml::Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
+                        if index_len.0 == index_len.1 - 1 || !print_once {
+                            trywln!(term, "\n{}", footer);
+                            trywln!(vec, "\n{}", footer);
+                        }
+                    }
+                }
             }
             None => {
+                try!(self.print_default_term(&mut term, config));
+                try!(self.print_default(&mut vec, config));
+
                 for commit in &self.commits {
                     if *compact {
                         try!(commit.summary.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None));
@@ -295,7 +336,7 @@ impl ParsedTag {
         }
 
         // Print footers is specified in template
-        if let Some(footers) = table.get(TOML_FOOTER_KEY) {
+        if let Some(footers) = table.get(TOML_FOOTERS_KEY) {
             if let toml::Value::Array(ref array) = *footers {
                 try!(self.print_footers(term, vec, Some(array), config));
             }
@@ -779,8 +820,9 @@ impl Parser {
         let mut vec = vec![];
 
         // Print every tag
-        for tag in &self.result {
-            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, config, template));
+        for (index, tag) in self.result.iter().enumerate() {
+            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, config,
+                                                       template, (index, self.result.len())));
         }
 
         trywln!(term, "");

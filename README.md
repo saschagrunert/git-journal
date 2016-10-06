@@ -246,6 +246,9 @@ strings which will output the selected footer keys at the correct position of th
 accumulation of the footers are related to the complete tag, not just the section where there printed. Other command
 line options like in the default output are available as well.
 
+It is also possible to add a custom header or footer text to every output or every tag. For more information please read
+[RFC0002](https://github.com/saschagrunert/git-journal/blob/master/rfc/0002-output-templating.md).
+
 ### Commit message preparation and verification
 [prepverify]: #prepverify
 
@@ -337,7 +340,7 @@ repository:
     * [x] Templating support including tag and name mapping.
     * [x] Support for accumulating footer data (also for templating engine).
     * [x] Different sorting methods (`"date"` and `"name"`) for the default and template based output.
-    * [x] Support for custom header and footer fields within templates
+    * [x] Support for custom header and footer fields within templates with multiple or single output.
 * Preparation and Verification of commit messages
     * [x] Automatic installation of git hooks inside the local repository.
     * [x] Generation of default configuration file during setup.

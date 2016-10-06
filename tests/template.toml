@@ -1,3 +1,6 @@
+header = "Some header Markdown/HTML.\n"
+footer = "<h1>My H1 footer.</h1>"
+
 [[tag]]
 tag = "default"
 name = "Default"
