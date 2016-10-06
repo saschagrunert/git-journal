@@ -26,35 +26,39 @@ once = true
 text = "Some footer Markdown/HTML."
 once = true
 
-[[tag]]
+[[tags]]
+tag = "default"
+name = "Default"
+
+[[tags]]
 tag = "feature"
 name = "Feature"
 
-[[tag]]
+[[tags]]
 tag = "doc"
 name = "Documentation"
 
-[[tag]]
-[[tag.subtag]]
+[[tags]]
+[[tags.subtags]]
 tag = "doc_internal"
 name = "Internal documentation"
 
-[[tag]]
-[[tag.subtag]]
+[[tags]]
+[[tags.subtags]]
 tag = "doc_cust"
 name = "Customer documentation"
 
-[[tag]]
+[[tags]]
 tag = "internal"
 name = "Internal"
 footers = ["Fixes"]
 ```
 
-Every tag represents a toml table which can be nested as well. Arrays of tables can be used to keep the order of the
-items, whereas the name of the array does not matter at all. The `tag` fields corresponds to the commit message tag and
-the `name` field inside the table map the related tag to a chosen name. The tables `header` and `footer` are optional
-and give the possibility to add additional header or footer text for every git tag. The field `once` specifies if the
-header/footer should be print for every git tag or only once per run.
+Every tag represents a toml table which can be nested as well. Arrays of tables (`[[tags]]`) can be used to keep the
+order of the items, whereas the name of the array does not matter at all. The `tag` fields corresponds to the commit
+message tag and the `name` field inside the table map the related tag to a chosen name. The tables `header` and `footer`
+are optional and give the possibility to add additional header or footer text for every git tag. The field `once`
+specifies if the header/footer should be print for every git tag or only once per run.
 
-The `default` table can be used to specify every commit item which contains no tag at all. The `footers` array specifies
+The `default` tag can be used to specify every commit item which contains no tag at all. The `footers` array specifies
 the to be printed commit footers.

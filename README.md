@@ -341,6 +341,7 @@ repository:
     * [x] Support for accumulating footer data (also for templating engine).
     * [x] Different sorting methods (`"date"` and `"name"`) for the default and template based output.
     * [x] Support for custom header and footer fields within templates with multiple or single output.
+    * [x] Generation of default templates based on the parsing results (`-g`).
 * Preparation and Verification of commit messages
     * [x] Automatic installation of git hooks inside the local repository.
     * [x] Generation of default configuration file during setup.
@@ -351,7 +352,6 @@ repository:
 [planned]: #planned
 
 * [ ] Custom commit message template support, which will be used for commit preparation.
-* [ ] Generation of default templates based on commits within a given commit rage.
 * [ ] Commit message validation via provided template
 
 ## Contributing

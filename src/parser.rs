@@ -3,6 +3,7 @@ use nom::{IResult, alpha, digit, space, rest};
 use regex::{Regex, RegexBuilder};
 use term;
 use toml;
+use toml::Value;
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -14,15 +15,15 @@ use std::str;
 
 use config::Config;
 
-static TOML_DEFAULT_KEY: &'static str = "default";
-static TOML_FOOTERS_KEY: &'static str = "footers";
-static TOML_NAME_KEY: &'static str = "name";
-static TOML_TAG: &'static str = "tag";
+pub static TOML_DEFAULT_KEY: &'static str = "default";
+pub static TOML_FOOTERS_KEY: &'static str = "footers";
+pub static TOML_NAME_KEY: &'static str = "name";
+pub static TOML_TAG: &'static str = "tag";
 
-static TOML_TEXT_KEY: &'static str = "text";
-static TOML_ONCE_KEY: &'static str = "once";
-static TOML_HEADER_KEY: &'static str = "header";
-static TOML_FOOTER_KEY: &'static str = "footer";
+pub static TOML_TEXT_KEY: &'static str = "text";
+pub static TOML_ONCE_KEY: &'static str = "once";
+pub static TOML_HEADER_KEY: &'static str = "header";
+pub static TOML_FOOTER_KEY: &'static str = "footer";
 
 #[derive(Debug)]
 pub enum Error {
@@ -142,6 +143,11 @@ pub trait Print {
     }
 }
 
+pub trait Tags {
+    /// Just extends a given vector with all found tags, unsorted.
+    fn get_tags(&self, vec: &mut Vec<String>);
+}
+
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ParsedTag {
     pub name: String,
@@ -216,13 +222,13 @@ impl ParsedTag {
                     .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
 
                 // Print header in template if exists
-                if let Some(&toml::Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
+                if let Some(&Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
                     let mut print_once = false;
-                    if let Some(&toml::Value::Boolean(ref once)) = header_table.get(TOML_ONCE_KEY) {
+                    if let Some(&Value::Boolean(ref once)) = header_table.get(TOML_ONCE_KEY) {
                         print_once = *once;
                     }
-                    if let Some(&toml::Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
-                        if index_len.0 == 0 || !print_once {
+                    if let Some(&Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
+                        if (index_len.0 == 0 || !print_once) && !header.is_empty() {
                             tryw!(term, "\n{}", header);
                             tryw!(vec, "\n{}", header);
                         }
@@ -237,13 +243,13 @@ impl ParsedTag {
                 try!(self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 1, config, &compact));
 
                 // Print footer in template if exists
-                if let Some(&toml::Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
+                if let Some(&Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
                     let mut print_once = false;
-                    if let Some(&toml::Value::Boolean(ref once)) = footer_table.get(TOML_ONCE_KEY) {
+                    if let Some(&Value::Boolean(ref once)) = footer_table.get(TOML_ONCE_KEY) {
                         print_once = *once;
                     }
-                    if let Some(&toml::Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
-                        if index_len.0 == index_len.1 - 1 || !print_once {
+                    if let Some(&Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
+                        if (index_len.0 == index_len.1 - 1 || !print_once) && !footer.is_empty() {
                             trywln!(term, "\n{}", footer);
                             trywln!(vec, "\n{}", footer);
                         }
@@ -281,9 +287,9 @@ impl ParsedTag {
                               compact: &bool)
                               -> Result<(), Error> {
         for value in table {
-            if let toml::Value::Array(ref array) = *value.1 {
+            if let Value::Array(ref array) = *value.1 {
                 for item in array {
-                    if let toml::Value::Table(ref table) = *item {
+                    if let Value::Table(ref table) = *item {
                         *level += 1;
                         try!(self.print_commits_in_table(term, vec, table, level, config, compact));
                         *level -= 1;
@@ -335,10 +341,12 @@ impl ParsedTag {
             trywln!(vec, "");
         }
 
-        // Print footers is specified in template
+        // Print footers if specified in the template
         if let Some(footers) = table.get(TOML_FOOTERS_KEY) {
-            if let toml::Value::Array(ref array) = *footers {
-                try!(self.print_footers(term, vec, Some(array), config));
+            if let Value::Array(ref array) = *footers {
+                if !array.is_empty() {
+                    try!(self.print_footers(term, vec, Some(array), config));
+                }
             }
         }
 
@@ -348,7 +356,7 @@ impl ParsedTag {
     fn print_footers(&self,
                      mut term: &mut Box<term::StdoutTerminal>,
                      mut vec: &mut Vec<u8>,
-                     footer_keys: Option<&[toml::Value]>,
+                     footer_keys: Option<&[Value]>,
                      config: &Config)
                      -> Result<(), Error> {
 
@@ -359,7 +367,7 @@ impl ParsedTag {
             Some(keys) => {
                 let mut vec = vec![];
                 for key in keys {
-                    if let toml::Value::String(ref footer_key) = *key {
+                    if let Value::String(ref footer_key) = *key {
                         vec.push(footer_key.clone());
                     }
                 }
@@ -410,6 +418,14 @@ impl ParsedTag {
     }
 }
 
+impl Tags for ParsedTag {
+    fn get_tags(&self, vec: &mut Vec<String>) {
+        for commit in &self.commits {
+            commit.get_tags(vec);
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ParsedCommit {
     pub summary: SummaryElement,
@@ -447,6 +463,15 @@ impl Print for ParsedCommit {
     fn contains_untagged_elements(&self) -> bool {
         self.summary.contains_untagged_elements() ||
         self.body.iter().filter(|x| x.contains_untagged_elements()).count() > 0
+    }
+}
+
+impl Tags for ParsedCommit {
+    fn get_tags(&self, vec: &mut Vec<String>) {
+        vec.extend(self.summary.tags.clone());
+        for body_element in &self.body {
+            body_element.get_tags(vec);
+        }
     }
 }
 
@@ -567,6 +592,19 @@ impl Print for BodyElement {
     }
 }
 
+impl Tags for BodyElement {
+    fn get_tags(&self, vec: &mut Vec<String>) {
+        match *self {
+            BodyElement::List(ref list_vec) => {
+                for list_item in list_vec {
+                    list_item.get_tags(vec);
+                }
+            }
+            BodyElement::Paragraph(ref paragraph) => vec.extend(paragraph.tags.clone()),
+        }
+    }
+}
+
 impl Print for ListElement {
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
@@ -618,6 +656,12 @@ impl Print for ListElement {
 
     fn contains_untagged_elements(&self) -> bool {
         self.tags.is_empty()
+    }
+}
+
+impl Tags for ListElement {
+    fn get_tags(&self, vec: &mut Vec<String>) {
+        vec.extend(self.tags.clone());
     }
 }
 

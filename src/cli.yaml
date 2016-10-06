@@ -26,9 +26,13 @@ args:
       long: all
       help: Do not stop parsing at the first tag when a single
         revision is given. Overwrites '-n/--tags-count'.
+  - generate:
+      short: g
+      long: generate
+      help: Generate a fresh output template from a commit range.
   - short:
-      long: short
       short: s
+      long: short
       help: Print only the shortlog (summary) form.
   - skip_unreleased:
       short: u

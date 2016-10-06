@@ -39,11 +39,13 @@ extern crate lazy_static;
 use chrono::{UTC, TimeZone};
 use git2::{ObjectType, Oid, Repository};
 use rayon::prelude::*;
+use toml::Value;
 
-use parser::{Parser, ParsedTag};
+use parser::{Parser, ParsedTag, Tags};
 pub use config::Config;
 
 use std::{fmt, fs};
+use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::io::prelude::*;
@@ -63,14 +65,17 @@ pub enum Error {
     /// Erros related to the system IO, like parsing of the configuration file.
     Io(std::io::Error),
 
-    /// Errors related to the terminal emulation, which is used for colored output.
-    Term(term::Error),
+    /// Errors related to the parsing and printing of the log.
+    Parser(parser::Error),
 
     /// Errors related to the setup process.
     Setup(config::Error),
 
-    /// Errors related to the parsing and printing of the log.
-    Parser(parser::Error),
+    /// Errors related to the template generation.
+    Template(String),
+
+    /// Errors related to the terminal emulation, which is used for colored output.
+    Term(term::Error),
 }
 
 impl From<git2::Error> for Error {
@@ -108,9 +113,10 @@ impl fmt::Display for Error {
         match *self {
             Error::Git(ref err) => write!(f, "Git: {}", err),
             Error::Io(ref err) => write!(f, "Io: {}", err),
-            Error::Term(ref err) => write!(f, "Term: {}", err),
-            Error::Setup(ref err) => write!(f, "Setup: {}", err),
             Error::Parser(ref err) => write!(f, "Parser: {}", err),
+            Error::Setup(ref err) => write!(f, "Setup: {}", err),
+            Error::Template(ref err) => write!(f, "Template: {}", err),
+            Error::Term(ref err) => write!(f, "Term: {}", err),
         }
     }
 }
@@ -525,7 +531,83 @@ impl GitJournal {
             .collect::<Vec<ParsedTag>>();
 
         if self.config.enable_debug {
-            println_ok!("Parsing done. Processed {} commit messages.", worker_vec.len());
+            println_ok!("Parsing done. Processed {} commit messages.",
+                        worker_vec.len());
+        }
+
+        Ok(())
+    }
+
+    /// Generates an output template from the current parsing results.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use gitjournal::GitJournal;
+    ///
+    /// let mut journal = GitJournal::new(".").unwrap();
+    /// journal.parse_log("HEAD", "rc", &1, &false, &false);
+    /// journal.generate_template().expect("Template generation failed.");
+    /// ```
+    ///
+    /// # Errors
+    /// If the generation of the template was impossible.
+    ///
+    pub fn generate_template(&self) -> Result<(), Error> {
+        let mut tags = vec![parser::TOML_DEFAULT_KEY.to_owned()];
+
+        // Get all the tags
+        for parsed_tag in &self.parser.result {
+            parsed_tag.get_tags(&mut tags);
+        }
+
+        // Sort and dedpup since get_tags just extends the vector
+        tags.sort();
+        tags.dedup();
+
+        if tags.is_empty() {
+            // This path should not be possible since "default" will always be in.
+            return Err(Error::Template("No tags found.".to_owned()));
+        }
+
+        if self.config.enable_debug {
+            println_ok!("Found tags: '{}'.", tags[1..].join(", "))
+        }
+
+        // Create the toml representation
+        let mut toml_map = BTreeMap::new();
+        let toml_tags = tags.iter()
+            .map(|tag| {
+                let mut map = BTreeMap::new();
+                map.insert(parser::TOML_TAG.to_owned(), Value::String(tag.to_owned()));
+                map.insert(parser::TOML_NAME_KEY.to_owned(),
+                           Value::String(tag.to_owned()));
+                map.insert(parser::TOML_FOOTERS_KEY.to_owned(), Value::Array(vec![]));
+                Value::Table(map)
+            })
+            .collect::<Vec<Value>>();
+        toml_map.insert("tags".to_owned(), Value::Array(toml_tags));
+
+        let mut header_footer_map = BTreeMap::new();
+        header_footer_map.insert(parser::TOML_ONCE_KEY.to_owned(), Value::Boolean(false));
+        header_footer_map.insert(parser::TOML_TEXT_KEY.to_owned(),
+                                 Value::String(String::new()));
+        toml_map.insert(parser::TOML_HEADER_KEY.to_owned(),
+                        Value::Table(header_footer_map.clone()));
+        toml_map.insert(parser::TOML_FOOTER_KEY.to_owned(),
+                        Value::Table(header_footer_map));
+
+        let toml = Value::Table(toml_map);
+
+        // Write toml to file
+        let mut path_buf = PathBuf::from(&self.path);
+        path_buf.push("template.toml");
+        let toml_string = toml::encode_str(&toml);
+        let mut toml_file = try!(File::create(&path_buf));
+        try!(toml_file.write_all(toml_string.as_bytes()));
+
+        if self.config.enable_debug {
+            println_ok!("Template written to '{}'", path_buf.display());
         }
 
         Ok(())
