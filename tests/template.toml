@@ -1,5 +1,10 @@
-header = "Some header Markdown/HTML.\n"
-footer = "<h1>My H1 footer.</h1>"
+[header]
+text = "Some header Markdown/HTML.\n"
+once = true
+
+[footer]
+text = "My footer"
+once = true
 
 [[tag]]
 tag = "default"
