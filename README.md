@@ -353,6 +353,8 @@ repository:
 
 * [ ] Custom commit message template support, which will be used for commit preparation.
 * [ ] Commit message validation via provided template
+* [ ] Issue linker for commits (by URL pattern)
+* [ ] Commit hash links for commits
 
 ## Contributing
 [contributing]: #contributing
