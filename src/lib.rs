@@ -885,14 +885,14 @@ mod tests {
     }
 
     #[test]
-    fn generate_1() {
+    fn generate_template_1() {
         let mut journal = GitJournal::new(".").unwrap();
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert!(journal.generate_template().is_ok());
     }
 
     #[test]
-    fn generate_2() {
+    fn generate_template_2() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert!(journal.generate_template().is_ok());
