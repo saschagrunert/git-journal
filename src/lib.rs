@@ -887,6 +887,7 @@ mod tests {
     #[test]
     fn generate_template() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
+        assert!(journal.generate_template().is_ok());
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert!(journal.generate_template().is_ok());
     }
