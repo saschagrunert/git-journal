@@ -571,7 +571,11 @@ impl GitJournal {
         }
 
         if self.config.enable_debug {
-            println_ok!("Found tags: '{}'.", tags[1..].join(", "))
+            if tags.len() > 1 {
+                println_ok!("Found tags: '{}'.", tags[1..].join(", "));
+            } else {
+                println_warn!("No tags found.");
+            }
         }
 
         // Create the toml representation
