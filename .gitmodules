@@ -1,3 +1,6 @@
 [submodule "tests/test_repo"]
 	path = tests/test_repo
 	url = https://github.com/saschagrunert/test
+[submodule "tests/test_repo2"]
+	path = tests/test_repo2
+	url = https://github.com/saschagrunert/test2
