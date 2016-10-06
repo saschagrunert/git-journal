@@ -517,9 +517,7 @@ impl GitJournal {
                     None
                 } else {
                     if self.config.sort_by == "name" {
-                        parsed_tag.commits.sort_by(|l, r| {
-                            l.summary.category.cmp(&r.summary.category)
-                        });
+                        parsed_tag.commits.sort_by(|l, r| l.summary.category.cmp(&r.summary.category));
                     }
                     Some(parsed_tag)
                 }
