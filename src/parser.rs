@@ -778,6 +778,7 @@ impl Parser {
         let mut term = try!(term::stdout().ok_or(Error::Terminal));
         let mut vec = vec![];
 
+        // Print every tag
         for tag in &self.result {
             try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, config, template));
         }

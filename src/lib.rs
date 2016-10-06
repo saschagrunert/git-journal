@@ -175,7 +175,9 @@ impl GitJournal {
 
         // Search for config in path and load
         let mut new_config = Config::new();
-        new_config.load(path).is_ok();
+        if let Err(e) = new_config.load(path) {
+            println_warn!("Can't load configuration file, using default one: {}", e);
+        }
 
         // Create a new parser with empty results
         let new_parser = Parser {
@@ -228,6 +230,9 @@ impl GitJournal {
     ///
     /// # Show or hide the commit message prefix, e.g. JIRA-1234
     /// show_prefix = false
+    ///
+    /// # Sort the commits during the output by "date" (default) or "name"
+    /// sort_by = "date"
     ///
     /// # Commit message template prefix which will be added during commit preparation.
     /// template_prefix = "JIRA-1234"
@@ -511,6 +516,11 @@ impl GitJournal {
                 if parsed_tag.commits.is_empty() {
                     None
                 } else {
+                    if self.config.sort_by == "name" {
+                        parsed_tag.commits.sort_by(|l, r| {
+                            l.summary.category.cmp(&r.summary.category)
+                        });
+                    }
                     Some(parsed_tag)
                 }
             })
@@ -692,7 +702,7 @@ mod tests {
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
-        assert_eq!(journal.parser.result[0].commits.len(), 12);
+        assert_eq!(journal.parser.result[0].commits.len(), 13);
         assert_eq!(journal.parser.result[1].commits.len(), 1);
         assert_eq!(journal.parser.result[2].commits.len(), 2);
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());

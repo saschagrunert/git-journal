@@ -336,6 +336,8 @@ repository:
     * [x] Automatic wrapping of commit message categories in square brackets.
     * [x] Templating support including tag and name mapping.
     * [x] Support for accumulating footer data (also for templating engine).
+    * [x] Different sorting methods (`"date"` and `"name"`) for the default and template based output.
+    * [x] Support for custom header and footer fields within templates
 * Preparation and Verification of commit messages
     * [x] Automatic installation of git hooks inside the local repository.
     * [x] Generation of default configuration file during setup.
@@ -346,9 +348,7 @@ repository:
 [planned]: #planned
 
 * [ ] Custom commit message template support, which will be used for commit preparation.
-* [ ] Multiple template extensions, like custom header/footer or other different custom fields.
 * [ ] Generation of default templates based on commits within a given commit rage.
-* [ ] Custom sorting methods for the default and template based output.
 * [ ] Commit message validation via provided template
 
 ## Contributing

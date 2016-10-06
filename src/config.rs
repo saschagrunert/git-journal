@@ -67,6 +67,9 @@ pub struct Config {
     /// Show or hide the commit message prefix, e.g. JIRA-1234
     pub show_prefix: bool,
 
+    /// Sort the commits during the output by "date" (default) or "name"
+    pub sort_by: String,
+
     /// Commit message template prefix which will be added during commit preparation
     pub template_prefix: String,
 }
@@ -90,6 +93,7 @@ impl Config {
             excluded_commit_tags: vec![],
             enable_footers: false,
             show_prefix: false,
+            sort_by: "date".to_owned(),
             template_prefix: "JIRA-1234".to_owned(),
         }
     }
