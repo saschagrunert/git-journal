@@ -71,9 +71,6 @@ pub enum Error {
     /// Errors related to the setup process.
     Setup(config::Error),
 
-    /// Errors related to the template generation.
-    Template(String),
-
     /// Errors related to the terminal emulation, which is used for colored output.
     Term(term::Error),
 }
@@ -115,7 +112,6 @@ impl fmt::Display for Error {
             Error::Io(ref err) => write!(f, "Io: {}", err),
             Error::Parser(ref err) => write!(f, "Parser: {}", err),
             Error::Setup(ref err) => write!(f, "Setup: {}", err),
-            Error::Template(ref err) => write!(f, "Template: {}", err),
             Error::Term(ref err) => write!(f, "Term: {}", err),
         }
     }
@@ -564,11 +560,6 @@ impl GitJournal {
         // Sort and dedpup since get_tags just extends the vector
         tags.sort();
         tags.dedup();
-
-        if tags.is_empty() {
-            // This path should not be possible since "default" will always be in.
-            return Err(Error::Template("No tags found.".to_owned()));
-        }
 
         if self.config.enable_debug {
             if tags.len() > 1 {
