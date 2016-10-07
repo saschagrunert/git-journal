@@ -12,7 +12,7 @@
 //! ```
 //! use gitjournal::GitJournal;
 //! let mut journal = GitJournal::new(".").unwrap();
-//! journal.parse_log("HEAD", "rc", &1, &true, &false);
+//! journal.parse_log("HEAD", "rc", &1, &false, &true);
 //! journal.print_log(true, None, None).expect("Could not print short log.");
 //! ```
 //!
@@ -808,7 +808,7 @@ mod tests {
     #[test]
     fn parse_and_print_log_3() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
-        assert!(journal.parse_log("HEAD", "rc", &1, &true, &false).is_ok());
+        assert!(journal.parse_log("HEAD", "rc", &1, &false, &true).is_ok());
         assert_eq!(journal.parser.result.len(), 1);
         assert_eq!(journal.parser.result[0].name, "v2");
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
@@ -820,7 +820,7 @@ mod tests {
     #[test]
     fn parse_and_print_log_4() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
-        assert!(journal.parse_log("HEAD", "rc", &2, &true, &false).is_ok());
+        assert!(journal.parse_log("HEAD", "rc", &2, &false, &true).is_ok());
         assert_eq!(journal.parser.result.len(), 2);
         assert_eq!(journal.parser.result[0].name, "v2");
         assert_eq!(journal.parser.result[1].name, "v1");
