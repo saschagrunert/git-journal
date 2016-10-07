@@ -353,9 +353,7 @@ repository:
 ## Planned features and improvements
 [planned]: #planned
 
-* [ ] Custom commit message template support, which will be used for commit preparation.
-* [ ] Commit message validation via provided template
-* [ ] Issue linker for commits (by URL pattern)
+* [ ] Use default template for commit message verification
 
 ## Contributing
 [contributing]: #contributing
