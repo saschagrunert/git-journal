@@ -322,11 +322,11 @@ repository:
 ## Current Features
 [features]: #features
 
-* General
+* **General**
     * [x] Generation of completions for bash and fish shell during setup.
     * [x] Custom category support for commit preparation, validation and output (`categories`).
     * [x] Automatic multi threading support for the parsing.
-* Journal generation and output
+* **Journal generation and output**
     * [x] Automatic up-level repository search if a sub path of a git repository was specified.
     * [x] Custom commit ranges or different git commit starting points for parsing.
     * [x] Run in a different specified path than the current working directory (`-p`).
@@ -343,7 +343,7 @@ repository:
     * [x] Support for custom header and footer fields within templates with multiple or single output.
     * [x] Generation of default templates based on the parsing results (`-g`).
     * [x] Commit hash links for commits in standard and template output (`show_commit_hash`).
-* Preparation and Verification of commit messages
+* **Preparation and Verification of commit messages**
     * [x] Automatic installation of git hooks inside the local repository.
     * [x] Generation of default configuration file during setup.
     * [x] Commit message validation based on implemented parser.
