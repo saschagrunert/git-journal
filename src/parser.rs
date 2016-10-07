@@ -945,7 +945,11 @@ mod tests {
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
             assert_eq!(commit.body[0],
-                       BodyElement::Paragraph(ParagraphElement {text: "Some paragraph".to_owned(), tags: vec![]}));
+                       BodyElement::Paragraph(ParagraphElement {
+                                                text: "Some paragraph".to_owned(),
+                                                tags: vec![],
+                                                oid: None
+                       }));
             assert_eq!(commit.footer.len(), 0);
             assert_eq!(commit.summary.prefix, "JIRA-1234");
             assert_eq!(commit.summary.category, "Changed");
