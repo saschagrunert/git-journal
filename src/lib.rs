@@ -850,13 +850,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_and_print_log_7() {
-        let mut journal = GitJournal::new("./target/debug/build").unwrap();
-        assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
-        assert!(journal.print_log(false, None, None).is_ok());
-    }
-
-    #[test]
     fn prepare_message_success_1() {
         let journal = GitJournal::new(".").unwrap();
         assert!(journal.prepare("./tests/COMMIT_EDITMSG", None).is_ok());
