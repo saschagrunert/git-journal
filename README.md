@@ -19,7 +19,7 @@ Table of contents:
 ## TL;DR
 [tldr]: #tldr
 
-<img src="./.github/example.jpg" align="right" height="230px">
+<img src="./.github/example.jpg" align="right" width="500px">
 Target of the project is to provide a framework to write more sensible commit messages for the
 [git scm](https://git-scm.com/). Single commit messages should contain one logical change of the project which is
 described in a standardized way. This results in a much cleaner git history and provides contributors more information
@@ -45,7 +45,7 @@ for example via [Pacman](https://wiki.archlinux.de/title/pacman) on Arch Linux:
 sudo pacman -S rust cargo
 ```
 
-Once these two dependencies are installed, _git-journal_ can be installed via:
+For a super easy installation it is also possible to use [rustup](https://rustup.rs/). Once these two dependencies are installed, _git-journal_ can be installed via:
 
 ```terminal
 cargo install git-journal
@@ -323,10 +323,11 @@ defined template:
 [git-journal] [ERROR] Commit message invalid: GitJournal: Verify: Not all tags exists in the default template.
 ```
 
+<img src="./.github/flow.png" align="right" height="400px">
+---
 This means in detail that _git-journal_ will build up two gates (one for preparation and one for verification) during
 doing the commit by the user. This graphic will sum up where _git-journal_ will take influence on the local git
-repository:
-<img src="./.github/flow.png" height="350px">
+repository.
 
 ## Current Features
 [features]: #features
