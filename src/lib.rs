@@ -73,6 +73,9 @@ pub enum Error {
 
     /// Errors related to the terminal emulation, which is used for colored output.
     Term(term::Error),
+
+    /// Errors related to the commit message verification.
+    Verify(String),
 }
 
 impl From<git2::Error> for Error {
@@ -113,6 +116,7 @@ impl fmt::Display for Error {
             Error::Parser(ref err) => write!(f, "Parser: {}", err),
             Error::Setup(ref err) => write!(f, "Setup: {}", err),
             Error::Term(ref err) => write!(f, "Term: {}", err),
+            Error::Verify(ref err) => write!(f, "Verify: {}", err),
         }
     }
 }
@@ -374,10 +378,36 @@ impl GitJournal {
     /// When the commit message is not valid due to RFC0001 or opening of the given file failed.
     ///
     pub fn verify(&self, path: &str) -> Result<(), Error> {
+        // Open the file and read to string
         let mut file = try!(File::open(path));
         let mut commit_message = String::new();
         try!(file.read_to_string(&mut commit_message));
-        try!(self.parser.parse_commit_message(&commit_message, None));
+
+        // Parse the commit and extract the tags
+        let parsed_commit = try!(self.parser.parse_commit_message(&commit_message, None));
+        let tags = parsed_commit.get_tags_unique(vec![]);
+
+        // Check if the tags within the commit also occur in the default template and error if not.
+        if let Some(ref template) = self.config.default_template {
+            let mut path_buf = PathBuf::from(&self.path);
+            path_buf.push(template);
+            let mut file = try!(File::open(path_buf));
+            let mut toml_string = String::new();
+            try!(file.read_to_string(&mut toml_string));
+
+            let toml = try!(toml::Parser::new(&toml_string)
+                .parse()
+                .ok_or(Error::Verify("Could not parse default toml template.".to_owned())));
+
+            let toml_tags = self.parser.get_tags_from_toml(&toml, vec![]);
+            let invalid_tags = tags.into_iter().filter(|tag| !toml_tags.contains(tag)).collect::<Vec<String>>();
+            if !invalid_tags.is_empty() {
+                if self.config.enable_debug {
+                    println_warn!("These tags are not part of the default template: '{}'.", invalid_tags.join(", "));
+                }
+                return Err(Error::Verify("Not all tags exists in the default template.".to_owned()));
+            }
+        }
         Ok(())
     }
 
@@ -557,12 +587,8 @@ impl GitJournal {
 
         // Get all the tags
         for parsed_tag in &self.parser.result {
-            parsed_tag.get_tags(&mut tags);
+            tags = parsed_tag.get_tags_unique(tags);
         }
-
-        // Sort and dedpup since get_tags just extends the vector
-        tags.sort();
-        tags.dedup();
 
         if self.config.enable_debug {
             if tags.len() > 1 {
@@ -768,6 +794,13 @@ mod tests {
     #[test]
     fn verify_commit_msg_paragraph_failure_3() {
         verify_failure("./tests/commit_messages/failure_6");
+    }
+
+    #[test]
+    fn verify_commit_msg_summary_failure_tag() {
+        let journal = GitJournal::new("./tests/test_repo2").unwrap();
+        assert!(journal.verify("./tests/commit_messages/success_1").is_err());
+        assert!(journal.verify("./tests/commit_messages/success_3").is_err());
     }
 
     #[test]

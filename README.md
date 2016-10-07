@@ -271,8 +271,8 @@ shell. The default configuration file is a [toml](https://github.com/toml-lang/t
 configuration with comments can also be
 [found here](https://saschagrunert.github.io/git-journal/gitjournal/struct.GitJournal.html#examples-1).
 
-If the setup is done _git-journal_ will verify your inserted commit message as well as doing a preparation. For example,
-if we are now trying to commit something which can not be parsed:
+If the setup is done _git-journal_ will verify your inserted commit message as well as doing a commit message
+preparation. For example, if we are now trying to commit something which can not be parsed:
 
 ```terminal
 > touch my_file
@@ -314,6 +314,15 @@ If everything went fine it should look like this:
  create mode 100644 my_file
 ```
 
+If a default template is configured then _git-journal_ will also check the available tags of the template against your
+commit message tags. So there will be an error if one of the tags within the commit message is not available within the
+defined template:
+
+```terminal
+[git-journal] [WARN] These tags are not part of the default template: 'tag1'.
+[git-journal] [ERROR] Commit message invalid: GitJournal: Verify: Not all tags exists in the default template.
+```
+
 This means in detail that _git-journal_ will build up two gates (one for preparation and one for verification) during
 doing the commit by the user. This graphic will sum up where _git-journal_ will take influence on the local git
 repository:
@@ -349,11 +358,12 @@ repository:
     * [x] Commit message validation based on implemented parser.
     * [x] Message preparation with custom commit prefix (`template_prefix`).
     * [x] Differentiation between amended and new commits.
+    * [x] Use the tags from the default template for the commit message verification.
 
 ## Planned features and improvements
 [planned]: #planned
 
-* [ ] Use default template for commit message verification
+* There are no bigger features planned yet.
 
 ## Contributing
 [contributing]: #contributing

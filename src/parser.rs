@@ -146,7 +146,17 @@ pub trait Print {
 
 pub trait Tags {
     /// Just extends a given vector with all found tags, unsorted.
-    fn get_tags(&self, vec: &mut Vec<String>);
+    /// Transfers ownership of the vector back if done.
+    fn get_tags(&self, mut vec: Vec<String>) -> Vec<String>;
+
+    /// Sort and uniq the tags as well.
+    /// Transfers ownership of the vector back if done.
+    fn get_tags_unique(&self, mut vec: Vec<String>) -> Vec<String> {
+        vec = self.get_tags(vec);
+        vec.sort();
+        vec.dedup();
+        vec
+    }
 }
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -426,10 +436,11 @@ impl ParsedTag {
 }
 
 impl Tags for ParsedTag {
-    fn get_tags(&self, vec: &mut Vec<String>) {
+    fn get_tags(&self, mut vec: Vec<String>) -> Vec<String> {
         for commit in &self.commits {
-            commit.get_tags(vec);
+            vec = commit.get_tags(vec);
         }
+        vec
     }
 }
 
@@ -475,11 +486,12 @@ impl Print for ParsedCommit {
 }
 
 impl Tags for ParsedCommit {
-    fn get_tags(&self, vec: &mut Vec<String>) {
+    fn get_tags(&self, mut vec: Vec<String>) -> Vec<String> {
         vec.extend(self.summary.tags.clone());
         for body_element in &self.body {
-            body_element.get_tags(vec);
+            vec = body_element.get_tags(vec);
         }
+        vec
     }
 }
 
@@ -611,15 +623,16 @@ impl Print for BodyElement {
 }
 
 impl Tags for BodyElement {
-    fn get_tags(&self, vec: &mut Vec<String>) {
+    fn get_tags(&self, mut vec: Vec<String>) -> Vec<String> {
         match *self {
             BodyElement::List(ref list_vec) => {
                 for list_item in list_vec {
-                    list_item.get_tags(vec);
+                    vec = list_item.get_tags(vec);
                 }
             }
             BodyElement::Paragraph(ref paragraph) => vec.extend(paragraph.tags.clone()),
         }
+        vec
     }
 }
 
@@ -684,8 +697,9 @@ impl Print for ListElement {
 }
 
 impl Tags for ListElement {
-    fn get_tags(&self, vec: &mut Vec<String>) {
+    fn get_tags(&self, mut vec: Vec<String>) -> Vec<String> {
         vec.extend(self.tags.clone());
+        vec
     }
 }
 
@@ -909,6 +923,26 @@ impl Parser {
 
         trywln!(term, "");
         Ok(vec)
+    }
+
+    /// Returns all tags recursively from a toml table
+    pub fn get_tags_from_toml(&self, table: &toml::Table, mut vec: Vec<String>) -> Vec<String> {
+        for value in table {
+            if let Value::Array(ref array) = *value.1 {
+                for item in array {
+                    if let Value::Table(ref table) = *item {
+                        vec = self.get_tags_from_toml(table, vec);
+                    }
+                }
+            }
+        }
+
+        if let Some(element) = table.get(TOML_TAG) {
+            if let Value::String(ref tag) = *element {
+                vec.push(tag.to_owned());
+            }
+        }
+        vec
     }
 }
 
