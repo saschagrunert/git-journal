@@ -64,6 +64,9 @@ pub struct Config {
     /// Enable or disable the output and accumulation of commit footers
     pub enable_footers: bool,
 
+    /// Show or hide the commit hash for every entry
+    pub show_commit_hash: bool,
+
     /// Show or hide the commit message prefix, e.g. JIRA-1234
     pub show_prefix: bool,
 
@@ -92,6 +95,7 @@ impl Config {
             enable_debug: true,
             excluded_commit_tags: vec![],
             enable_footers: false,
+            show_commit_hash: false,
             show_prefix: false,
             sort_by: "date".to_owned(),
             template_prefix: "JIRA-1234".to_owned(),

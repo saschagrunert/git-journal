@@ -1,4 +1,5 @@
 use chrono::{Date, UTC, Datelike};
+use git2::Oid;
 use nom::{IResult, alpha, digit, space, rest};
 use regex::{Regex, RegexBuilder};
 use term;
@@ -382,7 +383,13 @@ impl ParsedTag {
             .flat_map(|commit| commit.footer.clone())
             .collect::<Vec<FooterElement>>() {
             if valid_footer_keys.is_empty() || valid_footer_keys.contains(&footer.key) {
-                footer_tree.entry(footer.key).or_insert_with(|| vec![]).push(footer.value);
+                let mut value = footer.value;
+                if config.show_commit_hash {
+                    if let Some(oid) = footer.oid {
+                        value = format!("{} ({:.7})", value, oid);
+                    }
+                }
+                footer_tree.entry(footer.key).or_insert_with(|| vec![]).push(value);
             }
         }
 
@@ -403,7 +410,7 @@ impl ParsedTag {
             let mut char_count = 0;
             let mut footer_lines = String::new();
             for cur_char in footer_string.chars() {
-                if char_count > 80 && cur_char == ' ' {
+                if char_count > 100 && cur_char == ' ' {
                     footer_lines.push('\n');
                     char_count = 0;
                 } else {
@@ -428,6 +435,7 @@ impl Tags for ParsedTag {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ParsedCommit {
+    pub oid: Option<Oid>,
     pub summary: SummaryElement,
     pub body: Vec<BodyElement>,
     pub footer: Vec<FooterElement>,
@@ -477,6 +485,7 @@ impl Tags for ParsedCommit {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct SummaryElement {
+    pub oid: Option<Oid>,
     pub prefix: String,
     pub category: String,
     pub text: String,
@@ -514,6 +523,13 @@ impl Print for SummaryElement {
                 try!(c2(t));
             }
             tryw!(t, "{}", self.text);
+
+            // Print the oid for the summary element (always)
+            if config.show_commit_hash {
+                if let Some(oid) = self.oid {
+                    tryw!(t, " ({:.7})", oid);
+                }
+            }
             try!(c3(t));
         }
         Ok(Printed::Something)
@@ -539,6 +555,7 @@ pub enum BodyElement {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ListElement {
+    pub oid: Option<Oid>,
     pub category: String,
     pub text: String,
     pub tags: Vec<String>,
@@ -546,6 +563,7 @@ pub struct ListElement {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ParagraphElement {
+    pub oid: Option<Oid>,
     pub text: String,
     pub tags: Vec<String>,
 }
@@ -641,6 +659,12 @@ impl Print for ListElement {
                 }
             }
             tryw!(t, "{}", self.text);
+            // Print only in templating mode, otherwise hide unnecessary information
+            if config.show_commit_hash && tag.is_some() {
+                if let Some(oid) = self.oid {
+                    tryw!(t, " ({:.7})", oid);
+                }
+            }
             try!(c3(t));
         }
 
@@ -700,6 +724,12 @@ impl Print for ParagraphElement {
                 } else {
                     tryw!(t, "\n{}", line);
                 }
+                // Print only in templating mode, otherwise hide unnecessary information
+                if config.show_commit_hash && tag.is_some() {
+                    if let Some(oid) = self.oid {
+                        tryw!(t, " ({:.7})", oid);
+                    }
+                }
             }
         }
         Ok(Printed::Something)
@@ -719,6 +749,7 @@ impl Print for ParagraphElement {
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct FooterElement {
+    pub oid: Option<Oid>,
     pub key: String,
     pub value: String,
 }
@@ -758,6 +789,7 @@ impl Parser {
             space? ~
             p_tags_rest: map!(rest, Self::parse_and_consume_tags),
             || ListElement {
+                oid: None,
                 category: p_category.unwrap_or("").to_owned(),
                 tags: p_tags_rest.0.clone(),
                 text: p_tags_rest.1.clone(),
@@ -773,6 +805,7 @@ impl Parser {
             space ~
             p_tags_rest: map!(rest, Self::parse_and_consume_tags),
         || SummaryElement {
+            oid: None,
             prefix: p_prefix.map_or("".to_owned(), |p| {
                 format!("{}-{}", str::from_utf8(p.0).unwrap_or(""), str::from_utf8(p.1).unwrap_or(""))
             }),
@@ -803,16 +836,17 @@ impl Parser {
     }
 
     /// Parses a single commit message and returns a changelog ready form
-    pub fn parse_commit_message(&self, message: &str) -> Result<ParsedCommit, Error> {
+    pub fn parse_commit_message(&self, message: &str, oid: Option<Oid>) -> Result<ParsedCommit, Error> {
         // Every block is split by two newlines
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
         let summary_line = try!(commit_parts.nth(0).ok_or(Error::CommitMessageLength)).trim();
-        let parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
+        let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
             (_, IResult::Done(_, parsed)) => parsed,
             _ => return Err(Error::SummaryParsing(summary_line.to_owned())),
         };
+        parsed_summary.oid = oid;
 
         // Parse the body and the footer, the summary is already consumed
         let mut parsed_footer = vec![];
@@ -825,6 +859,7 @@ impl Parser {
                 // Parse footer
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
+                        oid: oid,
                         key: try!(cap.at(1).ok_or(Error::FooterParsing(part.to_owned()))).to_owned(),
                         value: try!(cap.at(2).ok_or(Error::FooterParsing(part.to_owned()))).to_owned(),
                     });
@@ -833,7 +868,8 @@ impl Parser {
                 // Parse list items
                 let mut list = vec![];
                 for list_item in part.lines() {
-                    if let (_, IResult::Done(_, result)) = self.clone().parse_list_item(list_item.as_bytes()) {
+                    if let (_, IResult::Done(_, mut result)) = self.clone().parse_list_item(list_item.as_bytes()) {
+                        result.oid = oid;
                         list.push(result);
                     };
                 }
@@ -845,6 +881,7 @@ impl Parser {
                 }
                 let (parsed_tags, parsed_text) = Self::parse_and_consume_tags(part.as_bytes());
                 parsed_body.push(BodyElement::Paragraph(ParagraphElement {
+                    oid: oid,
                     text: parsed_text.trim().to_owned(),
                     tags: parsed_tags,
                 }));
@@ -852,6 +889,7 @@ impl Parser {
         }
 
         Ok(ParsedCommit {
+            oid: oid,
             summary: parsed_summary,
             body: parsed_body,
             footer: parsed_footer,
@@ -890,7 +928,7 @@ mod tests {
     }
 
     fn parse_and_print_error(message: &str) {
-        let ret = get_parser().parse_commit_message(message);
+        let ret = get_parser().parse_commit_message(message, None);
         assert!(ret.is_err());
         if let Err(e) = ret {
             println!("{}", e);
@@ -901,7 +939,8 @@ mod tests {
     fn parse_commit_ok_1() {
         let commit = get_parser()
             .parse_commit_message("JIRA-1234 [Changed] my commit summary\n\nSome paragraph\n\n# A comment\n# Another \
-                                   comment");
+                                   comment",
+                                  None);
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
@@ -923,7 +962,8 @@ mod tests {
     #[test]
     fn parse_commit_ok_2() {
         let commit = get_parser()
-            .parse_commit_message("Changed my commit summary\n\n- List item 1\n- List item 2\n- List item 3");
+            .parse_commit_message("Changed my commit summary\n\n- List item 1\n- List item 2\n- List item 3",
+                                  None);
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
@@ -944,7 +984,8 @@ mod tests {
     fn parse_commit_ok_3() {
         let commit = get_parser()
             .parse_commit_message("PREFIX-666 Fixed some ____ commit :tag1: :tag2: :tag3:\n\nSome: Footer\nAnother: \
-                                   Footer\nMy-ID: IDVALUE");
+                                   Footer\nMy-ID: IDVALUE",
+                                  None);
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 0);
@@ -966,7 +1007,8 @@ mod tests {
     fn parse_commit_ok_4() {
         let commit = get_parser()
             .parse_commit_message("Added my :1234: commit 💖 summary :some tag:\n\nParagraph\n\n- List \
-                                   Item\n\nReviewed-by: Me");
+                                   Item\n\nReviewed-by: Me",
+                                  None);
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 2);

@@ -324,7 +324,7 @@ repository:
 
 * General
     * [x] Generation of completions for bash and fish shell during setup.
-    * [x] Custom category support for commit preparation, validation and output
+    * [x] Custom category support for commit preparation, validation and output (`categories`).
     * [x] Automatic multi threading support for the parsing.
 * Journal generation and output
     * [x] Automatic up-level repository search if a sub path of a git repository was specified.
@@ -334,19 +334,21 @@ repository:
     * [x] Print a short version of the commit history based on the commit message summary (`-s`).
     * [x] Output the parsed log in valid Markdown to the command line or a file (`-o`).
     * [x] Custom git tag exclude pattern, e.g. `rc` tags (`-e`).
-    * [x] Enable/Disable debug message output.
-    * [x] Enable/Disable colored output via the command line.
+    * [x] Enable/Disable debug message output (`enable_debug`).
+    * [x] Enable/Disable colored output via the command line (`colored_output`).
     * [x] Automatic wrapping of commit message categories in square brackets.
-    * [x] Templating support including tag and name mapping.
+    * [x] Templating support including tag and name mapping (`default_template`).
     * [x] Support for accumulating footer data (also for templating engine).
-    * [x] Different sorting methods (`"date"` and `"name"`) for the default and template based output.
+    * [x] Different sorting methods (`"date"` and `"name"`) for the default and template based output (`sort_by`).
     * [x] Support for custom header and footer fields within templates with multiple or single output.
     * [x] Generation of default templates based on the parsing results (`-g`).
+    * [x] Commit hash links for commits in standard and template output (`show_commit_hash`).
 * Preparation and Verification of commit messages
     * [x] Automatic installation of git hooks inside the local repository.
     * [x] Generation of default configuration file during setup.
     * [x] Commit message validation based on implemented parser.
-    * [x] Message preparation with custom commit prefix (config) and differentiation between amended and new commits
+    * [x] Message preparation with custom commit prefix (`template_prefix`).
+    * [x] Differentiation between amended and new commits.
 
 ## Planned features and improvements
 [planned]: #planned
@@ -354,7 +356,6 @@ repository:
 * [ ] Custom commit message template support, which will be used for commit preparation.
 * [ ] Commit message validation via provided template
 * [ ] Issue linker for commits (by URL pattern)
-* [ ] Commit hash links for commits
 
 ## Contributing
 [contributing]: #contributing

@@ -230,6 +230,9 @@ impl GitJournal {
     /// Enable or disable the output and accumulation of commit footers.
     /// pub enable_footers: bool,
     ///
+    /// # Show or hide the commit hash for every entry
+    /// show_commit_hash = false
+    ///
     /// # Show or hide the commit message prefix, e.g. JIRA-1234
     /// show_prefix = false
     ///
@@ -374,7 +377,7 @@ impl GitJournal {
         let mut file = try!(File::open(path));
         let mut commit_message = String::new();
         try!(file.read_to_string(&mut commit_message));
-        try!(self.parser.parse_commit_message(&commit_message));
+        try!(self.parser.parse_commit_message(&commit_message, None));
         Ok(())
     }
 
@@ -472,7 +475,7 @@ impl GitJournal {
             let id = worker_vec.len();
 
             // The worker_vec contains the commit message and the parsed commit (currently none)
-            worker_vec.push((message.to_owned(), None));
+            worker_vec.push((message.to_owned(), oid, None));
             current_tag.message_ids.push(id);
         }
 
@@ -482,8 +485,8 @@ impl GitJournal {
         }
 
         // Process with the full CPU power
-        worker_vec.par_iter_mut().for_each(|&mut (ref message, ref mut result)| {
-            match self.parser.parse_commit_message(message) {
+        worker_vec.par_iter_mut().for_each(|&mut (ref message, ref oid, ref mut result)| {
+            match self.parser.parse_commit_message(message, Some(*oid)) {
                 Ok(parsed_message) => {
                     *result = Some(parsed_message);
                 }
@@ -511,7 +514,7 @@ impl GitJournal {
             .into_iter()
             .filter_map(|mut parsed_tag| {
                 for id in &parsed_tag.message_ids {
-                    if let Some(parsed_commit) = worker_vec[*id].1.clone() {
+                    if let Some(parsed_commit) = worker_vec[*id].2.clone() {
                         parsed_tag.commits.push(parsed_commit);
                     }
                 }
@@ -774,10 +777,13 @@ mod tests {
         assert_eq!(journal.parser.result.len(), 0);
         assert_eq!(journal.config.show_prefix, false);
         assert_eq!(journal.config.colored_output, true);
+        assert_eq!(journal.config.show_commit_hash, false);
+        assert_eq!(journal.config.show_footers, true);
+        assert_eq!(journal.config.sort_by, "name");
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
-        assert_eq!(journal.parser.result[0].commits.len(), 13);
+        assert_eq!(journal.parser.result[0].commits.len(), 14);
         assert_eq!(journal.parser.result[1].commits.len(), 1);
         assert_eq!(journal.parser.result[2].commits.len(), 2);
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
