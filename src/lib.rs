@@ -812,7 +812,6 @@ mod tests {
         assert_eq!(journal.config.colored_output, true);
         assert_eq!(journal.config.show_commit_hash, false);
         assert_eq!(journal.config.enable_footers, true);
-        assert_eq!(journal.config.sort_by, "name");
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
@@ -896,8 +895,14 @@ mod tests {
 
     #[test]
     fn prepare_message_success_3() {
-        let journal = GitJournal::new("./tests/commit_messages").unwrap();
+        let journal = GitJournal::new(".").unwrap();
         assert!(journal.prepare("./tests/commit_messages/prepare_2", None).is_ok());
+    }
+
+    #[test]
+    fn prepare_message_success_4() {
+        let journal = GitJournal::new(".").unwrap();
+        assert!(journal.prepare("./tests/commit_messages/prepare_4", None).is_ok());
     }
 
     #[test]
@@ -927,6 +932,11 @@ mod tests {
         assert!(journal.generate_template().is_ok());
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert!(journal.generate_template().is_ok());
+    }
+
+    #[test]
+    fn path_failure() {
+        assert!(GitJournal::new("/etc/").is_err());
     }
 
 }
