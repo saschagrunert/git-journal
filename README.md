@@ -322,12 +322,10 @@ defined template:
 [git-journal] [WARN] These tags are not part of the default template: 'tag1'.
 [git-journal] [ERROR] Commit message invalid: GitJournal: Verify: Not all tags exists in the default template.
 ```
-
-<img src="./.github/flow.png" align="right" height="400px">
----
 This means in detail that _git-journal_ will build up two gates (one for preparation and one for verification) during
 doing the commit by the user. This graphic will sum up where _git-journal_ will take influence on the local git
-repository.
+repository:
+<img src="./.github/flow.png" width="100%">
 
 ## Current Features
 [features]: #features
