@@ -14,7 +14,7 @@ script:
   - travis-cargo test
   - cargo doc --no-deps
 after_success:
-  - travis-cargo --only nightly doc-upload
+  - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then travis-cargo --only nightly doc-upload; fi
   - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then travis-cargo coveralls --no-sudo --verify; fi
   - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo,/usr target/kcov target/debug/gitjournal*; fi
 notifications:
@@ -25,10 +25,7 @@ os:
 matrix:
   include:
     - os: osx
-      rust:
-        - stable
-        - beta
-        - nightly
+      rust: stable
       before_install:
         - export OPENSSL_INCLUDE_DIR=`brew --prefix openssl`/include
         - export OPENSSL_LIB_DIR=`brew --prefix openssl`/lib
