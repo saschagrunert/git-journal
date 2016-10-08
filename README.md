@@ -20,19 +20,22 @@ Table of contents:
 [tldr]: #tldr
 
 <img src="./.github/example.jpg" align="right" width="500px">
-Target of the project is to provide a framework to write more sensible commit messages for the
-[git scm](https://git-scm.com/). Single commit messages should contain one logical change of the project which is
-described in a standardized way. This results in a much cleaner git history and provides contributors more information
-about the actual change.
+Creating changelogs can be time-consuming, especially when multiple persons work on the same project. If you maintain a
+separate file, merge conflicts and additional release work is sure to follow.
 
-Furthermore it should be easier to generate nice looking changelogs directly from your commit history. This is where
-_git-journal_ solves common problems.
+It would be great, if we could use the commit history of [git](https://git-scm.com/) to generate a *beautiful* changelog
+without any additional work needed.
 
-Two RFCs, one for a
-[commit message syntax extension](https://github.com/saschagrunert/git-journal/blob/master/rfc/0001-commit-msg.md)
-and another for the
-[output templating engine](https://github.com/saschagrunert/git-journal/blob/master/rfc/0002-output-templating.md)
-is the base for this.
+This is where **git-journal** jumps in.
+
+To ensure this auto-generation a framework to write more sensible commit messages is needed. Single commit messages
+should contain one logical change of the project which is described in a standardized way. This results in a much
+cleaner git history and provides contributors more information about the actual change.
+
+The theoretical base consists of two RFCs:
+
+* [RFC0001 for the commit message syntax extension](https://github.com/saschagrunert/git-journal/blob/master/rfc/0001-commit-msg.md)
+* [RFC0002 for the output templating engine](https://github.com/saschagrunert/git-journal/blob/master/rfc/0002-output-templating.md)
 
 ## Installation
 [installation]: #installation
