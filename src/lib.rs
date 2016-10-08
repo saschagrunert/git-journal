@@ -823,7 +823,6 @@ mod tests {
         assert_eq!(journal.config.show_prefix, false);
         assert_eq!(journal.config.colored_output, true);
         assert_eq!(journal.config.show_commit_hash, false);
-        assert_eq!(journal.config.enable_footers, true);
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
