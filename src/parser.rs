@@ -349,13 +349,13 @@ impl ParsedTag {
 
             trywln!(term, "");
             trywln!(vec, "");
-        }
 
-        // Print footers if specified in the template
-        if let Some(footers) = table.get(TOML_FOOTERS_KEY) {
-            if let Value::Array(ref array) = *footers {
-                if !array.is_empty() {
-                    try!(self.print_footers(term, vec, Some(array), config));
+            // Print footers if specified in the template
+            if let Some(footers) = table.get(TOML_FOOTERS_KEY) {
+                if let Value::Array(ref array) = *footers {
+                    if !array.is_empty() {
+                        try!(self.print_footers(term, vec, Some(array), config));
+                    }
                 }
             }
         }
