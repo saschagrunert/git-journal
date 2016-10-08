@@ -16,11 +16,11 @@ Table of contents:
 
 ---
 
+<img src="./.github/example.jpg" align="right" width="550px">
 ## TL;DR
 [tldr]: #tldr
 
-<img src="./.github/example.jpg" align="right" width="500px">
-Creating changelogs can be time-consuming, especially when multiple persons work on the same project. If you maintain a
+Maintaining changelogs can be time-consuming, especially when multiple persons work on the same project. If you maintain a
 separate file, merge conflicts and additional release work is sure to follow.
 
 It would be great, if we could use the commit history of [git](https://git-scm.com/) to generate a *beautiful* changelog
