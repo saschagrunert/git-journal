@@ -14,8 +14,9 @@ install:
   - set CARGO_TARGET_DIR=%APPVEYOR_BUILD_FOLDER%\target
   - rustc -V
   - cargo -V
+  - git submodule update --init --recursive
 build: false
 test_script:
   - cargo test
   - cargo test --no-default-features
-  - cargo run --manifest-path systest/Cargo.toml
+  - cargo run
