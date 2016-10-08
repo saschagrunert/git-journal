@@ -46,9 +46,11 @@ pub use config::Config;
 
 use std::{fmt, fs};
 use std::collections::BTreeMap;
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, Permissions};
 use std::path::PathBuf;
 use std::io::prelude::*;
+
+#[cfg(not(windows))]
 use std::os::unix::prelude::PermissionsExt;
 
 #[macro_use]
@@ -295,7 +297,7 @@ impl GitJournal {
             try!(hook_file.write_all("#!/usr/bin/env sh\n".as_bytes()));
         }
         try!(hook_file.write_all(content.as_bytes()));
-        try!(std::fs::set_permissions(&hook_path, std::fs::Permissions::from_mode(0o755)));
+        try!(fs::set_permissions(&hook_path, Permissions::from_mode(0o755)));
 
         if self.config.enable_debug {
             println_ok!("Git hook installed to '{}'.", hook_path.display());
