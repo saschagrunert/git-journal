@@ -16,12 +16,14 @@ Table of contents:
 
 ---
 
-<img src="./.github/example.jpg" align="right" width="550px">
+<img src="./.github/example.jpg" align="right" width="500px">
 ## TL;DR
 [tldr]: #tldr
 
 Maintaining changelogs can be time-consuming, especially when multiple persons work on the same project. If you maintain a
 separate file, merge conflicts and additional release work is sure to follow.
+
+Sometimes complete entries are lost during merge conflict resolution, people forget to mention something or links between issues and actual commits are missing.
 
 It would be great, if we could use the commit history of [git](https://git-scm.com/) to generate a *beautiful* changelog
 without any additional work needed.
