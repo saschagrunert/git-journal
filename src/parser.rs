@@ -52,8 +52,7 @@ impl fmt::Display for Error {
 }
 
 impl From<term::Error> for Error {
-    #[allow(unused_variables)]
-    fn from(err: term::Error) -> Error {
+    fn from(_err: term::Error) -> Error {
         Error::Terminal
     }
 }
@@ -704,14 +703,13 @@ impl Tags for ListElement {
 }
 
 impl Print for ParagraphElement {
-    #[allow(unused_variables)]
     fn print<T: Write, F, G, H>(&self,
                                 t: &mut T,
                                 config: &Config,
                                 tag: Option<&str>,
-                                c1: &F,
-                                c2: &G,
-                                c3: &H)
+                                _c1: &F,
+                                _c2: &G,
+                                _c3: &H)
                                 -> Result<Printed, Error>
         where F: Fn(&mut T) -> Result<(), Error>,
               G: Fn(&mut T) -> Result<(), Error>,

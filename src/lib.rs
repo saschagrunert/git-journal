@@ -46,12 +46,9 @@ pub use config::Config;
 
 use std::{fmt, fs};
 use std::collections::BTreeMap;
-use std::fs::{File, OpenOptions, Permissions};
-use std::path::PathBuf;
+use std::fs::{File, OpenOptions};
+use std::path::{Path, PathBuf};
 use std::io::prelude::*;
-
-#[cfg(not(windows))]
-use std::os::unix::prelude::PermissionsExt;
 
 #[macro_use]
 mod macros;
@@ -297,14 +294,23 @@ impl GitJournal {
             try!(hook_file.write_all("#!/usr/bin/env sh\n".as_bytes()));
         }
         try!(hook_file.write_all(content.as_bytes()));
-
-        if cfg!(unix) {
-            try!(fs::set_permissions(&hook_path, Permissions::from_mode(0o755)));
-        }
+        try!(self.chmod(&hook_path, 0o755));
 
         if self.config.enable_debug {
             println_ok!("Git hook installed to '{}'.", hook_path.display());
         }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    fn chmod(&self, path: &Path, perms: u32) -> Result<(), Error> {
+        use std::os::unix::prelude::PermissionsExt;
+        try!(fs::set_permissions(path, fs::Permissions::from_mode(perms)));
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn chmod(&self, _path: &Path, _perms: u32) -> Result<(), Error> {
         Ok(())
     }
 
@@ -408,7 +414,8 @@ impl GitJournal {
             let invalid_tags = tags.into_iter().filter(|tag| !toml_tags.contains(tag)).collect::<Vec<String>>();
             if !invalid_tags.is_empty() {
                 if self.config.enable_debug {
-                    println_warn!("These tags are not part of the default template: '{}'.", invalid_tags.join(", "));
+                    println_warn!("These tags are not part of the default template: '{}'.",
+                                  invalid_tags.join(", "));
                 }
                 return Err(Error::Verify("Not all tags exists in the default template.".to_owned()));
             }
