@@ -239,8 +239,8 @@ impl ParsedTag {
                     }
                     if let Some(&Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
                         if (index_len.0 == 0 || !print_once) && !header.is_empty() {
-                            tryw!(term, "\n{}", header);
-                            tryw!(vec, "\n{}", header);
+                            trywln!(term, "\n{}", header);
+                            trywln!(vec, "\n{}", header);
                         }
                     }
                 }
