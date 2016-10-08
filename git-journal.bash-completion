@@ -41,7 +41,7 @@ _git-journal() {
 
     case "${cmd}" in
         git-journal)
-            opts=" -p -a -s -u -n -e -t -o -h -V  --path --all --short --skip-unreleased --tags-count --template --output --help --version  <revision range>  prepare setup verify help  p  s  v"
+            opts=" -p -a -g -s -u -n -e -t -o -h -V  --path --all --generate --short --skip-unreleased --tags-count --template --output --help --version  <revision range>  prepare setup verify help  p  s  v"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
                 return 0

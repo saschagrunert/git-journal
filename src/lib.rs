@@ -297,7 +297,10 @@ impl GitJournal {
             try!(hook_file.write_all("#!/usr/bin/env sh\n".as_bytes()));
         }
         try!(hook_file.write_all(content.as_bytes()));
-        try!(fs::set_permissions(&hook_path, Permissions::from_mode(0o755)));
+
+        if cfg!(unix) {
+            try!(fs::set_permissions(&hook_path, Permissions::from_mode(0o755)));
+        }
 
         if self.config.enable_debug {
             println_ok!("Git hook installed to '{}'.", hook_path.display());

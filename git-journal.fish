@@ -12,6 +12,7 @@ complete -c git-journal -n '__fish_git-journal_no_subcommand' -s e -d 'A pattern
 complete -c git-journal -n '__fish_git-journal_no_subcommand' -s t -l template -d 'Use a custom output template.'
 complete -c git-journal -n '__fish_git-journal_no_subcommand' -s o -l output -d 'The output file for the changelog.'
 complete -c git-journal -n '__fish_git-journal_no_subcommand' -s a -l all -d 'Do not stop parsing at the first tag when a single revision is given. Overwrites '-n/--tags-count'.'
+complete -c git-journal -n '__fish_git-journal_no_subcommand' -s g -l generate -d 'Generate a fresh output template from a commit range.'
 complete -c git-journal -n '__fish_git-journal_no_subcommand' -s s -l short -d 'Print only the shortlog (summary) form.'
 complete -c git-journal -n '__fish_git-journal_no_subcommand' -s u -l skip-unreleased -d 'Skip entries without any relation to a git TAG.'
 complete -c git-journal -n '__fish_git-journal_no_subcommand' -s h -l help -d 'Prints help information'
