@@ -20,15 +20,16 @@ Table of contents:
 ## TL;DR
 [tldr]: #tldr
 
-Maintaining changelogs can be time-consuming, especially when multiple persons work on the same project. If you maintain a
-separate file, merge conflicts and additional release work is sure to follow.
+Maintaining changelogs can be time-consuming, especially when multiple persons work on the same project. If you maintain
+a separate file, merge conflicts and additional release work is sure to follow.
 
-Sometimes complete entries are lost during merge conflict resolution, people forget to mention something or links between issues and actual commits are missing.
+Sometimes complete entries are lost during merge conflict resolution, people forget to mention something or links
+between issues and actual commits are missing.
 
 It would be great, if we could use the commit history of [git](https://git-scm.com/) to generate a *beautiful* changelog
 without any additional work needed.
 
-This is where **git-journal** jumps in.
+**This is where git-journal jumps in.**
 
 To ensure this auto-generation a framework to write more sensible commit messages is needed. Single commit messages
 should contain one logical change of the project which is described in a standardized way. This results in a much
