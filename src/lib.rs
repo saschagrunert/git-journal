@@ -701,7 +701,7 @@ impl GitJournal {
         // Print the log to the file if necessary
         if let Some(output) = output {
             let mut output_file = try!(OpenOptions::new().create(true).append(true).open(output));
-            try!(output_file.write_all(&output_vec[1..]));
+            try!(output_file.write_all(&output_vec));
             if self.config.enable_debug {
                 println_ok!("Output written to '{}'.", output);
             }
