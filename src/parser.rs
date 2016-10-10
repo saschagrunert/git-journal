@@ -529,7 +529,9 @@ impl Print for SummaryElement {
             if config.colored_output {
                 try!(c1(t));
             }
-            tryw!(t, "[{}] ", self.category);
+            tryw!(t, "{}", config.category_delimiters.0);
+            tryw!(t, "{}", self.category);
+            tryw!(t, "{} ", config.category_delimiters.1);
             if config.colored_output {
                 try!(c2(t));
             }
@@ -665,7 +667,9 @@ impl Print for ListElement {
                 if config.colored_output {
                     try!(c1(t));
                 }
-                tryw!(t, "[{}] ", self.category);
+                tryw!(t, "{}", config.category_delimiters.0);
+                tryw!(t, "{}", self.category);
+                tryw!(t, "{} ", config.category_delimiters.1);
                 if config.colored_output {
                     try!(c2(t));
                 }
@@ -776,19 +780,19 @@ lazy_static! {
 
 #[derive(Clone)]
 pub struct Parser {
-    pub categories: Vec<String>,
+    pub config: Config,
     pub result: Vec<ParsedTag>,
 }
 
 impl Parser {
     method!(parse_category<Self, &[u8], &str>, self,
         chain!(
-            tag!("[")? ~
+            tag!(self.config.category_delimiters.0.as_str())? ~
             p_category: map_res!(
-                re_bytes_find!(&self.categories.join("|")),
+                re_bytes_find!(&self.config.categories.join("|")),
                 str::from_utf8
             ) ~
-            tag!("]")? ,
+            tag!(self.config.category_delimiters.1.as_str())? ,
             || p_category
     ));
 
@@ -844,7 +848,11 @@ impl Parser {
                 })
                 .collect::<Vec<String>>());
         }
-        (tags, RE_TAGS.replace_all(string, ""))
+        let mut text = RE_TAGS.replace_all(string, "");
+        if let Some('.') = text.chars().rev().nth(0) {
+            text.pop();
+        }
+        (tags, text)
     }
 
     /// Parses a single commit message and returns a changelog ready form
@@ -909,13 +917,13 @@ impl Parser {
     }
 
     /// Prints the commits without any template
-    pub fn print(&self, config: &Config, compact: &bool, template: Option<&str>) -> Result<Vec<u8>, Error> {
+    pub fn print(&self, compact: &bool, template: Option<&str>) -> Result<Vec<u8>, Error> {
         let mut term = try!(term::stdout().ok_or(Error::Terminal));
         let mut vec = vec![];
 
         // Print every tag
         for (index, tag) in self.result.iter().enumerate() {
-            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, config,
+            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, &self.config,
                                                        template, (index, self.result.len())));
         }
 
@@ -952,9 +960,8 @@ mod tests {
     use config::Config;
 
     fn get_parser() -> Parser {
-        let config = Config::new();
         Parser {
-            categories: config.categories,
+            config: Config::new(),
             result: vec![],
         }
     }

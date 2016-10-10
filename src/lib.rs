@@ -186,7 +186,7 @@ impl GitJournal {
 
         // Create a new parser with empty results
         let new_parser = Parser {
-            categories: new_config.categories.clone(),
+            config: new_config.clone(),
             result: vec![],
         };
 
@@ -216,6 +216,9 @@ impl GitJournal {
     /// ```toml
     /// # Specifies the available categories for the commit message, allowd regular expressions.
     /// categories = ["Added", "Changed", "Fixed", "Improved", "Removed"]
+    ///
+    /// Set the characters where the categories are wrapped in
+    /// category_delimiters: ["[", "]"],
     ///
     /// # Set to false if the output should not be colored
     /// colored_output = true
@@ -696,7 +699,7 @@ impl GitJournal {
         };
 
         // Print the log
-        let output_vec = try!(self.parser.print(&self.config, &compact, used_template));
+        let output_vec = try!(self.parser.print(&compact, used_template));
 
         // Print the log to the file if necessary
         if let Some(output) = output {
@@ -826,7 +829,7 @@ mod tests {
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok());
         assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
-        assert_eq!(journal.parser.result[0].commits.len(), 14);
+        assert_eq!(journal.parser.result[0].commits.len(), 15);
         assert_eq!(journal.parser.result[1].commits.len(), 1);
         assert_eq!(journal.parser.result[2].commits.len(), 2);
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());

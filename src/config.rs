@@ -44,10 +44,13 @@ impl fmt::Display for Error {
 }
 
 /// The configuration structure for git-journal.
-#[derive(Default, Debug, PartialEq, RustcEncodable, RustcDecodable)]
+#[derive(Default, Debug, Clone, PartialEq, RustcEncodable, RustcDecodable)]
 pub struct Config {
     /// Specifies the available categories for the commit message
     pub categories: Vec<String>,
+
+    /// Set the characters where the categories are wrapped in
+    pub category_delimiters: (String, String),
 
     /// Set to false if the output should not be colored
     pub colored_output: bool,
@@ -90,6 +93,7 @@ impl Config {
     pub fn new() -> Self {
         Config {
             categories: Self::get_default_categories(),
+            category_delimiters: ("[".to_owned(), "]".to_owned()),
             colored_output: true,
             default_template: None,
             enable_debug: true,
