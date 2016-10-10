@@ -47,7 +47,6 @@ A category is used to indicate with one word what has been done in the commit. V
 should follow the rules:
 
 - A verb always in simple past form
-- Wrapped in square brackets
 - Appear within a list item or a paragraph
 - Only once per list item, but multiple times in a commit
 - Only mandatory for the commit summary line, but can occur at the second line

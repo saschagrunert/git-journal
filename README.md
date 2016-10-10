@@ -357,6 +357,7 @@ repository:
     * [x] Support for custom header and footer fields within templates with multiple or single output.
     * [x] Generation of default templates based on the parsing results (`-g`).
     * [x] Commit hash links for commits in standard and template output (`show_commit_hash`).
+    * [x] Support for custom category delimiters (`category_delimiters`).
 * **Preparation and Verification of commit messages**
     * [x] Automatic installation of git hooks inside the local repository.
     * [x] Generation of default configuration file during setup.
