@@ -367,10 +367,14 @@ impl GitJournal {
             if !old_msg_vec.is_empty() {
                 old_msg_vec.insert(0, "# The provided commit message:".to_owned());
             }
-            let new_content = self.config.template_prefix.clone() + " " + &self.config.categories[0] +
-                              " ...\n\n# Add a more detailed description if needed\n\n# - " +
-                              &self.config.categories.join("\n# - ") + "\n\n" +
-                              &old_msg_vec.join("\n");
+            let prefix = if self.config.template_prefix.is_empty() {
+                "".to_owned()
+            } else {
+                self.config.template_prefix.clone() + " "
+            };
+            let new_content =
+                prefix + &self.config.categories[0] + " ...\n\n# Add a more detailed description if needed\n\n# - " +
+                &self.config.categories.join("\n# - ") + "\n\n" + &old_msg_vec.join("\n");
             try!(file.write_all(&new_content.as_bytes()));
         }
         Ok(())
