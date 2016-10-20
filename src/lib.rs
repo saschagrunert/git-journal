@@ -214,7 +214,7 @@ impl GitJournal {
     /// like:
     ///
     /// ```toml
-    /// # Specifies the available categories for the commit message, allowd regular expressions.
+    /// # Specifies the available categories for the commit message, allowed regular expressions.
     /// categories = ["Added", "Changed", "Fixed", "Improved", "Removed"]
     ///
     /// # Set the characters where the categories are wrapped in
