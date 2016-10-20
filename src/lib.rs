@@ -218,7 +218,7 @@ impl GitJournal {
     /// categories = ["Added", "Changed", "Fixed", "Improved", "Removed"]
     ///
     /// # Set the characters where the categories are wrapped in
-    /// category_delimiters: ["[", "]"]
+    /// category_delimiters = ["[", "]"]
     ///
     /// # Set to false if the output should not be colored
     /// colored_output = true
@@ -234,7 +234,7 @@ impl GitJournal {
     /// excluded_commit_tags = []
     ///
     /// # Enable or disable the output and accumulation of commit footers.
-    /// enable_footers: false
+    /// enable_footers = false
     ///
     /// # Show or hide the commit hash for every entry
     /// show_commit_hash = false
