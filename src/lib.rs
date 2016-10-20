@@ -217,14 +217,14 @@ impl GitJournal {
     /// # Specifies the available categories for the commit message, allowd regular expressions.
     /// categories = ["Added", "Changed", "Fixed", "Improved", "Removed"]
     ///
-    /// Set the characters where the categories are wrapped in
+    /// # Set the characters where the categories are wrapped in
     /// category_delimiters: ["[", "]"],
     ///
     /// # Set to false if the output should not be colored
     /// colored_output = true
     ///
     /// # Specifies the default template. Will be used for tag validation and printing. Can be
-    /// removed from the configuration file as well.
+    /// # removed from the configuration file as well.
     /// default_template = "CHANGELOG.toml"
     ///
     /// # Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
@@ -233,7 +233,7 @@ impl GitJournal {
     /// # Excluded tags in an array, e.g. "internal"
     /// excluded_commit_tags = []
     ///
-    /// Enable or disable the output and accumulation of commit footers.
+    /// # Enable or disable the output and accumulation of commit footers.
     /// pub enable_footers: bool,
     ///
     /// # Show or hide the commit hash for every entry
