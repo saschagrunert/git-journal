@@ -234,7 +234,7 @@ impl GitJournal {
     /// excluded_commit_tags = []
     ///
     /// # Enable or disable the output and accumulation of commit footers.
-    /// pub enable_footers: bool,
+    /// enable_footers: bool,
     ///
     /// # Show or hide the commit hash for every entry
     /// show_commit_hash = false
