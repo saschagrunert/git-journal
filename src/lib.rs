@@ -41,7 +41,7 @@ extern crate log;
 
 use chrono::{UTC, TimeZone};
 use git2::{ObjectType, Oid, Repository};
-use log::{LogLevelFilter, SetLoggerError};
+use log::LogLevelFilter;
 use rayon::prelude::*;
 use toml::Value;
 
@@ -67,9 +67,6 @@ pub enum Error {
 
     /// Erros related to the system IO, like parsing of the configuration file.
     Io(std::io::Error),
-
-    /// Erros related to the logging system.
-    Logger(SetLoggerError),
 
     /// Errors related to the parsing and printing of the log.
     Parser(parser::Error),
@@ -105,18 +102,11 @@ impl From<parser::Error> for Error {
     }
 }
 
-impl From<SetLoggerError> for Error {
-    fn from(err: SetLoggerError) -> Error {
-        Error::Logger(err)
-    }
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Git(ref err) => write!(f, "Git: {}", err),
             Error::Io(ref err) => write!(f, "Io: {}", err),
-            Error::Logger(ref err) => write!(f, "Logger: {}", err),
             Error::Parser(ref err) => write!(f, "Parser: {}", err),
             Error::Setup(ref err) => write!(f, "Setup: {}", err),
             Error::Verify(ref err) => write!(f, "Verify: {}", err),
@@ -194,12 +184,15 @@ impl GitJournal {
             result: vec![],
         };
 
-        // Setup the logger
+        // Setup the logger if not already set
         if new_config.enable_debug {
-            try!(log::set_logger(|max_log_level| {
-                max_log_level.set(LogLevelFilter::Info);
-                Box::new(Logger)
-            }));
+            if log::set_logger(|max_log_level| {
+                    max_log_level.set(LogLevelFilter::Info);
+                    Box::new(Logger)
+                })
+                .is_err() {
+                warn!("Logger already set.");
+            };
         }
 
         // Return the git journal object
