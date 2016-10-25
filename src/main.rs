@@ -1,54 +1,31 @@
+extern crate gitjournal;
+
 #[macro_use]
 extern crate clap;
-extern crate gitjournal;
-extern crate term;
 
-use std::env;
-use std::fmt;
-use std::fs;
+#[macro_use]
+extern crate log;
+
 use std::process::exit;
+use std::{env, fmt, fs};
 
 use clap::{App, Shell};
 use gitjournal::GitJournal;
 
-fn print_colored(string: &str, prefix: &str, color: term::color::Color) -> Result<(), term::Error> {
-    let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
-    try!(t.fg(term::color::YELLOW));
-    try!(write!(t, "[git-journal] "));
-    try!(t.fg(color));
-    try!(write!(t, "[{}] ", prefix));
-    try!(t.reset());
-    try!(writeln!(t, "{}", string));
-    Ok(())
-}
-
-fn print_ok(string: &str) -> Result<(), term::Error> {
-    try!(print_colored(string, "OKAY", term::color::GREEN));
-    Ok(())
-}
-
-fn print_err_exit(string: &str, error: Error) -> Result<(), term::Error> {
-    let format_string = format!("{}: {}", string, error);
-    try!(print_colored(&format_string, "ERROR", term::color::RED));
+fn error_and_exit(string: &str, error: Error) {
+    error!("{}: {}", string, error);
     exit(1);
 }
 
 enum Error {
     Cli,
     ParseInt(std::num::ParseIntError),
-    Term(term::Error),
     GitJournal(gitjournal::Error),
 }
 
 impl From<gitjournal::Error> for Error {
     fn from(err: gitjournal::Error) -> Error {
         Error::GitJournal(err)
-    }
-}
-
-impl From<term::Error> for Error {
-    fn from(err: term::Error) -> Error {
-        Error::Term(err)
     }
 }
 
@@ -63,7 +40,6 @@ impl fmt::Display for Error {
         match *self {
             Error::Cli => write!(f, "Cli argument parsing"),
             Error::ParseInt(ref err) => write!(f, "ParseInt: {}", err),
-            Error::Term(ref err) => write!(f, "Term: {}", err),
             Error::GitJournal(ref err) => write!(f, "GitJournal: {}", err),
         }
     }
@@ -83,7 +59,7 @@ fn is_program_in_path(program: &str) -> bool {
 
 fn main() {
     if let Err(error) = run() {
-        print_err_exit("Main", error).expect("Cannot print error message");
+        error_and_exit("Main", error);
     }
 }
 
@@ -104,10 +80,10 @@ fn run() -> Result<(), Error> {
             if let Some(sub_matches) = matches.subcommand_matches("prepare") {
                 match journal.prepare(try!(sub_matches.value_of("message").ok_or(Error::Cli)),
                                       sub_matches.value_of("type")) {
-                    Ok(()) => try!(print_ok("Commit message prepared.")),
+                    Ok(()) => info!("Commit message prepared."),
                     Err(error) => {
-                        try!(print_err_exit("Commit message preparation failed",
-                                            Error::GitJournal(error)))
+                        error_and_exit("Commit message preparation failed",
+                                       Error::GitJournal(error))
                     }
                 }
             }
@@ -119,19 +95,19 @@ fn run() -> Result<(), Error> {
             // Generate completions if necessary
             if is_program_in_path("bash") {
                 app.gen_completions("git-journal", Shell::Bash, path);
-                try!(print_ok("Installed bash completions to the current path."));
+                info!("Installed bash completions to the current path.");
             }
             if is_program_in_path("fish") {
                 app.gen_completions("git-journal", Shell::Fish, path);
-                try!(print_ok("Installed fish completions to the current path."));
+                info!("Installed fish completions to the current path.");
             }
         }
         Some("verify") => {
             // Verify a commit message
             if let Some(sub_matches) = matches.subcommand_matches("verify") {
                 match journal.verify(try!(sub_matches.value_of("message").ok_or(Error::Cli))) {
-                    Ok(()) => try!(print_ok("Commit message valid.")),
-                    Err(error) => try!(print_err_exit("Commit message invalid", Error::GitJournal(error))),
+                    Ok(()) => info!("Commit message valid."),
+                    Err(error) => error_and_exit("Commit message invalid", Error::GitJournal(error)),
                 }
             }
         }
@@ -148,7 +124,7 @@ fn run() -> Result<(), Error> {
                                                   &max_tags,
                                                   &matches.is_present("all"),
                                                   &matches.is_present("skip_unreleased")) {
-                try!(print_err_exit("Log parsing error", Error::GitJournal(error)));
+                error_and_exit("Log parsing error", Error::GitJournal(error));
             }
 
             // Generate the template or print the log

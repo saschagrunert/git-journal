@@ -36,11 +36,16 @@ extern crate nom;
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate log;
+
 use chrono::{UTC, TimeZone};
 use git2::{ObjectType, Oid, Repository};
+use log::{LogLevelFilter, SetLoggerError};
 use rayon::prelude::*;
 use toml::Value;
 
+use logger::Logger;
 use parser::{Parser, ParsedTag, Tags};
 pub use config::Config;
 
@@ -50,8 +55,7 @@ use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::io::prelude::*;
 
-#[macro_use]
-mod macros;
+mod logger;
 mod parser;
 pub mod config;
 
@@ -64,14 +68,14 @@ pub enum Error {
     /// Erros related to the system IO, like parsing of the configuration file.
     Io(std::io::Error),
 
+    /// Erros related to the logging system.
+    Logger(SetLoggerError),
+
     /// Errors related to the parsing and printing of the log.
     Parser(parser::Error),
 
     /// Errors related to the setup process.
     Setup(config::Error),
-
-    /// Errors related to the terminal emulation, which is used for colored output.
-    Term(term::Error),
 
     /// Errors related to the commit message verification.
     Verify(String),
@@ -89,12 +93,6 @@ impl From<std::io::Error> for Error {
     }
 }
 
-impl From<term::Error> for Error {
-    fn from(err: term::Error) -> Error {
-        Error::Term(err)
-    }
-}
-
 impl From<config::Error> for Error {
     fn from(err: config::Error) -> Error {
         Error::Setup(err)
@@ -107,14 +105,20 @@ impl From<parser::Error> for Error {
     }
 }
 
+impl From<SetLoggerError> for Error {
+    fn from(err: SetLoggerError) -> Error {
+        Error::Logger(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Git(ref err) => write!(f, "Git: {}", err),
             Error::Io(ref err) => write!(f, "Io: {}", err),
+            Error::Logger(ref err) => write!(f, "Logger: {}", err),
             Error::Parser(ref err) => write!(f, "Parser: {}", err),
             Error::Setup(ref err) => write!(f, "Setup: {}", err),
-            Error::Term(ref err) => write!(f, "Term: {}", err),
             Error::Verify(ref err) => write!(f, "Verify: {}", err),
         }
     }
@@ -181,7 +185,7 @@ impl GitJournal {
         // Search for config in path and load
         let mut new_config = Config::new();
         if let Err(e) = new_config.load(path) {
-            println_warn!("Can't load configuration file, using default one: {}", e);
+            warn!("Can't load configuration file, using default one: {}", e);
         }
 
         // Create a new parser with empty results
@@ -189,6 +193,14 @@ impl GitJournal {
             config: new_config.clone(),
             result: vec![],
         };
+
+        // Setup the logger
+        if new_config.enable_debug {
+            try!(log::set_logger(|max_log_level| {
+                max_log_level.set(LogLevelFilter::Info);
+                Box::new(Logger)
+            }));
+        }
 
         // Return the git journal object
         Ok(GitJournal {
@@ -259,9 +271,7 @@ impl GitJournal {
     pub fn setup(&self) -> Result<(), Error> {
         // Save the default config
         let output_file = try!(Config::new().save_default_config(&self.path));
-        if self.config.enable_debug {
-            println_ok!("Defaults written to '{}' file.", output_file);
-        }
+        info!("Defaults written to '{}' file.", output_file);
 
         // Install commit message hook
         try!(self.install_git_hook("commit-msg", "git journal v $1\n"));
@@ -278,18 +288,14 @@ impl GitJournal {
         hook_path.push(name);
         let mut hook_file: File;
         if hook_path.exists() {
-            if self.config.enable_debug {
-                println_warn!("There is already a hook available in '{}'. Please verifiy \
-                               the hook by hand after the installation.",
-                              hook_path.display());
-            }
+            warn!("There is already a hook available in '{}'. Please verifiy \
+                   the hook by hand after the installation.",
+                  hook_path.display());
             hook_file = try!(OpenOptions::new().read(true).append(true).open(&hook_path));
             let mut hook_content = String::new();
             try!(hook_file.read_to_string(&mut hook_content));
             if hook_content.contains(content) {
-                if self.config.enable_debug {
-                    println_ok!("Hook already installed, nothing changed in existing hook.");
-                }
+                info!("Hook already installed, nothing changed in existing hook.");
                 return Ok(());
             }
         } else {
@@ -299,9 +305,7 @@ impl GitJournal {
         try!(hook_file.write_all(content.as_bytes()));
         try!(self.chmod(&hook_path, 0o755));
 
-        if self.config.enable_debug {
-            println_ok!("Git hook installed to '{}'.", hook_path.display());
-        }
+        info!("Git hook installed to '{}'.", hook_path.display());
         Ok(())
     }
 
@@ -420,10 +424,8 @@ impl GitJournal {
             let toml_tags = self.parser.get_tags_from_toml(&toml, vec![]);
             let invalid_tags = tags.into_iter().filter(|tag| !toml_tags.contains(tag)).collect::<Vec<String>>();
             if !invalid_tags.is_empty() {
-                if self.config.enable_debug {
-                    println_warn!("These tags are not part of the default template: '{}'.",
-                                  invalid_tags.join(", "));
-                }
+                warn!("These tags are not part of the default template: '{}'.",
+                      invalid_tags.join(", "));
                 return Err(Error::Verify("Not all tags exists in the default template.".to_owned()));
             }
         }
@@ -539,20 +541,7 @@ impl GitJournal {
                 Ok(parsed_message) => {
                     *result = Some(parsed_message);
                 }
-                Err(e) => {
-                    if self.config.enable_debug {
-                        if let Some(mut t) = term::stderr() {
-                            // Since this part is not important for production we
-                            // skip the error handling here.
-                            t.fg(term::color::YELLOW).is_ok();
-                            write!(t, "[git-journal] ").is_ok();
-                            t.fg(term::color::BRIGHT_BLUE).is_ok();
-                            write!(t, "[INFO] ").is_ok();
-                            t.reset().is_ok();
-                            writeln!(t, "Skipping commit: {}.", e).is_ok();
-                        }
-                    }
-                }
+                Err(e) => warn!("Skipping commit: {}.", e),
             }
         });
 
@@ -578,11 +567,8 @@ impl GitJournal {
             })
             .collect::<Vec<ParsedTag>>();
 
-        if self.config.enable_debug {
-            println_ok!("Parsing done. Processed {} commit messages.",
-                        worker_vec.len());
-        }
-
+        info!("Parsing done. Processed {} commit messages.",
+              worker_vec.len());
         Ok(())
     }
 
@@ -609,12 +595,10 @@ impl GitJournal {
             tags = parsed_tag.get_tags_unique(tags);
         }
 
-        if self.config.enable_debug {
-            if tags.len() > 1 {
-                println_ok!("Found tags: '{}'.", tags[1..].join(", "));
-            } else {
-                println_warn!("No tags found.");
-            }
+        if tags.len() > 1 {
+            info!("Found tags: '{}'.", tags[1..].join(", "));
+        } else {
+            warn!("No tags found.");
         }
 
         // Create the toml representation
@@ -649,10 +633,7 @@ impl GitJournal {
         let mut toml_file = try!(File::create(&path_buf));
         try!(toml_file.write_all(toml_string.as_bytes()));
 
-        if self.config.enable_debug {
-            println_ok!("Template written to '{}'", path_buf.display());
-        }
-
+        info!("Template written to '{}'", path_buf.display());
         Ok(())
     }
 
@@ -684,15 +665,11 @@ impl GitJournal {
                 match template {
                     None => {
                         if default_template.exists() {
-                            if self.config.enable_debug {
-                                println_ok!("Using default template '{}'.", default_template.display());
-                            }
+                            info!("Using default template '{}'.", default_template.display());
                             default_template.to_str()
                         } else {
-                            if self.config.enable_debug {
-                                println_warn!("The default template '{}' does not exist.",
-                                              default_template.display());
-                            }
+                            warn!("The default template '{}' does not exist.",
+                                  default_template.display());
                             None
                         }
                     }
@@ -709,9 +686,7 @@ impl GitJournal {
         if let Some(output) = output {
             let mut output_file = try!(OpenOptions::new().create(true).append(true).open(output));
             try!(output_file.write_all(&output_vec));
-            if self.config.enable_debug {
-                println_ok!("Output written to '{}'.", output);
-            }
+            info!("Output written to '{}'.", output);
         }
 
         Ok(())

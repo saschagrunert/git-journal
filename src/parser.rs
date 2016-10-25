@@ -26,6 +26,18 @@ pub static TOML_ONCE_KEY: &'static str = "once";
 pub static TOML_HEADER_KEY: &'static str = "header";
 pub static TOML_FOOTER_KEY: &'static str = "footer";
 
+macro_rules! trywln(
+    ($($arg:tt)*) => {{
+        try!(writeln!($($arg)*));
+    }}
+);
+
+macro_rules! tryw(
+    ($($arg:tt)*) => {{
+        try!(write!($($arg)*));
+    }}
+);
+
 #[derive(Debug)]
 pub enum Error {
     CommitMessageLength,
