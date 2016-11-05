@@ -101,6 +101,10 @@ fn run() -> Result<(), Error> {
                 app.gen_completions("git-journal", Shell::Fish, path);
                 info!("Installed fish completions to the current path.");
             }
+            if is_program_in_path("zsh") {
+                app.gen_completions("git-journal", Shell::Zsh, path);
+                info!("Installed zsh completions to the current path.");
+            }
         }
         Some("verify") => {
             // Verify a commit message
