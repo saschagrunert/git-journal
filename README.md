@@ -268,6 +268,7 @@ repository:
 [git-journal] [OKAY] Git hook installed to '.git/hooks/prepare-commit-msg'.
 [git-journal] [OKAY] Installed bash completions to the path.
 [git-journal] [OKAY] Installed fish completions to the path.
+[git-journal] [OKAY] Installed zsh completions to the path.
 ```
 
 If there already exists these hooks _git-journal_ tries to append the needed commands, which has to be verified by hand
@@ -337,7 +338,7 @@ repository:
 [features]: #features
 
 * **General**
-    * [x] Generation of completions for bash and fish shell during setup.
+    * [x] Generation of completions for bash, fish and zsh shell during setup.
     * [x] Custom category support for commit preparation, validation and output (`categories`).
     * [x] Automatic multi threading support for the parsing.
 * **Journal generation and output**
