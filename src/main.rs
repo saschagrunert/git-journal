@@ -68,17 +68,17 @@ fn run() -> Result<(), Error> {
     let yaml = load_yaml!("cli.yaml");
     let mut app = App::from_yaml(yaml).version(crate_version!());
     let matches = app.clone().get_matches();
-    let path = try!(matches.value_of("path").ok_or(Error::Cli));
+    let path = matches.value_of("path").ok_or(Error::Cli)?;
 
     // Create the journal
-    let mut journal = try!(GitJournal::new(path));
+    let mut journal = GitJournal::new(path)?;
 
     // Check for the subcommand
     match matches.subcommand_name() {
         Some("prepare") => {
             // Prepare a commit message before editing by the user
             if let Some(sub_matches) = matches.subcommand_matches("prepare") {
-                match journal.prepare(try!(sub_matches.value_of("message").ok_or(Error::Cli)),
+                match journal.prepare(sub_matches.value_of("message").ok_or(Error::Cli)?,
                                       sub_matches.value_of("type")) {
                     Ok(()) => info!("Commit message prepared."),
                     Err(error) => {
@@ -90,7 +90,7 @@ fn run() -> Result<(), Error> {
         }
         Some("setup") => {
             // Do the setup procedure
-            try!(journal.setup());
+            journal.setup()?;
 
             // Generate completions if necessary
             if is_program_in_path("bash") {
@@ -109,7 +109,7 @@ fn run() -> Result<(), Error> {
         Some("verify") => {
             // Verify a commit message
             if let Some(sub_matches) = matches.subcommand_matches("verify") {
-                match journal.verify(try!(sub_matches.value_of("message").ok_or(Error::Cli))) {
+                match journal.verify(sub_matches.value_of("message").ok_or(Error::Cli)?) {
                     Ok(()) => info!("Commit message valid."),
                     Err(error) => error_and_exit("Commit message invalid", Error::GitJournal(error)),
                 }
@@ -117,10 +117,10 @@ fn run() -> Result<(), Error> {
         }
         _ => {
             // Get all values of the given CLI parameters with default values
-            let revision_range = try!(matches.value_of("revision_range").ok_or(Error::Cli));
-            let tag_skip_pattern = try!(matches.value_of("tag_skip_pattern").ok_or(Error::Cli));
-            let tags_count = try!(matches.value_of("tags_count").ok_or(Error::Cli));
-            let max_tags = try!(tags_count.parse::<u32>());
+            let revision_range = matches.value_of("revision_range").ok_or(Error::Cli)?;
+            let tag_skip_pattern = matches.value_of("tag_skip_pattern").ok_or(Error::Cli)?;
+            let tags_count = matches.value_of("tags_count").ok_or(Error::Cli)?;
+            let max_tags = tags_count.parse::<u32>()?;
 
             // Parse the log
             if let Err(error) = journal.parse_log(revision_range,
@@ -133,11 +133,11 @@ fn run() -> Result<(), Error> {
 
             // Generate the template or print the log
             if matches.is_present("generate") {
-                try!(journal.generate_template());
+                journal.generate_template()?;
             } else {
-                try!(journal.print_log(matches.is_present("short"),
-                                       matches.value_of("template"),
-                                       matches.value_of("output")));
+                journal.print_log(matches.is_present("short"),
+                               matches.value_of("template"),
+                               matches.value_of("output"))?;
             }
         }
     };

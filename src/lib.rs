@@ -144,11 +144,11 @@ impl GitJournal {
         let mut path_buf = if path != "." {
             PathBuf::from(path)
         } else {
-            try!(std::env::current_dir())
+            std::env::current_dir()?
         };
         'git_search: loop {
-            for dir in try!(fs::read_dir(&path_buf)) {
-                let dir_path = try!(dir).path();
+            for dir in fs::read_dir(&path_buf)? {
+                let dir_path = dir?.path();
                 if dir_path.ends_with(".git") {
                     break 'git_search;
                 }
@@ -159,15 +159,15 @@ impl GitJournal {
         }
 
         // Open the repository
-        let repo = try!(Repository::open(&path_buf));
+        let repo = Repository::open(&path_buf)?;
 
         // Get all available tags in some vector of tuples
         let mut new_tags = vec![];
-        for name in try!(repo.tag_names(None)).iter() {
-            let name = try!(name.ok_or(git2::Error::from_str("Could not receive tag name")));
-            let obj = try!(repo.revparse_single(name));
+        for name in repo.tag_names(None)?.iter() {
+            let name = name.ok_or(git2::Error::from_str("Could not receive tag name"))?;
+            let obj = repo.revparse_single(name)?;
             if let Ok(tag) = obj.into_tag() {
-                let tag_name = try!(tag.name().ok_or(git2::Error::from_str("Could not parse tag name"))).to_owned();
+                let tag_name = tag.name().ok_or(git2::Error::from_str("Could not parse tag name"))?.to_owned();
                 new_tags.push((tag.target_id(), tag_name));
             }
         }
@@ -263,14 +263,14 @@ impl GitJournal {
     ///
     pub fn setup(&self) -> Result<(), Error> {
         // Save the default config
-        let output_file = try!(Config::new().save_default_config(&self.path));
+        let output_file = Config::new().save_default_config(&self.path)?;
         info!("Defaults written to '{}' file.", output_file);
 
         // Install commit message hook
-        try!(self.install_git_hook("commit-msg", "git journal v $1\n"));
+        self.install_git_hook("commit-msg", "git journal v $1\n")?;
 
         // Install the prepare commit message hook
-        try!(self.install_git_hook("prepare-commit-msg", "git journal p $1 $2\n"));
+        self.install_git_hook("prepare-commit-msg", "git journal p $1 $2\n")?;
 
         Ok(())
     }
@@ -284,19 +284,19 @@ impl GitJournal {
             warn!("There is already a hook available in '{}'. Please verifiy \
                    the hook by hand after the installation.",
                   hook_path.display());
-            hook_file = try!(OpenOptions::new().read(true).append(true).open(&hook_path));
+            hook_file = OpenOptions::new().read(true).append(true).open(&hook_path)?;
             let mut hook_content = String::new();
-            try!(hook_file.read_to_string(&mut hook_content));
+            hook_file.read_to_string(&mut hook_content)?;
             if hook_content.contains(content) {
                 info!("Hook already installed, nothing changed in existing hook.");
                 return Ok(());
             }
         } else {
-            hook_file = try!(File::create(&hook_path));
-            try!(hook_file.write_all("#!/usr/bin/env sh\n".as_bytes()));
+            hook_file = File::create(&hook_path)?;
+            hook_file.write_all("#!/usr/bin/env sh\n".as_bytes())?;
         }
-        try!(hook_file.write_all(content.as_bytes()));
-        try!(self.chmod(&hook_path, 0o755));
+        hook_file.write_all(content.as_bytes())?;
+        self.chmod(&hook_path, 0o755)?;
 
         info!("Git hook installed to '{}'.", hook_path.display());
         Ok(())
@@ -305,7 +305,7 @@ impl GitJournal {
     #[cfg(unix)]
     fn chmod(&self, path: &Path, perms: u32) -> Result<(), Error> {
         use std::os::unix::prelude::PermissionsExt;
-        try!(fs::set_permissions(path, fs::Permissions::from_mode(perms)));
+        fs::set_permissions(path, fs::Permissions::from_mode(perms))?;
         Ok(())
     }
 
@@ -342,12 +342,12 @@ impl GitJournal {
             }
 
             // Read the file contents to get the actual commit message string
-            let mut read_file = try!(File::open(path));
+            let mut read_file = File::open(path)?;
             let mut commit_message = String::new();
-            try!(read_file.read_to_string(&mut commit_message));
+            read_file.read_to_string(&mut commit_message)?;
 
             // Write the new generated content to the file
-            let mut file = try!(OpenOptions::new().write(true).open(path));
+            let mut file = OpenOptions::new().write(true).open(path)?;
             let mut old_msg_vec = commit_message.lines()
                 .filter_map(|line| {
                     if !line.is_empty() {
@@ -372,7 +372,7 @@ impl GitJournal {
             let new_content =
                 prefix + &self.config.categories[0] + " ...\n\n# Add a more detailed description if needed\n\n# - " +
                 &self.config.categories.join("\n# - ") + "\n\n" + &old_msg_vec.join("\n");
-            try!(file.write_all(&new_content.as_bytes()));
+            file.write_all(&new_content.as_bytes())?;
         }
         Ok(())
     }
@@ -394,25 +394,24 @@ impl GitJournal {
     ///
     pub fn verify(&self, path: &str) -> Result<(), Error> {
         // Open the file and read to string
-        let mut file = try!(File::open(path));
+        let mut file = File::open(path)?;
         let mut commit_message = String::new();
-        try!(file.read_to_string(&mut commit_message));
+        file.read_to_string(&mut commit_message)?;
 
         // Parse the commit and extract the tags
-        let parsed_commit = try!(self.parser.parse_commit_message(&commit_message, None));
+        let parsed_commit = self.parser.parse_commit_message(&commit_message, None)?;
         let tags = parsed_commit.get_tags_unique(vec![]);
 
         // Check if the tags within the commit also occur in the default template and error if not.
         if let Some(ref template) = self.config.default_template {
             let mut path_buf = PathBuf::from(&self.path);
             path_buf.push(template);
-            let mut file = try!(File::open(path_buf));
+            let mut file = File::open(path_buf)?;
             let mut toml_string = String::new();
-            try!(file.read_to_string(&mut toml_string));
+            file.read_to_string(&mut toml_string)?;
 
-            let toml = try!(toml::Parser::new(&toml_string)
-                .parse()
-                .ok_or(Error::Verify("Could not parse default toml template.".to_owned())));
+            let toml = toml::Parser::new(&toml_string).parse()
+                .ok_or(Error::Verify("Could not parse default toml template.".to_owned()))?;
 
             let toml_tags = self.parser.get_tags_from_toml(&toml, vec![]);
             let invalid_tags = tags.into_iter().filter(|tag| !toml_tags.contains(tag)).collect::<Vec<String>>();
@@ -447,27 +446,27 @@ impl GitJournal {
                      skip_unreleased: &bool)
                      -> Result<(), Error> {
 
-        let repo = try!(Repository::open(&self.path));
-        let mut revwalk = try!(repo.revwalk());
+        let repo = Repository::open(&self.path)?;
+        let mut revwalk = repo.revwalk()?;
         revwalk.set_sorting(git2::SORT_TIME);
 
         // Fill the revwalk with the selected revisions.
-        let revspec = try!(repo.revparse(&revision_range));
+        let revspec = repo.revparse(&revision_range)?;
         if revspec.mode().contains(git2::REVPARSE_SINGLE) {
             // A single commit was given
-            let from = try!(revspec.from().ok_or(git2::Error::from_str("Could not set revision range start")));
-            try!(revwalk.push(from.id()));
+            let from = revspec.from().ok_or(git2::Error::from_str("Could not set revision range start"))?;
+            revwalk.push(from.id())?;
         } else {
             // A specific commit range was given
-            let from = try!(revspec.from().ok_or(git2::Error::from_str("Could not set revision range start")));
-            let to = try!(revspec.to().ok_or(git2::Error::from_str("Could not set revision range end")));
-            try!(revwalk.push(to.id()));
+            let from = revspec.from().ok_or(git2::Error::from_str("Could not set revision range start"))?;
+            let to = revspec.to().ok_or(git2::Error::from_str("Could not set revision range end"))?;
+            revwalk.push(to.id())?;
             if revspec.mode().contains(git2::REVPARSE_MERGE_BASE) {
-                let base = try!(repo.merge_base(from.id(), to.id()));
-                let o = try!(repo.find_object(base, Some(ObjectType::Commit)));
-                try!(revwalk.push(o.id()));
+                let base = repo.merge_base(from.id(), to.id())?;
+                let o = repo.find_object(base, Some(ObjectType::Commit))?;
+                revwalk.push(o.id())?;
             }
-            try!(revwalk.hide(from.id()));
+            revwalk.hide(from.id())?;
         }
 
         // Iterate over the git objects and collect them in a vector of tuples
@@ -481,8 +480,8 @@ impl GitJournal {
         };
         let mut worker_vec = vec![];
         'revloop: for (index, id) in revwalk.enumerate() {
-            let oid = try!(id);
-            let commit = try!(repo.find_commit(oid));
+            let oid = id?;
+            let commit = repo.find_commit(oid)?;
             for tag in self.tags
                 .iter()
                 .filter(|tag| tag.0.as_bytes() == oid.as_bytes() && !tag.1.contains(tag_skip_pattern)) {
@@ -515,7 +514,7 @@ impl GitJournal {
 
             // Add the commit message to the parser work to be done, the `id` represents the index
             // within the worker vector
-            let message = try!(commit.message().ok_or(git2::Error::from_str("Commit message error.")));
+            let message = commit.message().ok_or(git2::Error::from_str("Commit message error."))?;
             let id = worker_vec.len();
 
             // The worker_vec contains the commit message and the parsed commit (currently none)
@@ -623,8 +622,8 @@ impl GitJournal {
         let mut path_buf = PathBuf::from(&self.path);
         path_buf.push("template.toml");
         let toml_string = toml::encode_str(&toml);
-        let mut toml_file = try!(File::create(&path_buf));
-        try!(toml_file.write_all(toml_string.as_bytes()));
+        let mut toml_file = File::create(&path_buf)?;
+        toml_file.write_all(toml_string.as_bytes())?;
 
         info!("Template written to '{}'", path_buf.display());
         Ok(())
@@ -673,12 +672,12 @@ impl GitJournal {
         };
 
         // Print the log
-        let output_vec = try!(self.parser.print(&compact, used_template));
+        let output_vec = self.parser.print(&compact, used_template)?;
 
         // Print the log to the file if necessary
         if let Some(output) = output {
-            let mut output_file = try!(OpenOptions::new().create(true).append(true).open(output));
-            try!(output_file.write_all(&output_vec));
+            let mut output_file = OpenOptions::new().create(true).append(true).open(output)?;
+            output_file.write_all(&output_vec)?;
             info!("Output written to '{}'.", output);
         }
 

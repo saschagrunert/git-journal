@@ -26,18 +26,6 @@ pub static TOML_ONCE_KEY: &'static str = "once";
 pub static TOML_HEADER_KEY: &'static str = "header";
 pub static TOML_FOOTER_KEY: &'static str = "footer";
 
-macro_rules! trywln(
-    ($($arg:tt)*) => {{
-        try!(writeln!($($arg)*));
-    }}
-);
-
-macro_rules! tryw(
-    ($($arg:tt)*) => {{
-        try!(write!($($arg)*));
-    }}
-);
-
 #[derive(Debug)]
 pub enum Error {
     CommitMessageLength,
@@ -101,7 +89,7 @@ pub trait Print {
               H: Fn(&mut T) -> Result<(), Error>;
 
     fn print_default<T: Write>(&self, t: &mut T, config: &Config, tag: Option<&str>) -> Result<(), Error> {
-        try!(self.print(t, config, tag, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+        self.print(t, config, tag, &|_| Ok(()), &|_| Ok(()), &|_| Ok(()))?;
         Ok(())
     }
 
@@ -110,21 +98,21 @@ pub trait Print {
                           config: &Config,
                           tag: Option<&str>)
                           -> Result<(), Error> {
-        try!(self.print(&mut t,
-                        config,
-                        tag,
-                        &|t| {
-                            try!(t.fg(term::color::BRIGHT_BLUE));
-                            Ok(())
-                        },
-                        &|t| {
-                            try!(t.fg(term::color::WHITE));
-                            Ok(())
-                        },
-                        &|t| {
-                            try!(t.reset());
-                            Ok(())
-                        }));
+        self.print(&mut t,
+                   config,
+                   tag,
+                   &|t| {
+                       t.fg(term::color::BRIGHT_BLUE)?;
+                       Ok(())
+                   },
+                   &|t| {
+                       t.fg(term::color::WHITE)?;
+                       Ok(())
+                   },
+                   &|t| {
+                       t.reset()?;
+                       Ok(())
+                   })?;
         Ok(())
     }
 
@@ -149,8 +137,8 @@ pub trait Print {
                                          config: &Config,
                                          tag: Option<&str>)
                                          -> Result<(), Error> {
-        try!(self.print_default_term(&mut term, config, tag));
-        try!(self.print_default(&mut vec, config, tag));
+        self.print_default_term(&mut term, config, tag)?;
+        self.print_default(&mut vec, config, tag)?;
         Ok(())
     }
 }
@@ -185,43 +173,43 @@ impl ParsedTag {
               H: Fn(&mut T) -> Result<(), Error>
     {
         if config.colored_output {
-            try!(c1(t));
+            c1(t)?;
         }
-        tryw!(t, "\n# {} ", self.name);
+        write!(t, "\n# {} ", self.name)?;
         if config.colored_output {
-            try!(c2(t));
+            c2(t)?;
         }
-        tryw!(t,
-              "({}-{:02}-{:02}):",
-              self.date.year(),
-              self.date.month(),
-              self.date.day());
+        write!(t,
+               "({}-{:02}-{:02}):",
+               self.date.year(),
+               self.date.month(),
+               self.date.day())?;
         if config.colored_output {
-            try!(c3(t));
+            c3(t)?;
         }
         Ok(Printed::Something)
     }
 
     fn print_default<T: Write>(&self, t: &mut T, config: &Config) -> Result<(), Error> {
-        try!(self.print(t, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(())));
+        self.print(t, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(()))?;
         Ok(())
     }
 
     fn print_default_term(&self, mut t: &mut Box<term::StdoutTerminal>, config: &Config) -> Result<(), Error> {
-        try!(self.print(&mut t,
-                        config,
-                        &|t| {
-                            try!(t.fg(term::color::GREEN));
-                            Ok(())
-                        },
-                        &|t| {
-                            try!(t.fg(term::color::YELLOW));
-                            Ok(())
-                        },
-                        &|t| {
-                            try!(t.reset());
-                            Ok(())
-                        }));
+        self.print(&mut t,
+                   config,
+                   &|t| {
+                       t.fg(term::color::GREEN)?;
+                       Ok(())
+                   },
+                   &|t| {
+                       t.fg(term::color::YELLOW)?;
+                       Ok(())
+                   },
+                   &|t| {
+                       t.reset()?;
+                       Ok(())
+                   })?;
         Ok(())
     }
 
@@ -236,12 +224,11 @@ impl ParsedTag {
         match template {
             Some(template) => {
                 // Try to parse the template
-                let mut file = try!(File::open(template));
+                let mut file = File::open(template)?;
                 let mut toml_string = String::new();
-                try!(file.read_to_string(&mut toml_string));
-                let toml = try!(toml::Parser::new(&toml_string)
-                    .parse()
-                    .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned())));
+                file.read_to_string(&mut toml_string)?;
+                let toml = toml::Parser::new(&toml_string).parse()
+                    .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned()))?;
 
                 // Print header in template if exists
                 if let Some(&Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
@@ -251,18 +238,18 @@ impl ParsedTag {
                     }
                     if let Some(&Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
                         if (index_len.0 == 0 || !print_once) && !header.is_empty() {
-                            trywln!(term, "\n{}", header);
-                            trywln!(vec, "\n{}", header);
+                            writeln!(term, "\n{}", header)?;
+                            writeln!(vec, "\n{}", header)?;
                         }
                     }
                 }
 
                 // Print the tags
-                try!(self.print_default_term(&mut term, config));
-                try!(self.print_default(&mut vec, config));
+                self.print_default_term(&mut term, config)?;
+                self.print_default(&mut vec, config)?;
 
                 // Print commits
-                try!(self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 1, config, &compact));
+                self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 1, config, &compact)?;
 
                 // Print footer in template if exists
                 if let Some(&Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
@@ -272,27 +259,27 @@ impl ParsedTag {
                     }
                     if let Some(&Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
                         if (index_len.0 == index_len.1 - 1 || !print_once) && !footer.is_empty() {
-                            trywln!(term, "\n{}", footer);
-                            trywln!(vec, "\n{}", footer);
+                            writeln!(term, "\n{}", footer)?;
+                            writeln!(vec, "\n{}", footer)?;
                         }
                     }
                 }
             }
             None => {
-                try!(self.print_default_term(&mut term, config));
-                try!(self.print_default(&mut vec, config));
+                self.print_default_term(&mut term, config)?;
+                self.print_default(&mut vec, config)?;
 
                 for commit in &self.commits {
                     if *compact {
-                        try!(commit.summary.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None));
+                        commit.summary.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None)?;
                     } else {
-                        try!(commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None));
+                        commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None)?;
                     }
                 }
-                trywln!(term, "");
-                trywln!(vec, "");
+                writeln!(term, "")?;
+                writeln!(vec, "")?;
                 if !*compact && config.enable_footers {
-                    try!(self.print_footers(&mut term, &mut vec, None, &config));
+                    self.print_footers(&mut term, &mut vec, None, &config)?;
                 }
             }
         }
@@ -313,7 +300,7 @@ impl ParsedTag {
                 for item in array {
                     if let Value::Table(ref table) = *item {
                         *level += 1;
-                        try!(self.print_commits_in_table(term, vec, table, level, config, compact));
+                        self.print_commits_in_table(term, vec, table, level, config, compact)?;
                         *level -= 1;
                     }
                 }
@@ -342,31 +329,31 @@ impl ParsedTag {
 
 
             if config.colored_output {
-                try!(term.fg(term::color::BRIGHT_RED));
+                term.fg(term::color::BRIGHT_RED)?;
             }
-            tryw!(term, "\n{} {}", header_lvl, name);
-            tryw!(vec, "\n{} {}", header_lvl, name);
+            write!(term, "\n{} {}", header_lvl, name)?;
+            write!(vec, "\n{} {}", header_lvl, name)?;
 
-            try!(term.reset());
+            term.reset()?;
 
             // Print commits for this tag
             for commit in &self.commits {
                 if *compact {
-                    try!(commit.summary
-                        .print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag)));
+                    commit.summary
+                        .print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag))?;
                 } else {
-                    try!(commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag)));
+                    commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag))?;
                 }
             }
 
-            trywln!(term, "");
-            trywln!(vec, "");
+            writeln!(term, "")?;
+            writeln!(vec, "")?;
 
             // Print footers if specified in the template
             if let Some(footers) = table.get(TOML_FOOTERS_KEY) {
                 if let Value::Array(ref array) = *footers {
                     if !array.is_empty() {
-                        try!(self.print_footers(term, vec, Some(array), config));
+                        self.print_footers(term, vec, Some(array), config)?;
                     }
                 }
             }
@@ -422,11 +409,11 @@ impl ParsedTag {
         // Print the mapped footers
         for (key, values) in &footer_tree {
             if config.colored_output {
-                try!(term.fg(term::color::BRIGHT_RED));
+                term.fg(term::color::BRIGHT_RED)?;
             }
-            trywln!(term, "\n{}:", key);
-            trywln!(vec, "\n{}:", key);
-            try!(term.reset());
+            writeln!(term, "\n{}:", key)?;
+            writeln!(vec, "\n{}:", key)?;
+            term.reset()?;
             let footer_string = values.join(", ");
             let mut char_count = 0;
             let mut footer_lines = String::new();
@@ -439,8 +426,8 @@ impl ParsedTag {
                     char_count += 1;
                 }
             }
-            trywln!(term, "{}", footer_lines);
-            trywln!(vec, "{}", footer_lines);
+            writeln!(term, "{}", footer_lines)?;
+            writeln!(vec, "{}", footer_lines)?;
         }
         Ok(())
     }
@@ -477,11 +464,11 @@ impl Print for ParsedCommit {
               H: Fn(&mut T) -> Result<(), Error>
     {
         // If summary is already filtered out then do not print at all
-        if try!(self.summary.print(t, config, tag, c1, c2, c3)) == Printed::Nothing {
+        if self.summary.print(t, config, tag, c1, c2, c3)? == Printed::Nothing {
             return Ok(Printed::Nothing);
         }
         for item in &self.body {
-            try!(item.print(t, config, tag, c1, c2, c3));
+            item.print(t, config, tag, c1, c2, c3)?;
         }
         Ok(Printed::Something)
     }
@@ -534,28 +521,28 @@ impl Print for SummaryElement {
         }
 
         if self.should_be_printed(tag) {
-            tryw!(t, "\n- ");
+            write!(t, "\n- ")?;
             if config.show_prefix && !self.prefix.is_empty() {
-                tryw!(t, "{} ", self.prefix);
+                write!(t, "{} ", self.prefix)?;
             }
             if config.colored_output {
-                try!(c1(t));
+                c1(t)?;
             }
-            tryw!(t, "{}", config.category_delimiters.0);
-            tryw!(t, "{}", self.category);
-            tryw!(t, "{} ", config.category_delimiters.1);
+            write!(t, "{}", config.category_delimiters.0)?;
+            write!(t, "{}", self.category)?;
+            write!(t, "{} ", config.category_delimiters.1)?;
             if config.colored_output {
-                try!(c2(t));
+                c2(t)?;
             }
-            tryw!(t, "{}", self.text);
+            write!(t, "{}", self.text)?;
 
             // Print the oid for the summary element (always)
             if config.show_commit_hash {
                 if let Some(oid) = self.oid {
-                    tryw!(t, " ({:.7})", oid);
+                    write!(t, " ({:.7})", oid)?;
                 }
             }
-            try!(c3(t));
+            c3(t)?;
         }
         Ok(Printed::Something)
     }
@@ -610,11 +597,11 @@ impl Print for BodyElement {
         match *self {
             BodyElement::List(ref vec) => {
                 for list_item in vec {
-                    try!(list_item.print(t, config, tag, c1, c2, c3));
+                    list_item.print(t, config, tag, c1, c2, c3)?;
                 }
             }
             BodyElement::Paragraph(ref paragraph) => {
-                try!(paragraph.print(t, config, tag, c1, c2, c3));
+                paragraph.print(t, config, tag, c1, c2, c3)?;
             }
         }
         Ok(Printed::Something)
@@ -668,32 +655,32 @@ impl Print for ListElement {
         }
 
         if self.should_be_printed(tag) {
-            tryw!(t, "\n{}- ", {
+            write!(t, "\n{}- ", {
                 if tag.is_none() {
                     iter::repeat(' ').take(4).collect::<String>()
                 } else {
                     String::new()
                 }
-            });
+            })?;
             if !self.category.is_empty() {
                 if config.colored_output {
-                    try!(c1(t));
+                    c1(t)?;
                 }
-                tryw!(t, "{}", config.category_delimiters.0);
-                tryw!(t, "{}", self.category);
-                tryw!(t, "{} ", config.category_delimiters.1);
+                write!(t, "{}", config.category_delimiters.0)?;
+                write!(t, "{}", self.category)?;
+                write!(t, "{} ", config.category_delimiters.1)?;
                 if config.colored_output {
-                    try!(c2(t));
+                    c2(t)?;
                 }
             }
-            tryw!(t, "{}", self.text);
+            write!(t, "{}", self.text)?;
             // Print only in templating mode, otherwise hide unnecessary information
             if config.show_commit_hash && tag.is_some() {
                 if let Some(oid) = self.oid {
-                    tryw!(t, " ({:.7})", oid);
+                    write!(t, " ({:.7})", oid)?;
                 }
             }
-            try!(c3(t));
+            c3(t)?;
         }
 
         Ok(Printed::Something)
@@ -748,14 +735,14 @@ impl Print for ParagraphElement {
                 .enumerate() {
                 if tag.is_some() && index == 0 {
                     // Paragraphs will be transformed into lists when using templates
-                    tryw!(t, "\n{}", line.replace("  ", "- "));
+                    write!(t, "\n{}", line.replace("  ", "- "))?;
                 } else {
-                    tryw!(t, "\n{}", line);
+                    write!(t, "\n{}", line)?;
                 }
                 // Print only in templating mode, otherwise hide unnecessary information
                 if config.show_commit_hash && tag.is_some() {
                     if let Some(oid) = self.oid {
-                        tryw!(t, " ({:.7})", oid);
+                        write!(t, " ({:.7})", oid)?;
                     }
                 }
             }
@@ -873,7 +860,7 @@ impl Parser {
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
-        let summary_line = try!(commit_parts.nth(0).ok_or(Error::CommitMessageLength)).trim();
+        let summary_line = commit_parts.nth(0).ok_or(Error::CommitMessageLength)?.trim();
         let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
             (_, IResult::Done(_, parsed)) => parsed,
             _ => return Err(Error::SummaryParsing(summary_line.to_owned())),
@@ -892,8 +879,8 @@ impl Parser {
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
                         oid: oid,
-                        key: try!(cap.at(1).ok_or(Error::FooterParsing(part.to_owned()))).to_owned(),
-                        value: try!(cap.at(2).ok_or(Error::FooterParsing(part.to_owned()))).to_owned(),
+                        key: cap.at(1).ok_or(Error::FooterParsing(part.to_owned()))?.to_owned(),
+                        value: cap.at(2).ok_or(Error::FooterParsing(part.to_owned()))?.to_owned(),
                     });
                 }
             } else if RE_LIST.is_match(part) {
@@ -930,16 +917,20 @@ impl Parser {
 
     /// Prints the commits without any template
     pub fn print(&self, compact: &bool, template: Option<&str>) -> Result<Vec<u8>, Error> {
-        let mut term = try!(term::stdout().ok_or(Error::Terminal));
+        let mut term = term::stdout().ok_or(Error::Terminal)?;
         let mut vec = vec![];
 
         // Print every tag
         for (index, tag) in self.result.iter().enumerate() {
-            try!(tag.print_to_term_and_write_to_vector(&mut term, &mut vec, compact, &self.config,
-                                                       template, (index, self.result.len())));
+            tag.print_to_term_and_write_to_vector(&mut term,
+                                                   &mut vec,
+                                                   compact,
+                                                   &self.config,
+                                                   template,
+                                                   (index, self.result.len()))?;
         }
 
-        trywln!(term, "");
+        writeln!(term, "")?;
         Ok(vec)
     }
 

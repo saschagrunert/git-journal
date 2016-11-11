@@ -24,30 +24,30 @@ impl Logger {
         // We have to create a new terminal on each log because
         // `term::Terminal<Output=std::io::Stderr> + Send + 'static` cannot be shared between
         // threads safely'
-        let mut t = try!(term::stderr().ok_or(term::Error::NotSupported));
-        try!(t.fg(term::color::BRIGHT_BLUE));
-        try!(write!(t, "[git-journal] "));
+        let mut t = term::stderr().ok_or(term::Error::NotSupported)?;
+        t.fg(term::color::BRIGHT_BLUE)?;
+        write!(t, "[git-journal] ")?;
         match record.level() {
             LogLevel::Info => {
-                try!(t.fg(term::color::GREEN));
-                try!(write!(t, "[OKAY] "));
-                try!(t.reset());
-                try!(writeln!(t, "{}", record.args()));
+                t.fg(term::color::GREEN)?;
+                write!(t, "[OKAY] ")?;
+                t.reset()?;
+                writeln!(t, "{}", record.args())?;
             }
             LogLevel::Warn => {
-                try!(t.fg(term::color::BRIGHT_YELLOW));
-                try!(write!(t, "[WARN] "));
-                try!(t.reset());
-                try!(writeln!(t, "{}", record.args()));
+                t.fg(term::color::BRIGHT_YELLOW)?;
+                write!(t, "[WARN] ")?;
+                t.reset()?;
+                writeln!(t, "{}", record.args())?;
             }
             LogLevel::Error => {
-                try!(t.fg(term::color::RED));
-                try!(write!(t, "[ERROR] "));
-                try!(t.reset());
-                try!(writeln!(t, "{}", record.args()));
+                t.fg(term::color::RED)?;
+                write!(t, "[ERROR] ")?;
+                t.reset()?;
+                writeln!(t, "{}", record.args())?;
             }
             _ => {
-                try!(writeln!(t, "[{}] {}", record.level(), record.args()));
+                writeln!(t, "[{}] {}", record.level(), record.args())?;
             }
         }
         Ok(())

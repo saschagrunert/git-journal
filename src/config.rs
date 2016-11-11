@@ -124,15 +124,15 @@ impl Config {
     ///
     pub fn save_default_config(&self, path: &str) -> Result<String, Error> {
         let mut encoder = Encoder::new();
-        try!(self.encode(&mut encoder));
+        self.encode(&mut encoder)?;
         let toml_string = encode_str(&Value::Table(encoder.toml));
 
         let path_buf = self.get_path_with_filename(path);
-        let path_string = try!(path_buf.to_str()
-            .ok_or(io::Error::new(io::ErrorKind::Other, "Cannot convert path to string")));
+        let path_string = path_buf.to_str()
+            .ok_or(io::Error::new(io::ErrorKind::Other, "Cannot convert path to string"))?;
 
-        let mut file = try!(File::create(&path_buf));
-        try!(file.write_all(toml_string.as_bytes()));
+        let mut file = File::create(&path_buf)?;
+        file.write_all(toml_string.as_bytes())?;
         Ok(path_string.to_owned())
     }
 
@@ -150,15 +150,14 @@ impl Config {
     ///
     pub fn load(&mut self, path: &str) -> Result<(), Error> {
         let path_buf = self.get_path_with_filename(path);
-        let mut file = try!(File::open(path_buf));
+        let mut file = File::open(path_buf)?;
         let mut toml_string = String::new();
-        try!(file.read_to_string(&mut toml_string));
+        file.read_to_string(&mut toml_string)?;
 
-        let toml = try!(Parser::new(&toml_string)
-            .parse()
-            .ok_or(toml::Error::Custom("Could not parse toml configuration.".to_owned())));
-        *self = try!(decode(Value::Table(toml))
-            .ok_or(toml::Error::Custom("Could not decode toml configuration.".to_owned())));
+        let toml = Parser::new(&toml_string).parse()
+            .ok_or(toml::Error::Custom("Could not parse toml configuration.".to_owned()))?;
+        *self =
+            decode(Value::Table(toml)).ok_or(toml::Error::Custom("Could not decode toml configuration.".to_owned()))?;
 
         // If the categories are not found within the toml it will return an empty array
         // which will break the parser. So use the default ones instead.
