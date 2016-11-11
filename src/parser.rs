@@ -146,7 +146,7 @@ pub trait Print {
 pub trait Tags {
     /// Just extends a given vector with all found tags, unsorted.
     /// Transfers ownership of the vector back if done.
-    fn get_tags(&self, mut vec: Vec<String>) -> Vec<String>;
+    fn get_tags(&self, vec: Vec<String>) -> Vec<String>;
 
     /// Sort and uniq the tags as well.
     /// Transfers ownership of the vector back if done.
