@@ -14,7 +14,7 @@ before_script:
   - export PATH=$HOME/.local/bin:$PATH
   - export PATH=$HOME/Library/Python/2.7/bin:$PATH
 script:
-O- export CARGO_TARGET_DIR=`pwd`/target
+  - export CARGO_TARGET_DIR=`pwd`/target
   - travis-cargo build
   - travis-cargo test
   - cargo doc --no-deps
