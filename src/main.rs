@@ -10,7 +10,7 @@ use std::process::exit;
 use std::{env, fs, error};
 
 use clap::{App, Shell};
-use gitjournal::{GitJournal, GitJournalResult, error};
+use gitjournal::{GitJournal, error};
 
 fn error_and_exit(string: &str, error: Box<error::Error>) {
     error!("{}: {}", string, error);
@@ -35,7 +35,7 @@ fn main() {
     }
 }
 
-fn run() -> GitJournalResult<()> {
+fn run() -> Result<(), Box<error::Error>> {
     // Load the CLI parameters from the yaml file
     let yaml = load_yaml!("cli.yaml");
     let mut app = App::from_yaml(yaml).version(crate_version!());
