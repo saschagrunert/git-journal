@@ -825,14 +825,16 @@ impl Parser {
         // Parse the body and the footer, the summary is already consumed
         let mut parsed_footer = vec![];
         let mut parsed_body = vec![];
+
+        // Iterate over all the commit message parts
         for part in commit_parts {
 
-            // Do nothing on comments
-            if RE_COMMENT.is_match(part) {
+            // Do nothing on comments and empty parts
+            if RE_COMMENT.is_match(part) || part.is_empty() {
                 continue;
 
+            // Parse the footer
             } else if RE_FOOTER.is_match(part) {
-                // Parse footer
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
                         oid: oid,
@@ -841,8 +843,8 @@ impl Parser {
                     });
                 }
 
+            // Parse all list items
             } else if RE_LIST.is_match(part) {
-                // Parse list items
                 let mut list = vec![];
                 for list_item in part.lines() {
                     if let (_, IResult::Done(_, mut result)) = self.clone().parse_list_item(list_item.as_bytes()) {
@@ -852,17 +854,18 @@ impl Parser {
                 }
                 parsed_body.push(BodyElement::List(list));
 
-            } else {
-                // Assume paragraph, test for a valid paragraph
-                if !RE_PARAGRAPH.is_match(part) {
-                    bail!("Paragraph parsing error: '{}'", part)
-                }
+            // Nothing of tbe above items matched, check for a Paragraph element
+            } else if RE_PARAGRAPH.is_match(part) {
                 let (parsed_tags, parsed_text) = Self::parse_and_consume_tags(part.as_bytes());
                 parsed_body.push(BodyElement::Paragraph(ParagraphElement {
                     oid: oid,
                     text: parsed_text.trim().to_owned(),
                     tags: parsed_tags,
                 }));
+
+            // Nothing matched, this should not happen at all
+            } else {
+                bail!("Could not parse commit message part: '{}'", part);
             }
         }
 

@@ -12,34 +12,7 @@ use toml;
 pub type GitJournalResult<T> = Result<T, Box<GitJournalError>>;
 
 /// GitJournal error trait
-pub trait GitJournalError: Error + Send + 'static {
-    /// The internal cause for the error
-    fn gitjournal_cause(&self) -> Option<&GitJournalError> {
-        None
-    }
-
-    /// Convert the `GitJournalError` to an `Error`
-    fn as_error(&self) -> &Error
-        where Self: Sized
-    {
-        self as &Error
-    }
-}
-
-impl Error for Box<GitJournalError> {
-    fn description(&self) -> &str {
-        (**self).description()
-    }
-    fn cause(&self) -> Option<&Error> {
-        (**self).cause()
-    }
-}
-
-impl GitJournalError for Box<GitJournalError> {
-    fn gitjournal_cause(&self) -> Option<&GitJournalError> {
-        (**self).gitjournal_cause()
-    }
-}
+pub trait GitJournalError: Error + Send + 'static {}
 
 /// Concrete errors
 struct ConcreteGitJournalError {
@@ -52,7 +25,7 @@ impl fmt::Display for ConcreteGitJournalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.description)?;
         if let Some(ref s) = self.detail {
-            write!(f, " ({})", s)?;
+            write!(f, ": {}", s)?;
         }
         Ok(())
     }
@@ -75,8 +48,6 @@ impl Error for ConcreteGitJournalError {
         })
     }
 }
-
-impl GitJournalError for ConcreteGitJournalError {}
 
 /// Various error implementors
 macro_rules! from_error {
@@ -102,6 +73,7 @@ impl GitJournalError for log::ShutdownLoggerError {}
 impl GitJournalError for num::ParseIntError {}
 impl GitJournalError for term::Error {}
 impl GitJournalError for toml::Error {}
+impl GitJournalError for ConcreteGitJournalError {}
 
 /// Raise and internal error
 pub fn internal_error(error: &str, detail: &str) -> Box<GitJournalError> {
