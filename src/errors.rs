@@ -43,7 +43,7 @@ impl Error for GitJournalError {
 }
 
 /// Raise an internal error
-pub fn internal_error(error: &str, detail: &str) -> Box<Error> {
+pub fn error(error: &str, detail: &str) -> Box<Error> {
     Box::new(GitJournalError {
         description: error.to_string(),
         detail: Some(detail.to_string()),
@@ -51,7 +51,7 @@ pub fn internal_error(error: &str, detail: &str) -> Box<Error> {
     })
 }
 
-pub fn internal(error: &fmt::Display) -> Box<Error> {
+pub fn bail(error: &fmt::Display) -> Box<Error> {
     Box::new(GitJournalError {
         description: error.to_string(),
         detail: None,
@@ -61,6 +61,6 @@ pub fn internal(error: &fmt::Display) -> Box<Error> {
 
 macro_rules! bail {
     ($($fmt:tt)*) => (
-        return Err(::errors::internal(&format_args!($($fmt)*)))
+        return Err(::errors::bail(&format_args!($($fmt)*)))
     )
 }

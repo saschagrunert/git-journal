@@ -52,7 +52,7 @@ use rayon::prelude::*;
 use toml::Value;
 
 pub use config::Config;
-pub use errors::{GitJournalResult, internal_error};
+pub use errors::{GitJournalResult, error};
 use logger::Logger;
 use parser::{Parser, ParsedTag, Tags};
 
@@ -363,7 +363,7 @@ impl GitJournal {
             file.read_to_string(&mut toml_string)?;
 
             let toml = toml::Parser::new(&toml_string).parse()
-                .ok_or(internal_error("Verify", "Could not parse default toml template."))?;
+                .ok_or(error("Verify", "Could not parse default toml template."))?;
 
             let toml_tags = self.parser.get_tags_from_toml(&toml, vec![]);
             let invalid_tags = tags.into_iter().filter(|tag| !toml_tags.contains(tag)).collect::<Vec<String>>();

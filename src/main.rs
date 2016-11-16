@@ -10,7 +10,7 @@ use std::process::exit;
 use std::{env, fs, error};
 
 use clap::{App, Shell};
-use gitjournal::{GitJournal, GitJournalResult, internal_error};
+use gitjournal::{GitJournal, GitJournalResult, error};
 
 fn error_and_exit(string: &str, error: Box<error::Error>) {
     error!("{}: {}", string, error);
@@ -40,7 +40,7 @@ fn run() -> GitJournalResult<()> {
     let yaml = load_yaml!("cli.yaml");
     let mut app = App::from_yaml(yaml).version(crate_version!());
     let matches = app.clone().get_matches();
-    let path = matches.value_of("path").ok_or(internal_error("Cli", "No 'path' provided"))?;
+    let path = matches.value_of("path").ok_or(error("Cli", "No 'path' provided"))?;
 
     // Create the journal
     let mut journal = GitJournal::new(path)?;
@@ -50,10 +50,10 @@ fn run() -> GitJournalResult<()> {
         Some("prepare") => {
             // Prepare a commit message before editing by the user
             if let Some(sub_matches) = matches.subcommand_matches("prepare") {
-                match journal.prepare(sub_matches.value_of("message").ok_or(internal_error("Cli", "No 'message' provided"))?,
+                match journal.prepare(sub_matches.value_of("message").ok_or(error("Cli", "No 'message' provided"))?,
                                       sub_matches.value_of("type")) {
                     Ok(()) => info!("Commit message prepared."),
-                    Err(error) => error_and_exit("Commit message preparation failed", error)
+                    Err(error) => error_and_exit("Commit message preparation failed", error),
                 }
             }
         }
@@ -78,7 +78,7 @@ fn run() -> GitJournalResult<()> {
         Some("verify") => {
             // Verify a commit message
             if let Some(sub_matches) = matches.subcommand_matches("verify") {
-                match journal.verify(sub_matches.value_of("message").ok_or(internal_error("Cli", "No 'message' provided"))?) {
+                match journal.verify(sub_matches.value_of("message").ok_or(error("Cli", "No 'message' provided"))?) {
                     Ok(()) => info!("Commit message valid."),
                     Err(error) => error_and_exit("Commit message invalid", error),
                 }
@@ -87,10 +87,10 @@ fn run() -> GitJournalResult<()> {
         _ => {
             // Get all values of the given CLI parameters with default values
             let revision_range = matches.value_of("revision_range")
-                .ok_or(internal_error("Cli", "No 'revision_range' provided"))?;
+                .ok_or(error("Cli", "No 'revision_range' provided"))?;
             let tag_skip_pattern = matches.value_of("tag_skip_pattern")
-                .ok_or(internal_error("Cli", "No 'task_skip_pattern' provided"))?;
-            let tags_count = matches.value_of("tags_count").ok_or(internal_error("Cli", "No 'tags_count' provided"))?;
+                .ok_or(error("Cli", "No 'task_skip_pattern' provided"))?;
+            let tags_count = matches.value_of("tags_count").ok_or(error("Cli", "No 'tags_count' provided"))?;
             let max_tags = tags_count.parse::<u32>()?;
 
             // Parse the log

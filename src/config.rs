@@ -9,7 +9,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::io::prelude::*;
 
-use errors::{GitJournalResult, internal_error};
+use errors::{GitJournalResult, error};
 
 /// The configuration structure for git-journal.
 #[derive(Default, Debug, Clone, PartialEq, RustcEncodable, RustcDecodable)]
@@ -96,7 +96,7 @@ impl Config {
         let toml_string = encode_str(&Value::Table(encoder.toml));
 
         let path_buf = self.get_path_with_filename(path);
-        let path_string = path_buf.to_str().ok_or(internal_error("IO", "Cannot convert path to string"))?;
+        let path_string = path_buf.to_str().ok_or(error("IO", "Cannot convert path to string"))?;
 
         let mut file = File::create(&path_buf)?;
         file.write_all(toml_string.as_bytes())?;

@@ -11,7 +11,7 @@ use std::io::prelude::*;
 use std::{iter, str};
 
 use config::Config;
-use errors::{GitJournalResult, internal_error};
+use errors::{GitJournalResult, error};
 
 pub static TOML_DEFAULT_KEY: &'static str = "default";
 pub static TOML_FOOTERS_KEY: &'static str = "footers";
@@ -815,7 +815,7 @@ impl Parser {
 
         // Parse the summary line
         let summary_line =
-            commit_parts.nth(0).ok_or(internal_error("Summary line", "Commit message length too small."))?.trim();
+            commit_parts.nth(0).ok_or(error("Summary line", "Commit message length too small."))?.trim();
         let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
             (_, IResult::Done(_, parsed)) => parsed,
             _ => bail!("Summary parsing failed: '{}'", summary_line),
@@ -838,8 +838,8 @@ impl Parser {
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
                         oid: oid,
-                        key: cap.at(1).ok_or(internal_error("Footer parsing", part))?.to_owned(),
-                        value: cap.at(2).ok_or(internal_error("Footer parsing", part))?.to_owned(),
+                        key: cap.at(1).ok_or(error("Footer parsing", part))?.to_owned(),
+                        value: cap.at(2).ok_or(error("Footer parsing", part))?.to_owned(),
                     });
                 }
 
@@ -879,7 +879,7 @@ impl Parser {
 
     /// Prints the commits without any template
     pub fn print(&self, compact: &bool, template: Option<&str>) -> GitJournalResult<Vec<u8>> {
-        let mut term = term::stdout().ok_or(internal_error("Terminal", "Could not print to terminal"))?;
+        let mut term = term::stdout().ok_or(error("Terminal", "Could not print to terminal"))?;
         let mut vec = vec![];
 
         // Print every tag

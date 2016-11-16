@@ -4,7 +4,7 @@ use log::{Log, LogRecord, LogLevel, LogMetadata};
 use term::stderr;
 use term::color::{BRIGHT_BLUE, GREEN, BRIGHT_YELLOW, RED};
 
-use errors::{GitJournalResult, internal_error};
+use errors::{GitJournalResult, error};
 
 /// The logging structure
 pub struct Logger;
@@ -28,7 +28,7 @@ impl Logger {
         // We have to create a new terminal on each log because
         // `term::Terminal<Output=std::io::Stderr> + Send + 'static` cannot be shared between
         // threads safely'
-        let mut t = stderr().ok_or(internal_error("Term", "Could not create terminal"))?;
+        let mut t = stderr().ok_or(error("Term", "Could not create terminal"))?;
         t.fg(BRIGHT_BLUE)?;
         write!(t, "[git-journal] ")?;
         match record.level() {
