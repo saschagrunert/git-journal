@@ -1,6 +1,10 @@
 //! The logger implementation
 use log::{Log, LogRecord, LogLevel, LogMetadata};
-use term;
+
+use term::stderr;
+use term::color::{BRIGHT_BLUE, GREEN, BRIGHT_YELLOW, RED};
+
+use errors::{GitJournalResult, internal_error};
 
 /// The logging structure
 pub struct Logger;
@@ -20,28 +24,28 @@ impl Log for Logger {
 }
 
 impl Logger {
-    fn log_result(&self, record: &LogRecord) -> Result<(), term::Error> {
+    fn log_result(&self, record: &LogRecord) -> GitJournalResult<()> {
         // We have to create a new terminal on each log because
         // `term::Terminal<Output=std::io::Stderr> + Send + 'static` cannot be shared between
         // threads safely'
-        let mut t = term::stderr().ok_or(term::Error::NotSupported)?;
-        t.fg(term::color::BRIGHT_BLUE)?;
+        let mut t = stderr().ok_or(internal_error("Term", "Could not create terminal"))?;
+        t.fg(BRIGHT_BLUE)?;
         write!(t, "[git-journal] ")?;
         match record.level() {
             LogLevel::Info => {
-                t.fg(term::color::GREEN)?;
+                t.fg(GREEN)?;
                 write!(t, "[OKAY] ")?;
                 t.reset()?;
                 writeln!(t, "{}", record.args())?;
             }
             LogLevel::Warn => {
-                t.fg(term::color::BRIGHT_YELLOW)?;
+                t.fg(BRIGHT_YELLOW)?;
                 write!(t, "[WARN] ")?;
                 t.reset()?;
                 writeln!(t, "{}", record.args())?;
             }
             LogLevel::Error => {
-                t.fg(term::color::RED)?;
+                t.fg(RED)?;
                 write!(t, "[ERROR] ")?;
                 t.reset()?;
                 writeln!(t, "{}", record.args())?;

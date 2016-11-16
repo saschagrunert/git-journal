@@ -7,4 +7,4 @@ excluded_commit_tags = []
 show_commit_hash = false
 show_prefix = false
 sort_by = "date"
-template_prefix = "JIRA-1234"
+template_prefix = ""

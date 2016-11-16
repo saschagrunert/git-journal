@@ -39,80 +39,28 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
+use std::collections::BTreeMap;
+use std::fs::{File, OpenOptions};
+use std::io::prelude::*;
+use std::path::{Path, PathBuf};
+use std::{env, fs};
+
 use chrono::{UTC, TimeZone};
 use git2::{ObjectType, Oid, Repository};
 use log::LogLevelFilter;
 use rayon::prelude::*;
 use toml::Value;
 
+pub use config::Config;
+pub use errors::{GitJournalResult, GitJournalError, internal_error};
 use logger::Logger;
 use parser::{Parser, ParsedTag, Tags};
-pub use config::Config;
 
-use std::{fmt, fs};
-use std::collections::BTreeMap;
-use std::fs::{File, OpenOptions};
-use std::path::{Path, PathBuf};
-use std::io::prelude::*;
-
+#[macro_use]
+mod errors;
 mod logger;
 mod parser;
 pub mod config;
-
-/// An enumeration of possible errors that can happen when working with git-journal.
-#[derive(Debug)]
-pub enum Error {
-    /// Erros related to the git repository.
-    Git(git2::Error),
-
-    /// Erros related to the system IO, like parsing of the configuration file.
-    Io(std::io::Error),
-
-    /// Errors related to the parsing and printing of the log.
-    Parser(parser::Error),
-
-    /// Errors related to the setup process.
-    Setup(config::Error),
-
-    /// Errors related to the commit message verification.
-    Verify(String),
-}
-
-impl From<git2::Error> for Error {
-    fn from(err: git2::Error) -> Error {
-        Error::Git(err)
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Error {
-        Error::Io(err)
-    }
-}
-
-impl From<config::Error> for Error {
-    fn from(err: config::Error) -> Error {
-        Error::Setup(err)
-    }
-}
-
-impl From<parser::Error> for Error {
-    fn from(err: parser::Error) -> Error {
-        Error::Parser(err)
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Git(ref err) => write!(f, "Git: {}", err),
-            Error::Io(ref err) => write!(f, "Io: {}", err),
-            Error::Parser(ref err) => write!(f, "Parser: {}", err),
-            Error::Setup(ref err) => write!(f, "Setup: {}", err),
-            Error::Verify(ref err) => write!(f, "Verify: {}", err),
-        }
-    }
-}
 
 /// The main structure of git-journal.
 pub struct GitJournal {
@@ -124,8 +72,8 @@ pub struct GitJournal {
 }
 
 impl GitJournal {
-    /// Constructs a new `GitJournal<Result<GitJournal, Error>>`. Searches upwards if the given
-    /// path does not contain the `.git` directory.
+    /// Constructs a new `GitJournal`. Searches upwards if the given path does not contain the
+    /// `.git` directory.
     ///
     /// # Examples
     ///
@@ -139,12 +87,21 @@ impl GitJournal {
     /// When not providing a path with a valid git repository ('.git' folder or the initial parsing
     /// of the git tags failed.
     ///
-    pub fn new(path: &str) -> Result<Self, Error> {
+    pub fn new(path: &str) -> GitJournalResult<Self> {
+        // Setup the logger if not already set
+        if log::set_logger(|max_log_level| {
+                max_log_level.set(LogLevelFilter::Info);
+                Box::new(Logger)
+            })
+            .is_err() {
+            warn!("Logger already set.");
+        };
+
         // Search upwards for the .git directory
         let mut path_buf = if path != "." {
             PathBuf::from(path)
         } else {
-            std::env::current_dir()?
+            env::current_dir()?
         };
         'git_search: loop {
             for dir in fs::read_dir(&path_buf)? {
@@ -184,15 +141,9 @@ impl GitJournal {
             result: vec![],
         };
 
-        // Setup the logger if not already set
-        if new_config.enable_debug {
-            if log::set_logger(|max_log_level| {
-                    max_log_level.set(LogLevelFilter::Info);
-                    Box::new(Logger)
-                })
-                .is_err() {
-                warn!("Logger already set.");
-            };
+        // Shut down the logger if the user does not want debug output
+        if !new_config.enable_debug {
+            log::shutdown_logger()?;
         }
 
         // Return the git journal object
@@ -261,7 +212,7 @@ impl GitJournal {
     /// - When the writing of the default configuration fails.
     /// - When installation of the commit message (preparation) hook fails.
     ///
-    pub fn setup(&self) -> Result<(), Error> {
+    pub fn setup(&self) -> GitJournalResult<()> {
         // Save the default config
         let output_file = Config::new().save_default_config(&self.path)?;
         info!("Defaults written to '{}' file.", output_file);
@@ -275,11 +226,12 @@ impl GitJournal {
         Ok(())
     }
 
-    fn install_git_hook(&self, name: &str, content: &str) -> Result<(), Error> {
+    fn install_git_hook(&self, name: &str, content: &str) -> GitJournalResult<()> {
         let mut hook_path = PathBuf::from(&self.path);
         hook_path.push(".git/hooks");
         hook_path.push(name);
         let mut hook_file: File;
+
         if hook_path.exists() {
             warn!("There is already a hook available in '{}'. Please verifiy \
                    the hook by hand after the installation.",
@@ -303,14 +255,14 @@ impl GitJournal {
     }
 
     #[cfg(unix)]
-    fn chmod(&self, path: &Path, perms: u32) -> Result<(), Error> {
+    fn chmod(&self, path: &Path, perms: u32) -> GitJournalResult<()> {
         use std::os::unix::prelude::PermissionsExt;
         fs::set_permissions(path, fs::Permissions::from_mode(perms))?;
         Ok(())
     }
 
     #[cfg(windows)]
-    fn chmod(&self, _path: &Path, _perms: u32) -> Result<(), Error> {
+    fn chmod(&self, _path: &Path, _perms: u32) -> GitJournalResult<()> {
         Ok(())
     }
 
@@ -330,7 +282,7 @@ impl GitJournal {
     /// # Errors
     /// When the path is not available or writing the commit message fails.
     ///
-    pub fn prepare(&self, path: &str, commit_type: Option<&str>) -> Result<(), Error> {
+    pub fn prepare(&self, path: &str, commit_type: Option<&str>) -> GitJournalResult<()> {
         // If the message is not valid, assume a new commit and provide the template.
         if let Err(error) = self.verify(path) {
             // But if the message is provided via the cli with `-m`, then abort since
@@ -392,7 +344,7 @@ impl GitJournal {
     /// # Errors
     /// When the commit message is not valid due to RFC0001 or opening of the given file failed.
     ///
-    pub fn verify(&self, path: &str) -> Result<(), Error> {
+    pub fn verify(&self, path: &str) -> GitJournalResult<()> {
         // Open the file and read to string
         let mut file = File::open(path)?;
         let mut commit_message = String::new();
@@ -411,14 +363,14 @@ impl GitJournal {
             file.read_to_string(&mut toml_string)?;
 
             let toml = toml::Parser::new(&toml_string).parse()
-                .ok_or(Error::Verify("Could not parse default toml template.".to_owned()))?;
+                .ok_or(internal_error("Verify", "Could not parse default toml template."))?;
 
             let toml_tags = self.parser.get_tags_from_toml(&toml, vec![]);
             let invalid_tags = tags.into_iter().filter(|tag| !toml_tags.contains(tag)).collect::<Vec<String>>();
             if !invalid_tags.is_empty() {
                 warn!("These tags are not part of the default template: '{}'.",
                       invalid_tags.join(", "));
-                return Err(Error::Verify("Not all tags exists in the default template.".to_owned()));
+                bail!("Not all tags exists in the default template.");
             }
         }
         Ok(())
@@ -444,7 +396,7 @@ impl GitJournal {
                      max_tags_count: &u32,
                      all: &bool,
                      skip_unreleased: &bool)
-                     -> Result<(), Error> {
+                     -> GitJournalResult<()> {
 
         let repo = Repository::open(&self.path)?;
         let mut revwalk = repo.revwalk()?;
@@ -533,7 +485,7 @@ impl GitJournal {
                 Ok(parsed_message) => {
                     *result = Some(parsed_message);
                 }
-                Err(e) => warn!("Skipping commit: {}.", e),
+                Err(e) => warn!("Skipping commit: {}", e),
             }
         });
 
@@ -579,7 +531,7 @@ impl GitJournal {
     /// # Errors
     /// If the generation of the template was impossible.
     ///
-    pub fn generate_template(&self) -> Result<(), Error> {
+    pub fn generate_template(&self) -> GitJournalResult<()> {
         let mut tags = vec![parser::TOML_DEFAULT_KEY.to_owned()];
 
         // Get all the tags
@@ -646,7 +598,7 @@ impl GitJournal {
     /// # Errors
     /// If some commit message could not be print.
     ///
-    pub fn print_log(&self, compact: bool, template: Option<&str>, output: Option<&str>) -> Result<(), Error> {
+    pub fn print_log(&self, compact: bool, template: Option<&str>, output: Option<&str>) -> GitJournalResult<()> {
 
         // Choose the template
         let mut default_template = PathBuf::from(&self.path);

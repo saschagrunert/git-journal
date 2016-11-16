@@ -7,42 +7,14 @@ extern crate clap;
 extern crate log;
 
 use std::process::exit;
-use std::{env, fmt, fs};
+use std::{env, fs};
 
 use clap::{App, Shell};
-use gitjournal::GitJournal;
+use gitjournal::{GitJournal, GitJournalResult, GitJournalError, internal_error};
 
-fn error_and_exit(string: &str, error: Error) {
+fn error_and_exit(string: &str, error: Box<GitJournalError>) {
     error!("{}: {}", string, error);
     exit(1);
-}
-
-enum Error {
-    Cli,
-    ParseInt(std::num::ParseIntError),
-    GitJournal(gitjournal::Error),
-}
-
-impl From<gitjournal::Error> for Error {
-    fn from(err: gitjournal::Error) -> Error {
-        Error::GitJournal(err)
-    }
-}
-
-impl From<std::num::ParseIntError> for Error {
-    fn from(err: std::num::ParseIntError) -> Error {
-        Error::ParseInt(err)
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Cli => write!(f, "Cli argument parsing"),
-            Error::ParseInt(ref err) => write!(f, "ParseInt: {}", err),
-            Error::GitJournal(ref err) => write!(f, "GitJournal: {}", err),
-        }
-    }
 }
 
 fn is_program_in_path(program: &str) -> bool {
@@ -63,12 +35,12 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), Error> {
+fn run() -> GitJournalResult<()> {
     // Load the CLI parameters from the yaml file
     let yaml = load_yaml!("cli.yaml");
     let mut app = App::from_yaml(yaml).version(crate_version!());
     let matches = app.clone().get_matches();
-    let path = matches.value_of("path").ok_or(Error::Cli)?;
+    let path = matches.value_of("path").ok_or(internal_error("Cli", "No 'path' provided"))?;
 
     // Create the journal
     let mut journal = GitJournal::new(path)?;
@@ -78,13 +50,10 @@ fn run() -> Result<(), Error> {
         Some("prepare") => {
             // Prepare a commit message before editing by the user
             if let Some(sub_matches) = matches.subcommand_matches("prepare") {
-                match journal.prepare(sub_matches.value_of("message").ok_or(Error::Cli)?,
+                match journal.prepare(sub_matches.value_of("message").ok_or(internal_error("Cli", "No 'message' provided"))?,
                                       sub_matches.value_of("type")) {
                     Ok(()) => info!("Commit message prepared."),
-                    Err(error) => {
-                        error_and_exit("Commit message preparation failed",
-                                       Error::GitJournal(error))
-                    }
+                    Err(error) => error_and_exit("Commit message preparation failed", error)
                 }
             }
         }
@@ -109,17 +78,19 @@ fn run() -> Result<(), Error> {
         Some("verify") => {
             // Verify a commit message
             if let Some(sub_matches) = matches.subcommand_matches("verify") {
-                match journal.verify(sub_matches.value_of("message").ok_or(Error::Cli)?) {
+                match journal.verify(sub_matches.value_of("message").ok_or(internal_error("Cli", "No 'message' provided"))?) {
                     Ok(()) => info!("Commit message valid."),
-                    Err(error) => error_and_exit("Commit message invalid", Error::GitJournal(error)),
+                    Err(error) => error_and_exit("Commit message invalid", error),
                 }
             }
         }
         _ => {
             // Get all values of the given CLI parameters with default values
-            let revision_range = matches.value_of("revision_range").ok_or(Error::Cli)?;
-            let tag_skip_pattern = matches.value_of("tag_skip_pattern").ok_or(Error::Cli)?;
-            let tags_count = matches.value_of("tags_count").ok_or(Error::Cli)?;
+            let revision_range = matches.value_of("revision_range")
+                .ok_or(internal_error("Cli", "No 'revision_range' provided"))?;
+            let tag_skip_pattern = matches.value_of("tag_skip_pattern")
+                .ok_or(internal_error("Cli", "No 'task_skip_pattern' provided"))?;
+            let tags_count = matches.value_of("tags_count").ok_or(internal_error("Cli", "No 'tags_count' provided"))?;
             let max_tags = tags_count.parse::<u32>()?;
 
             // Parse the log
@@ -128,7 +99,7 @@ fn run() -> Result<(), Error> {
                                                   &max_tags,
                                                   &matches.is_present("all"),
                                                   &matches.is_present("skip_unreleased")) {
-                error_and_exit("Log parsing error", Error::GitJournal(error));
+                error_and_exit("Log parsing error", error);
             }
 
             // Generate the template or print the log

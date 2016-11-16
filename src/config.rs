@@ -3,45 +3,13 @@
 //!
 
 use rustc_serialize::Encodable;
-use toml::{Encoder, Value, Parser, encode_str, decode};
-use toml;
+use toml::{self, Encoder, Value, Parser, encode_str, decode};
 
-use std::io;
-use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
 use std::io::prelude::*;
 
-/// An enumeration of possible errors that can happen when working with the configuration.
-#[derive(Debug)]
-pub enum Error {
-    /// Erros related to the toml parsing.
-    Toml(toml::Error),
-
-    /// Erros related to the system IO, like saving the configuration file.
-    Io(io::Error),
-}
-
-impl From<toml::Error> for Error {
-    fn from(err: toml::Error) -> Error {
-        Error::Toml(err)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::Io(err)
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Toml(ref err) => write!(f, "Toml: {}", err),
-            Error::Io(ref err) => write!(f, "Io: {}", err),
-        }
-    }
-}
+use errors::{GitJournalResult, internal_error};
 
 /// The configuration structure for git-journal.
 #[derive(Default, Debug, Clone, PartialEq, RustcEncodable, RustcDecodable)]
@@ -122,14 +90,13 @@ impl Config {
     /// # Errors
     /// When toml encoding or file creation failed.
     ///
-    pub fn save_default_config(&self, path: &str) -> Result<String, Error> {
+    pub fn save_default_config(&self, path: &str) -> GitJournalResult<String> {
         let mut encoder = Encoder::new();
         self.encode(&mut encoder)?;
         let toml_string = encode_str(&Value::Table(encoder.toml));
 
         let path_buf = self.get_path_with_filename(path);
-        let path_string = path_buf.to_str()
-            .ok_or(io::Error::new(io::ErrorKind::Other, "Cannot convert path to string"))?;
+        let path_string = path_buf.to_str().ok_or(internal_error("IO", "Cannot convert path to string"))?;
 
         let mut file = File::create(&path_buf)?;
         file.write_all(toml_string.as_bytes())?;
@@ -148,7 +115,7 @@ impl Config {
     /// # Errors
     /// When toml decoding or file opening failed.
     ///
-    pub fn load(&mut self, path: &str) -> Result<(), Error> {
+    pub fn load(&mut self, path: &str) -> GitJournalResult<()> {
         let path_buf = self.get_path_with_filename(path);
         let mut file = File::open(path_buf)?;
         let mut toml_string = String::new();
