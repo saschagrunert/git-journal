@@ -1,27 +1,19 @@
 //! Basic error handling mechanisms
 
 use std::error::Error;
-use std::{fmt, io, num};
-
-use git2;
-use log;
-use term;
-use toml;
+use std::fmt;
 
 /// The result type for GitJournal
-pub type GitJournalResult<T> = Result<T, Box<GitJournalError>>;
-
-/// GitJournal error trait
-pub trait GitJournalError: Error + Send + 'static {}
+pub type GitJournalResult<T> = Result<T, Box<Error>>;
 
 /// Concrete errors
-struct ConcreteGitJournalError {
+struct GitJournalError {
     description: String,
     detail: Option<String>,
     cause: Option<Box<Error + Send>>,
 }
 
-impl fmt::Display for ConcreteGitJournalError {
+impl fmt::Display for GitJournalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.description)?;
         if let Some(ref s) = self.detail {
@@ -31,16 +23,17 @@ impl fmt::Display for ConcreteGitJournalError {
     }
 }
 
-impl fmt::Debug for ConcreteGitJournalError {
+impl fmt::Debug for GitJournalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(self, f)
     }
 }
 
-impl Error for ConcreteGitJournalError {
+impl Error for GitJournalError {
     fn description(&self) -> &str {
         &self.description
     }
+
     fn cause(&self) -> Option<&Error> {
         self.cause.as_ref().map(|c| {
             let e: &Error = &**c;
@@ -49,43 +42,17 @@ impl Error for ConcreteGitJournalError {
     }
 }
 
-/// Various error implementors
-macro_rules! from_error {
-    ($($p:ty,)*) => (
-        $(impl From<$p> for Box<GitJournalError> {
-            fn from(t: $p) -> Box<GitJournalError> { Box::new(t) }
-        })*
-    )
-}
-
-from_error! {
-    git2::Error,
-    io::Error,
-    log::ShutdownLoggerError,
-    num::ParseIntError,
-    term::Error,
-    toml::Error,
-}
-
-impl GitJournalError for git2::Error {}
-impl GitJournalError for io::Error {}
-impl GitJournalError for log::ShutdownLoggerError {}
-impl GitJournalError for num::ParseIntError {}
-impl GitJournalError for term::Error {}
-impl GitJournalError for toml::Error {}
-impl GitJournalError for ConcreteGitJournalError {}
-
-/// Raise and internal error
-pub fn internal_error(error: &str, detail: &str) -> Box<GitJournalError> {
-    Box::new(ConcreteGitJournalError {
+/// Raise an internal error
+pub fn internal_error(error: &str, detail: &str) -> Box<Error> {
+    Box::new(GitJournalError {
         description: error.to_string(),
         detail: Some(detail.to_string()),
         cause: None,
     })
 }
 
-pub fn internal(error: &fmt::Display) -> Box<GitJournalError> {
-    Box::new(ConcreteGitJournalError {
+pub fn internal(error: &fmt::Display) -> Box<Error> {
+    Box::new(GitJournalError {
         description: error.to_string(),
         detail: None,
         cause: None,

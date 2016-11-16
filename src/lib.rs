@@ -52,7 +52,7 @@ use rayon::prelude::*;
 use toml::Value;
 
 pub use config::Config;
-pub use errors::{GitJournalResult, GitJournalError, internal_error};
+pub use errors::{GitJournalResult, internal_error};
 use logger::Logger;
 use parser::{Parser, ParsedTag, Tags};
 

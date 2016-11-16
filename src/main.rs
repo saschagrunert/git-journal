@@ -7,12 +7,12 @@ extern crate clap;
 extern crate log;
 
 use std::process::exit;
-use std::{env, fs};
+use std::{env, fs, error};
 
 use clap::{App, Shell};
-use gitjournal::{GitJournal, GitJournalResult, GitJournalError, internal_error};
+use gitjournal::{GitJournal, GitJournalResult, internal_error};
 
-fn error_and_exit(string: &str, error: Box<GitJournalError>) {
+fn error_and_exit(string: &str, error: Box<error::Error>) {
     error!("{}: {}", string, error);
     exit(1);
 }
