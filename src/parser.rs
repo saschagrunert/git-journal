@@ -739,49 +739,53 @@ pub struct Parser {
 
 impl Parser {
     method!(parse_category<Self, &[u8], &str>, self,
-        chain!(
-            tag!(self.config.category_delimiters.0.as_str())? ~
+        do_parse!(
+            opt!(tag!(self.config.category_delimiters.0.as_str())) >>
             p_category: map_res!(
                 re_bytes_find!(&self.config.categories.join("|")),
                 str::from_utf8
-            ) ~
-            tag!(self.config.category_delimiters.1.as_str())? ,
-            || p_category
+            ) >>
+            opt!(tag!(self.config.category_delimiters.1.as_str())) >>
+
+            (p_category)
     ));
 
     method!(parse_list_item<Self, &[u8], ListElement>, mut self,
-        chain!(
-            many0!(space) ~
-            tag!("-") ~
-            space? ~
-            p_category: call_m!(self.parse_category)? ~
-            space? ~
-            p_tags_rest: map!(rest, Self::parse_and_consume_tags),
-            || ListElement {
+        do_parse!(
+            many0!(space) >>
+            tag!("-") >>
+            opt!(space) >>
+            p_category: opt!(call_m!(self.parse_category)) >>
+            opt!(space) >>
+            p_tags_rest: map!(rest, Self::parse_and_consume_tags) >>
+
+            (ListElement {
                 oid: None,
                 category: p_category.unwrap_or("").to_owned(),
                 tags: p_tags_rest.0.clone(),
                 text: p_tags_rest.1.clone(),
-            }
+            })
         )
     );
 
     method!(parse_summary<Self, &[u8], SummaryElement>, mut self,
-        chain!(
-            p_prefix: separated_pair!(alpha, char!('-'), digit)? ~
-            space? ~
-            p_category: call_m!(self.parse_category) ~
-            space ~
-            p_tags_rest: map!(rest, Self::parse_and_consume_tags),
-        || SummaryElement {
-            oid: None,
-            prefix: p_prefix.map_or("".to_owned(), |p| {
-                format!("{}-{}", str::from_utf8(p.0).unwrap_or(""), str::from_utf8(p.1).unwrap_or(""))
-            }),
-            category: p_category.to_owned(),
-            tags: p_tags_rest.0.clone(),
-            text: p_tags_rest.1.clone(),
-        })
+        do_parse!(
+            p_prefix: opt!(separated_pair!(alpha, char!('-'), digit)) >>
+            opt!(space) >>
+            p_category: call_m!(self.parse_category) >>
+            space >>
+            p_tags_rest: map!(rest, Self::parse_and_consume_tags) >>
+
+            (SummaryElement {
+                oid: None,
+                prefix: p_prefix.map_or("".to_owned(), |p| {
+                    format!("{}-{}", str::from_utf8(p.0).unwrap_or(""), str::from_utf8(p.1).unwrap_or(""))
+                }),
+                category: p_category.to_owned(),
+                tags: p_tags_rest.0.clone(),
+                text: p_tags_rest.1.clone(),
+            })
+        )
     );
 
     fn parse_and_consume_tags(input: &[u8]) -> (Vec<String>, String) {

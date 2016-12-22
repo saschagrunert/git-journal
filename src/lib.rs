@@ -1,6 +1,4 @@
-#![doc(html_root_url = "https://saschagrunert.github.io/git-journal/")]
 #![deny(missing_docs)]
-
 //! # The Git Commit Message and Changelog Generation Framework
 //!
 //! This crate contains the library for the
