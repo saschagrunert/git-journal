@@ -19,6 +19,7 @@ clap = { version = "2", features = ["yaml"] }
 git2 = "0"
 lazy_static = "0"
 log = "0"
+mowl = "1"
 nom = { version = "2", features = ["regexp_macros"] }
 regex = "0"
 rayon = "0"

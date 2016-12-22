@@ -27,6 +27,7 @@ extern crate regex;
 extern crate rustc_serialize;
 extern crate term;
 extern crate toml;
+extern crate mowl;
 
 #[macro_use]
 extern crate nom;
@@ -45,18 +46,16 @@ use std::{env, fs};
 
 use chrono::{UTC, TimeZone};
 use git2::{ObjectType, Oid, Repository};
-use log::LogLevelFilter;
+use log::LogLevel;
 use rayon::prelude::*;
 use toml::Value;
 
 pub use config::Config;
 pub use errors::{GitJournalResult, error};
-use logger::Logger;
 use parser::{Parser, ParsedTag, Tags};
 
 #[macro_use]
 mod errors;
-mod logger;
 mod parser;
 pub mod config;
 
@@ -87,11 +86,7 @@ impl GitJournal {
     ///
     pub fn new(path: &str) -> GitJournalResult<Self> {
         // Setup the logger if not already set
-        if log::set_logger(|max_log_level| {
-                max_log_level.set(LogLevelFilter::Info);
-                Box::new(Logger)
-            })
-            .is_err() {
+        if mowl::init_with_level(LogLevel::Info).is_err() {
             warn!("Logger already set.");
         };
 
