@@ -6,12 +6,6 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
-  include:
-    - os: osx
-    - rust: stable
-      before_install:
-        - export OPENSSL_INCLUDE_DIR=`brew --prefix openssl`/include
-        - export OPENSSL_LIB_DIR=`brew --prefix openssl`/lib
 before_script:
   - pip install 'travis-cargo<0.2' --user --verbose
   - export PATH=$HOME/.local/bin:$PATH
