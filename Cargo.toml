@@ -1,6 +1,6 @@
 [package]
 name = "git-journal"
-version = "1.3.2"
+version = "1.3.3"
 license = "MIT"
 readme = "README.md"
 keywords = ["parser", "git", "log", "changelog", "journal"]
@@ -9,7 +9,7 @@ repository = "https://github.com/saschagrunert/git-journal"
 homepage = "https://github.com/saschagrunert/git-journal"
 documentation = "https://docs.rs/git-journal"
 description = "The Git Commit Message and Changelog Generation Framework"
-categories = ["text-processing"]
+categories = ["command-line-utilities"]
 license-file = "LICENSE"
 
 [badges]
