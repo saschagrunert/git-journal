@@ -9,6 +9,8 @@ repository = "https://github.com/saschagrunert/git-journal"
 homepage = "https://github.com/saschagrunert/git-journal"
 documentation = "https://docs.rs/git-journal"
 description = "The Git Commit Message and Changelog Generation Framework"
+categories = ["text-processing"]
+license-file = "LICENSE"
 
 [badges]
 travis-ci = { repository = "saschagrunert/git-journal", branch = "master" }
