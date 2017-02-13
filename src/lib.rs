@@ -22,12 +22,15 @@
 
 extern crate chrono;
 extern crate git2;
+extern crate mowl;
 extern crate rayon;
 extern crate regex;
-extern crate rustc_serialize;
+extern crate serde;
 extern crate term;
 extern crate toml;
-extern crate mowl;
+
+#[macro_use]
+extern crate serde_derive;
 
 #[macro_use]
 extern crate nom;
@@ -294,16 +297,14 @@ impl GitJournal {
             // Write the new generated content to the file
             let mut file = OpenOptions::new().write(true).open(path)?;
             let mut old_msg_vec = commit_message.lines()
-                .filter_map(|line| {
-                    if !line.is_empty() {
-                        if line.starts_with('#') {
-                            Some(line.to_owned())
-                        } else {
-                            Some("# ".to_owned() + line)
-                        }
+                .filter_map(|line| if !line.is_empty() {
+                    if line.starts_with('#') {
+                        Some(line.to_owned())
                     } else {
-                        None
+                        Some("# ".to_owned() + line)
                     }
+                } else {
+                    None
                 })
                 .collect::<Vec<_>>();
             if !old_msg_vec.is_empty() {
@@ -355,9 +356,8 @@ impl GitJournal {
             let mut toml_string = String::new();
             file.read_to_string(&mut toml_string)?;
 
-            let toml = toml::Parser::new(&toml_string).parse()
-                .ok_or(error("Verify", "Could not parse default toml template."))?;
-
+            // Deserialize the toml
+            let toml = toml::from_str(&toml_string)?;
             let toml_tags = self.parser.get_tags_from_toml(&toml, vec![]);
             let invalid_tags = tags.into_iter().filter(|tag| !toml_tags.contains(tag)).collect::<Vec<String>>();
             if !invalid_tags.is_empty() {
@@ -473,13 +473,12 @@ impl GitJournal {
         }
 
         // Process with the full CPU power
-        worker_vec.par_iter_mut().for_each(|&mut (ref message, ref oid, ref mut result)| {
-            match self.parser.parse_commit_message(message, Some(*oid)) {
-                Ok(parsed_message) => {
-                    *result = Some(parsed_message);
-                }
-                Err(e) => warn!("Skipping commit: {}", e),
+        worker_vec.par_iter_mut().for_each(|&mut (ref message, ref oid, ref mut result)| match self.parser
+            .parse_commit_message(message, Some(*oid)) {
+            Ok(parsed_message) => {
+                *result = Some(parsed_message);
             }
+            Err(e) => warn!("Skipping commit: {}", e),
         });
 
         // Assemble results together via the message_id
@@ -566,7 +565,7 @@ impl GitJournal {
         // Write toml to file
         let mut path_buf = PathBuf::from(&self.path);
         path_buf.push("template.toml");
-        let toml_string = toml::encode_str(&toml);
+        let toml_string = toml::to_string(&toml)?;
         let mut toml_file = File::create(&path_buf)?;
         toml_file.write_all(toml_string.as_bytes())?;
 
@@ -645,7 +644,7 @@ mod tests {
     }
 
     #[test]
-    fn setup() {
+    fn setup_succeed() {
         let path = ".";
         let journal = GitJournal::new(path);
         assert!(journal.is_ok());

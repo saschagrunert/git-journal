@@ -2,8 +2,7 @@
 //! [toml](https://github.com/toml-lang/toml) format with the file name `.gitjournal.toml`.
 //!
 
-use rustc_serialize::Encodable;
-use toml::{self, Encoder, Value, Parser, encode_str, decode};
+use toml;
 
 use std::fs::File;
 use std::path::PathBuf;
@@ -12,13 +11,13 @@ use std::io::prelude::*;
 use errors::{GitJournalResult, error};
 
 /// The configuration structure for git-journal.
-#[derive(Default, Debug, Clone, PartialEq, RustcEncodable, RustcDecodable)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     /// Specifies the available categories for the commit message
     pub categories: Vec<String>,
 
     /// Set the characters where the categories are wrapped in
-    pub category_delimiters: (String, String),
+    pub category_delimiters: Vec<String>,
 
     /// Set to false if the output should not be colored
     pub colored_output: bool,
@@ -61,7 +60,7 @@ impl Config {
     pub fn new() -> Self {
         Config {
             categories: Self::get_default_categories(),
-            category_delimiters: ("[".to_owned(), "]".to_owned()),
+            category_delimiters: vec!["[".to_owned(), "]".to_owned()],
             colored_output: true,
             default_template: None,
             enable_debug: true,
@@ -91,13 +90,15 @@ impl Config {
     /// When toml encoding or file creation failed.
     ///
     pub fn save_default_config(&self, path: &str) -> GitJournalResult<String> {
-        let mut encoder = Encoder::new();
-        self.encode(&mut encoder)?;
-        let toml_string = encode_str(&Value::Table(encoder.toml));
+        // Serialize self to toml
+        let toml_string = toml::to_string(&self).unwrap();
+        info!("{:?}", toml_string);
 
+        // Get the correct path
         let path_buf = self.get_path_with_filename(path);
         let path_string = path_buf.to_str().ok_or(error("IO", "Cannot convert path to string"))?;
 
+        // Write the path to string
         let mut file = File::create(&path_buf)?;
         file.write_all(toml_string.as_bytes())?;
         Ok(path_string.to_owned())
@@ -117,14 +118,12 @@ impl Config {
     ///
     pub fn load(&mut self, path: &str) -> GitJournalResult<()> {
         let path_buf = self.get_path_with_filename(path);
-        let mut file = File::open(path_buf)?;
+        let mut file = File::open(&path_buf)?;
         let mut toml_string = String::new();
         file.read_to_string(&mut toml_string)?;
 
-        let toml = Parser::new(&toml_string).parse()
-            .ok_or(toml::Error::Custom("Could not parse toml configuration.".to_owned()))?;
-        *self =
-            decode(Value::Table(toml)).ok_or(toml::Error::Custom("Could not decode toml configuration.".to_owned()))?;
+        // Deserialize the toml string
+        *self = toml::from_str(&toml_string)?;
 
         // If the categories are not found within the toml it will return an empty array
         // which will break the parser. So use the default ones instead.

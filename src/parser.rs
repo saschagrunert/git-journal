@@ -181,8 +181,7 @@ impl ParsedTag {
                 let mut file = File::open(template)?;
                 let mut toml_string = String::new();
                 file.read_to_string(&mut toml_string)?;
-                let toml = toml::Parser::new(&toml_string).parse()
-                    .ok_or(toml::Error::Custom("Could not parse toml template.".to_owned()))?;
+                let toml: Value = toml::from_str(&toml_string)?;
 
                 // Print header in template if exists
                 if let Some(&Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
@@ -203,7 +202,9 @@ impl ParsedTag {
                 self.print_default(&mut vec, config)?;
 
                 // Print commits
-                self.print_commits_in_table(&mut term, &mut vec, &toml, &mut 1, config, &compact)?;
+                if let Some(main_table) = toml.as_table() {
+                    self.print_commits_in_table(&mut term, &mut vec, main_table, &mut 1, config, &compact)?;
+                }
 
                 // Print footer in template if exists
                 if let Some(&Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
@@ -244,7 +245,7 @@ impl ParsedTag {
     fn print_commits_in_table(&self,
                               mut term: &mut Box<term::StdoutTerminal>,
                               mut vec: &mut Vec<u8>,
-                              table: &toml::Table,
+                              table: &toml::value::Table,
                               level: &mut usize,
                               config: &Config,
                               compact: &bool)
@@ -482,9 +483,9 @@ impl Print for SummaryElement {
             if config.colored_output {
                 c1(t)?;
             }
-            write!(t, "{}", config.category_delimiters.0)?;
+            write!(t, "{}", config.category_delimiters[0])?;
             write!(t, "{}", self.category)?;
-            write!(t, "{} ", config.category_delimiters.1)?;
+            write!(t, "{} ", config.category_delimiters[1])?;
             if config.colored_output {
                 c2(t)?;
             }
@@ -620,9 +621,9 @@ impl Print for ListElement {
                 if config.colored_output {
                     c1(t)?;
                 }
-                write!(t, "{}", config.category_delimiters.0)?;
+                write!(t, "{}", config.category_delimiters[0])?;
                 write!(t, "{}", self.category)?;
-                write!(t, "{} ", config.category_delimiters.1)?;
+                write!(t, "{} ", config.category_delimiters[1])?;
                 if config.colored_output {
                     c2(t)?;
                 }
@@ -740,12 +741,12 @@ pub struct Parser {
 impl Parser {
     method!(parse_category<Self, &[u8], &str>, self,
         do_parse!(
-            opt!(tag!(self.config.category_delimiters.0.as_str())) >>
+            opt!(tag!(self.config.category_delimiters[0].as_str())) >>
             p_category: map_res!(
                 re_bytes_find!(&self.config.categories.join("|")),
                 str::from_utf8
             ) >>
-            opt!(tag!(self.config.category_delimiters.1.as_str())) >>
+            opt!(tag!(self.config.category_delimiters[1].as_str())) >>
 
             (p_category)
     ));
@@ -818,8 +819,7 @@ impl Parser {
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
-        let summary_line =
-            commit_parts.nth(0).ok_or(error("Summary line", "Commit message length too small."))?.trim();
+        let summary_line = commit_parts.nth(0).ok_or(error("Summary line", "Commit message length too small."))?.trim();
         let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
             (_, IResult::Done(_, parsed)) => parsed,
             _ => bail!("Summary parsing failed: '{}'", summary_line),
@@ -837,7 +837,7 @@ impl Parser {
             if RE_COMMENT.is_match(part) || part.is_empty() {
                 continue;
 
-            // Parse the footer
+                // Parse the footer
             } else if RE_FOOTER.is_match(part) {
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
@@ -847,7 +847,7 @@ impl Parser {
                     });
                 }
 
-            // Parse all list items
+                // Parse all list items
             } else if RE_LIST.is_match(part) {
                 let mut list = vec![];
                 for list_item in part.lines() {
@@ -858,7 +858,7 @@ impl Parser {
                 }
                 parsed_body.push(BodyElement::List(list));
 
-            // Nothing of tbe above items matched, check for a Paragraph element
+                // Nothing of tbe above items matched, check for a Paragraph element
             } else if RE_PARAGRAPH.is_match(part) {
                 let (parsed_tags, parsed_text) = Self::parse_and_consume_tags(part.as_bytes());
                 parsed_body.push(BodyElement::Paragraph(ParagraphElement {
@@ -867,7 +867,7 @@ impl Parser {
                     tags: parsed_tags,
                 }));
 
-            // Nothing matched, this should not happen at all
+                // Nothing matched, this should not happen at all
             } else {
                 bail!("Could not parse commit message part: '{}'", part);
             }
@@ -901,7 +901,7 @@ impl Parser {
     }
 
     /// Returns all tags recursively from a toml table
-    pub fn get_tags_from_toml(&self, table: &toml::Table, mut vec: Vec<String>) -> Vec<String> {
+    pub fn get_tags_from_toml(&self, table: &toml::value::Table, mut vec: Vec<String>) -> Vec<String> {
         for value in table {
             if let Value::Array(ref array) = *value.1 {
                 for item in array {
@@ -954,9 +954,9 @@ mod tests {
             assert_eq!(commit.body.len(), 1);
             assert_eq!(commit.body[0],
                        BodyElement::Paragraph(ParagraphElement {
-                                                text: "Some paragraph".to_owned(),
-                                                tags: vec![],
-                                                oid: None
+                           text: "Some paragraph".to_owned(),
+                           tags: vec![],
+                           oid: None,
                        }));
             assert_eq!(commit.footer.len(), 0);
             assert_eq!(commit.summary.prefix, "JIRA-1234");
@@ -964,10 +964,10 @@ mod tests {
             assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
-                                                             &config::Config::new(), None).is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
-                                                             &config::Config::new(), Some("tag")).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
+                .is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), Some("tag"))
+                .is_ok());
         }
     }
 
@@ -985,10 +985,10 @@ mod tests {
             assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
-                                                             &config::Config::new(), None).is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
-                                                             &config::Config::new(), Some("tag")).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
+                .is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), Some("tag"))
+                .is_ok());
         }
     }
 
@@ -1005,12 +1005,13 @@ mod tests {
             assert_eq!(commit.summary.prefix, "PREFIX-666");
             assert_eq!(commit.summary.category, "Fixed");
             assert_eq!(commit.summary.text, "some ____ commit");
-            assert_eq!(commit.summary.tags, vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
+            assert_eq!(commit.summary.tags,
+                       vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
-                                                             &config::Config::new(), None).is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
-                                                             &config::Config::new(), Some("tag3")).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
+                .is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), Some("tag3"))
+                .is_ok());
         }
     }
 
@@ -1028,12 +1029,16 @@ mod tests {
             assert_eq!(commit.summary.prefix, "");
             assert_eq!(commit.summary.category, "Added");
             assert_eq!(commit.summary.text, "my commit 💖 summary");
-            assert_eq!(commit.summary.tags, vec!["1234".to_owned(), "some tag".to_owned()]);
+            assert_eq!(commit.summary.tags,
+                       vec!["1234".to_owned(), "some tag".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
-                                                             &config::Config::new(), None).is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![],
-                                                             &config::Config::new(), Some("some tag")).is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
+                .is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t,
+                                                   &mut vec![],
+                                                   &config::Config::new(),
+                                                   Some("some tag"))
+                .is_ok());
         }
     }
 
