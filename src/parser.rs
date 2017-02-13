@@ -203,7 +203,7 @@ impl ParsedTag {
 
                 // Print commits
                 if let Some(main_table) = toml.as_table() {
-                    self.print_commits_in_table(&mut term, &mut vec, main_table, &mut 1, config, &compact)?;
+                    self.print_commits_in_table(&mut term, &mut vec, main_table, &mut 1, config, compact)?;
                 }
 
                 // Print footer in template if exists
@@ -234,7 +234,7 @@ impl ParsedTag {
                 writeln!(term, "")?;
                 writeln!(vec, "")?;
                 if !*compact && config.enable_footers {
-                    self.print_footers(&mut term, &mut vec, None, &config)?;
+                    self.print_footers(&mut term, &mut vec, None, config)?;
                 }
             }
         }
@@ -819,7 +819,8 @@ impl Parser {
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
-        let summary_line = commit_parts.nth(0).ok_or(error("Summary line", "Commit message length too small."))?.trim();
+        let summary_line =
+            commit_parts.nth(0).ok_or_else(|| error("Summary line", "Commit message length too small."))?.trim();
         let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
             (_, IResult::Done(_, parsed)) => parsed,
             _ => bail!("Summary parsing failed: '{}'", summary_line),
@@ -842,8 +843,8 @@ impl Parser {
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
                         oid: oid,
-                        key: cap.at(1).ok_or(error("Footer parsing", part))?.to_owned(),
-                        value: cap.at(2).ok_or(error("Footer parsing", part))?.to_owned(),
+                        key: cap.at(1).ok_or_else(|| error("Footer parsing", part))?.to_owned(),
+                        value: cap.at(2).ok_or_else(|| error("Footer parsing", part))?.to_owned(),
                     });
                 }
 
@@ -883,7 +884,7 @@ impl Parser {
 
     /// Prints the commits without any template
     pub fn print(&self, compact: &bool, template: Option<&str>) -> GitJournalResult<Vec<u8>> {
-        let mut term = term::stdout().ok_or(error("Terminal", "Could not print to terminal"))?;
+        let mut term = term::stdout().ok_or_else(|| error("Terminal", "Could not print to terminal"))?;
         let mut vec = vec![];
 
         // Print every tag

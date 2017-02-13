@@ -96,7 +96,7 @@ impl Config {
 
         // Get the correct path
         let path_buf = self.get_path_with_filename(path);
-        let path_string = path_buf.to_str().ok_or(error("IO", "Cannot convert path to string"))?;
+        let path_string = path_buf.to_str().ok_or_else(|| error("IO", "Cannot convert path to string"))?;
 
         // Write the path to string
         let mut file = File::create(&path_buf)?;

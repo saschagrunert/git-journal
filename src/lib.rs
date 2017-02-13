@@ -117,10 +117,10 @@ impl GitJournal {
         // Get all available tags in some vector of tuples
         let mut new_tags = vec![];
         for name in repo.tag_names(None)?.iter() {
-            let name = name.ok_or(git2::Error::from_str("Could not receive tag name"))?;
+            let name = name.ok_or_else(|| git2::Error::from_str("Could not receive tag name"))?;
             let obj = repo.revparse_single(name)?;
             if let Ok(tag) = obj.into_tag() {
-                let tag_name = tag.name().ok_or(git2::Error::from_str("Could not parse tag name"))?.to_owned();
+                let tag_name = tag.name().ok_or_else(|| git2::Error::from_str("Could not parse tag name"))?.to_owned();
                 new_tags.push((tag.target_id(), tag_name));
             }
         }
@@ -241,7 +241,7 @@ impl GitJournal {
             }
         } else {
             hook_file = File::create(&hook_path)?;
-            hook_file.write_all("#!/usr/bin/env sh\n".as_bytes())?;
+            hook_file.write_all(b"#!/usr/bin/env sh\n")?;
         }
         hook_file.write_all(content.as_bytes())?;
         self.chmod(&hook_path, 0o755)?;
@@ -318,7 +318,7 @@ impl GitJournal {
             let new_content =
                 prefix + &self.config.categories[0] + " ...\n\n# Add a more detailed description if needed\n\n# - " +
                 &self.config.categories.join("\n# - ") + "\n\n" + &old_msg_vec.join("\n");
-            file.write_all(&new_content.as_bytes())?;
+            file.write_all(new_content.as_bytes())?;
         }
         Ok(())
     }
@@ -396,15 +396,15 @@ impl GitJournal {
         revwalk.set_sorting(git2::SORT_TIME);
 
         // Fill the revwalk with the selected revisions.
-        let revspec = repo.revparse(&revision_range)?;
+        let revspec = repo.revparse(revision_range)?;
         if revspec.mode().contains(git2::REVPARSE_SINGLE) {
             // A single commit was given
-            let from = revspec.from().ok_or(git2::Error::from_str("Could not set revision range start"))?;
+            let from = revspec.from().ok_or_else(|| git2::Error::from_str("Could not set revision range start"))?;
             revwalk.push(from.id())?;
         } else {
             // A specific commit range was given
-            let from = revspec.from().ok_or(git2::Error::from_str("Could not set revision range start"))?;
-            let to = revspec.to().ok_or(git2::Error::from_str("Could not set revision range end"))?;
+            let from = revspec.from().ok_or_else(|| git2::Error::from_str("Could not set revision range start"))?;
+            let to = revspec.to().ok_or_else(|| git2::Error::from_str("Could not set revision range end"))?;
             revwalk.push(to.id())?;
             if revspec.mode().contains(git2::REVPARSE_MERGE_BASE) {
                 let base = repo.merge_base(from.id(), to.id())?;
@@ -459,7 +459,7 @@ impl GitJournal {
 
             // Add the commit message to the parser work to be done, the `id` represents the index
             // within the worker vector
-            let message = commit.message().ok_or(git2::Error::from_str("Commit message error."))?;
+            let message = commit.message().ok_or_else(|| git2::Error::from_str("Commit message error."))?;
             let id = worker_vec.len();
 
             // The worker_vec contains the commit message and the parsed commit (currently none)

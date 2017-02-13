@@ -3,7 +3,7 @@
 use std::error::Error;
 use std::fmt;
 
-/// The result type for GitJournal
+/// The result type for `GitJournal`
 pub type GitJournalResult<T> = Result<T, Box<Error>>;
 
 /// Concrete errors
@@ -34,6 +34,7 @@ impl Error for GitJournalError {
         &self.description
     }
 
+    #[cfg_attr(feature = "cargo-clippy", allow(let_and_return))]
     fn cause(&self) -> Option<&Error> {
         self.cause.as_ref().map(|c| {
             let e: &Error = &**c;
