@@ -18,8 +18,8 @@ script:
   - cargo doc --no-deps
 after_success:
   - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then travis-cargo doc-upload; fi
-  - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then travis-cargo coveralls --no-sudo --verify; fi
-  - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo kcov --coveralls --kcov ./kcov/build/src/kcov; fi
+  - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo kcov --print-install-kcov-sh | sh; fi
+  - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo kcov --coveralls --kcov ./kcov-33/build/src/kcov; fi
 notifications:
   email:
     on_success: never
