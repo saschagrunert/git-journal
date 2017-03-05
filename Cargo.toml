@@ -1,6 +1,6 @@
 [package]
 name = "git-journal"
-version = "1.4.0"
+version = "1.4.1"
 license = "MIT"
 readme = "README.md"
 keywords = ["parser", "git", "log", "changelog", "journal"]
@@ -37,4 +37,3 @@ toml = "0"
 name = "git-journal"
 path = "src/main.rs"
 doc = false
-
