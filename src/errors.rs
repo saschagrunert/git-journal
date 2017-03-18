@@ -1,67 +1,16 @@
 //! Basic error handling mechanisms
 
-use std::error::Error;
-use std::fmt;
+use std::{io, num};
+use {git2, log, term, toml};
 
-/// The result type for `GitJournal`
-pub type GitJournalResult<T> = Result<T, Box<Error>>;
-
-/// Concrete errors
-struct GitJournalError {
-    description: String,
-    detail: Option<String>,
-    cause: Option<Box<Error + Send>>,
-}
-
-impl fmt::Display for GitJournalError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.description)?;
-        if let Some(ref s) = self.detail {
-            write!(f, ": {}", s)?;
-        }
-        Ok(())
+error_chain! {
+    foreign_links {
+         Git(git2::Error) #[doc="A git error."];
+         Io(io::Error) #[doc="An I/O error."];
+         Log(log::ShutdownLoggerError) #[doc="A logger error error."];
+         Term(term::Error) #[doc="A terminal error."];
+         TomlDeser(toml::de::Error) #[doc="A toml deserialization error."];
+         ParseInt(num::ParseIntError) #[doc="A integer parsing error."];
+         TomlSer(toml::ser::Error) #[doc="A toml serialization error."];
     }
-}
-
-impl fmt::Debug for GitJournalError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
-    }
-}
-
-impl Error for GitJournalError {
-    fn description(&self) -> &str {
-        &self.description
-    }
-
-    #[cfg_attr(feature = "cargo-clippy", allow(let_and_return))]
-    fn cause(&self) -> Option<&Error> {
-        self.cause.as_ref().map(|c| {
-            let e: &Error = &**c;
-            e
-        })
-    }
-}
-
-/// Raise an internal error
-pub fn error(error: &str, detail: &str) -> Box<Error> {
-    Box::new(GitJournalError {
-        description: error.to_string(),
-        detail: Some(detail.to_string()),
-        cause: None,
-    })
-}
-
-pub fn bail(error: &fmt::Display) -> Box<Error> {
-    Box::new(GitJournalError {
-        description: error.to_string(),
-        detail: None,
-        cause: None,
-    })
-}
-
-macro_rules! bail {
-    ($($fmt:tt)*) => (
-        return Err(::errors::bail(&format_args!($($fmt)*)))
-    )
 }

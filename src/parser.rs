@@ -11,7 +11,7 @@ use std::io::prelude::*;
 use std::{iter, str};
 
 use config::Config;
-use errors::{GitJournalResult, error};
+use errors::*;
 
 pub static TOML_DEFAULT_KEY: &'static str = "default";
 pub static TOML_FOOTERS_KEY: &'static str = "footers";
@@ -37,12 +37,12 @@ pub trait Print {
                                 c1: &F,
                                 c2: &G,
                                 c3: &H)
-                                -> GitJournalResult<Printed>
-        where F: Fn(&mut T) -> GitJournalResult<()>,
-              G: Fn(&mut T) -> GitJournalResult<()>,
-              H: Fn(&mut T) -> GitJournalResult<()>;
+                                -> Result<Printed>
+        where F: Fn(&mut T) -> Result<()>,
+              G: Fn(&mut T) -> Result<()>,
+              H: Fn(&mut T) -> Result<()>;
 
-    fn print_default<T: Write>(&self, t: &mut T, config: &Config, tag: Option<&str>) -> GitJournalResult<()> {
+    fn print_default<T: Write>(&self, t: &mut T, config: &Config, tag: Option<&str>) -> Result<()> {
         self.print(t, config, tag, &|_| Ok(()), &|_| Ok(()), &|_| Ok(()))?;
         Ok(())
     }
@@ -51,22 +51,22 @@ pub trait Print {
                           mut t: &mut Box<term::StdoutTerminal>,
                           config: &Config,
                           tag: Option<&str>)
-                          -> GitJournalResult<()> {
+                          -> Result<()> {
         self.print(&mut t,
                    config,
                    tag,
                    &|t| {
-                       t.fg(term::color::BRIGHT_BLUE)?;
-                       Ok(())
-                   },
+                        t.fg(term::color::BRIGHT_BLUE)?;
+                        Ok(())
+                    },
                    &|t| {
-                       t.fg(term::color::WHITE)?;
-                       Ok(())
-                   },
+                        t.fg(term::color::WHITE)?;
+                        Ok(())
+                    },
                    &|t| {
-                       t.reset()?;
-                       Ok(())
-                   })?;
+                        t.reset()?;
+                        Ok(())
+                    })?;
         Ok(())
     }
 
@@ -90,7 +90,7 @@ pub trait Print {
                                          mut vec: &mut Vec<u8>,
                                          config: &Config,
                                          tag: Option<&str>)
-                                         -> GitJournalResult<()> {
+                                         -> Result<()> {
         self.print_default_term(&mut term, config, tag)?;
         self.print_default(&mut vec, config, tag)?;
         Ok(())
@@ -121,10 +121,10 @@ pub struct ParsedTag {
 }
 
 impl ParsedTag {
-    fn print<T: Write, F, G, H>(&self, t: &mut T, config: &Config, c1: &F, c2: &G, c3: &H) -> GitJournalResult<Printed>
-        where F: Fn(&mut T) -> GitJournalResult<()>,
-              G: Fn(&mut T) -> GitJournalResult<()>,
-              H: Fn(&mut T) -> GitJournalResult<()>
+    fn print<T: Write, F, G, H>(&self, t: &mut T, config: &Config, c1: &F, c2: &G, c3: &H) -> Result<Printed>
+        where F: Fn(&mut T) -> Result<()>,
+              G: Fn(&mut T) -> Result<()>,
+              H: Fn(&mut T) -> Result<()>
     {
         if config.colored_output {
             c1(t)?;
@@ -144,26 +144,26 @@ impl ParsedTag {
         Ok(Printed::Something)
     }
 
-    fn print_default<T: Write>(&self, t: &mut T, config: &Config) -> GitJournalResult<()> {
+    fn print_default<T: Write>(&self, t: &mut T, config: &Config) -> Result<()> {
         self.print(t, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(()))?;
         Ok(())
     }
 
-    fn print_default_term(&self, mut t: &mut Box<term::StdoutTerminal>, config: &Config) -> GitJournalResult<()> {
+    fn print_default_term(&self, mut t: &mut Box<term::StdoutTerminal>, config: &Config) -> Result<()> {
         self.print(&mut t,
                    config,
                    &|t| {
-                       t.fg(term::color::GREEN)?;
-                       Ok(())
-                   },
+                        t.fg(term::color::GREEN)?;
+                        Ok(())
+                    },
                    &|t| {
-                       t.fg(term::color::YELLOW)?;
-                       Ok(())
-                   },
+                        t.fg(term::color::YELLOW)?;
+                        Ok(())
+                    },
                    &|t| {
-                       t.reset()?;
-                       Ok(())
-                   })?;
+                        t.reset()?;
+                        Ok(())
+                    })?;
         Ok(())
     }
 
@@ -174,7 +174,7 @@ impl ParsedTag {
                                          config: &Config,
                                          template: Option<&str>,
                                          index_len: (usize, usize))
-                                         -> GitJournalResult<()> {
+                                         -> Result<()> {
         match template {
             Some(template) => {
                 // Try to parse the template
@@ -249,7 +249,7 @@ impl ParsedTag {
                               level: &mut usize,
                               config: &Config,
                               compact: &bool)
-                              -> GitJournalResult<()> {
+                              -> Result<()> {
         for value in table {
             if let Value::Array(ref array) = *value.1 {
                 for item in array {
@@ -273,14 +273,25 @@ impl ParsedTag {
         };
 
         if (*compact &&
-            ((self.commits.iter().filter(|c| c.summary.contains_tag(Some(tag))).count() > 0 &&
-              !config.excluded_commit_tags.contains(&tag.to_owned())) ||
+            ((self.commits
+                  .iter()
+                  .filter(|c| c.summary.contains_tag(Some(tag)))
+                  .count() > 0 && !config.excluded_commit_tags.contains(&tag.to_owned())) ||
              (tag == TOML_DEFAULT_KEY &&
-              self.commits.iter().filter(|c| c.summary.contains_untagged_elements()).count() > 0))) ||
+              self.commits
+                  .iter()
+                  .filter(|c| c.summary.contains_untagged_elements())
+                  .count() > 0))) ||
            (!*compact &&
-            ((self.commits.iter().filter(|c| c.contains_tag(Some(tag))).count() > 0 &&
-              !config.excluded_commit_tags.contains(&tag.to_owned())) ||
-             (tag == TOML_DEFAULT_KEY && self.commits.iter().filter(|c| c.contains_untagged_elements()).count() > 0))) {
+            ((self.commits
+                  .iter()
+                  .filter(|c| c.contains_tag(Some(tag)))
+                  .count() > 0 && !config.excluded_commit_tags.contains(&tag.to_owned())) ||
+             (tag == TOML_DEFAULT_KEY &&
+              self.commits
+                  .iter()
+                  .filter(|c| c.contains_untagged_elements())
+                  .count() > 0))) {
 
 
             if config.colored_output {
@@ -294,8 +305,7 @@ impl ParsedTag {
             // Print commits for this tag
             for commit in &self.commits {
                 if *compact {
-                    commit.summary
-                        .print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag))?;
+                    commit.summary.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag))?;
                 } else {
                     commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag))?;
                 }
@@ -322,7 +332,7 @@ impl ParsedTag {
                      mut vec: &mut Vec<u8>,
                      footer_keys: Option<&[Value]>,
                      config: &Config)
-                     -> GitJournalResult<()> {
+                     -> Result<()> {
 
         let mut footer_tree: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
@@ -342,9 +352,9 @@ impl ParsedTag {
 
         // Map the parsed results into a BTreeMap
         for footer in self.commits
-            .iter()
-            .flat_map(|commit| commit.footer.clone())
-            .collect::<Vec<FooterElement>>() {
+                .iter()
+                .flat_map(|commit| commit.footer.clone())
+                .collect::<Vec<FooterElement>>() {
             if valid_footer_keys.is_empty() || valid_footer_keys.contains(&footer.key) {
                 let mut value = footer.value;
                 if config.show_commit_hash {
@@ -413,10 +423,10 @@ impl Print for ParsedCommit {
                                 c1: &F,
                                 c2: &G,
                                 c3: &H)
-                                -> GitJournalResult<Printed>
-        where F: Fn(&mut T) -> GitJournalResult<()>,
-              G: Fn(&mut T) -> GitJournalResult<()>,
-              H: Fn(&mut T) -> GitJournalResult<()>
+                                -> Result<Printed>
+        where F: Fn(&mut T) -> Result<()>,
+              G: Fn(&mut T) -> Result<()>,
+              H: Fn(&mut T) -> Result<()>
     {
         // If summary is already filtered out then do not print at all
         if self.summary.print(t, config, tag, c1, c2, c3)? == Printed::Nothing {
@@ -429,12 +439,19 @@ impl Print for ParsedCommit {
     }
 
     fn contains_tag(&self, tag: Option<&str>) -> bool {
-        self.summary.contains_tag(tag) || self.body.iter().filter(|x| x.contains_tag(tag)).count() > 0
+        self.summary.contains_tag(tag) ||
+        self.body
+            .iter()
+            .filter(|x| x.contains_tag(tag))
+            .count() > 0
     }
 
     fn contains_untagged_elements(&self) -> bool {
         self.summary.contains_untagged_elements() ||
-        self.body.iter().filter(|x| x.contains_untagged_elements()).count() > 0
+        self.body
+            .iter()
+            .filter(|x| x.contains_untagged_elements())
+            .count() > 0
     }
 }
 
@@ -465,13 +482,16 @@ impl Print for SummaryElement {
                                 c1: &F,
                                 c2: &G,
                                 c3: &H)
-                                -> GitJournalResult<Printed>
-        where F: Fn(&mut T) -> GitJournalResult<()>,
-              G: Fn(&mut T) -> GitJournalResult<()>,
-              H: Fn(&mut T) -> GitJournalResult<()>
+                                -> Result<Printed>
+        where F: Fn(&mut T) -> Result<()>,
+              G: Fn(&mut T) -> Result<()>,
+              H: Fn(&mut T) -> Result<()>
     {
         // Filter out excluded tags
-        if self.tags.iter().filter(|x| config.excluded_commit_tags.contains(x)).count() > 0usize {
+        if self.tags
+               .iter()
+               .filter(|x| config.excluded_commit_tags.contains(x))
+               .count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
@@ -544,10 +564,10 @@ impl Print for BodyElement {
                                 c1: &F,
                                 c2: &G,
                                 c3: &H)
-                                -> GitJournalResult<Printed>
-        where F: Fn(&mut T) -> GitJournalResult<()>,
-              G: Fn(&mut T) -> GitJournalResult<()>,
-              H: Fn(&mut T) -> GitJournalResult<()>
+                                -> Result<Printed>
+        where F: Fn(&mut T) -> Result<()>,
+              G: Fn(&mut T) -> Result<()>,
+              H: Fn(&mut T) -> Result<()>
     {
         match *self {
             BodyElement::List(ref vec) => {
@@ -599,13 +619,16 @@ impl Print for ListElement {
                                 c1: &F,
                                 c2: &G,
                                 c3: &H)
-                                -> GitJournalResult<Printed>
-        where F: Fn(&mut T) -> GitJournalResult<()>,
-              G: Fn(&mut T) -> GitJournalResult<()>,
-              H: Fn(&mut T) -> GitJournalResult<()>
+                                -> Result<Printed>
+        where F: Fn(&mut T) -> Result<()>,
+              G: Fn(&mut T) -> Result<()>,
+              H: Fn(&mut T) -> Result<()>
     {
         // Check if list item contains excluded tag
-        if self.tags.iter().filter(|x| config.excluded_commit_tags.contains(x)).count() > 0usize {
+        if self.tags
+               .iter()
+               .filter(|x| config.excluded_commit_tags.contains(x))
+               .count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
@@ -668,26 +691,29 @@ impl Print for ParagraphElement {
                                 _c1: &F,
                                 _c2: &G,
                                 _c3: &H)
-                                -> GitJournalResult<Printed>
-        where F: Fn(&mut T) -> GitJournalResult<()>,
-              G: Fn(&mut T) -> GitJournalResult<()>,
-              H: Fn(&mut T) -> GitJournalResult<()>
+                                -> Result<Printed>
+        where F: Fn(&mut T) -> Result<()>,
+              G: Fn(&mut T) -> Result<()>,
+              H: Fn(&mut T) -> Result<()>
     {
         // Check if paragraph contains excluded tag
-        if self.tags.iter().filter(|x| config.excluded_commit_tags.contains(x)).count() > 0usize {
+        if self.tags
+               .iter()
+               .filter(|x| config.excluded_commit_tags.contains(x))
+               .count() > 0usize {
             return Ok(Printed::Nothing);
         }
 
         if self.should_be_printed(tag) {
             for (index, line) in self.text
-                .lines()
-                .map(|x| {
-                    let indent = if tag.is_none() { 4 } else { 2 };
-                    iter::repeat(' ').take(indent).collect::<String>()
-                } + x)
-                .collect::<Vec<String>>()
-                .iter()
-                .enumerate() {
+                    .lines()
+                    .map(|x| {
+                             let indent = if tag.is_none() { 4 } else { 2 };
+                             iter::repeat(' ').take(indent).collect::<String>()
+                         } + x)
+                    .collect::<Vec<String>>()
+                    .iter()
+                    .enumerate() {
                 if tag.is_some() && index == 0 {
                     // Paragraphs will be transformed into lists when using templates
                     write!(t, "\n{}", line.replace("  ", "- "))?;
@@ -794,17 +820,17 @@ impl Parser {
         let mut tags = vec![];
         for cap in RE_TAGS.captures_iter(string) {
             tags.extend(cap.at(1)
-                .unwrap_or("")
-                .split(',')
-                .filter_map(|x| {
-                    // Ignore tags containing dots.
-                    if !x.contains('.') {
-                        Some(x.trim().to_owned())
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<String>>());
+                            .unwrap_or("")
+                            .split(',')
+                            .filter_map(|x| {
+                // Ignore tags containing dots.
+                if !x.contains('.') {
+                    Some(x.trim().to_owned())
+                } else {
+                    None
+                }
+            })
+                            .collect::<Vec<String>>());
         }
         let mut text = RE_TAGS.replace_all(string, "");
         if let Some('.') = text.chars().rev().nth(0) {
@@ -814,13 +840,14 @@ impl Parser {
     }
 
     /// Parses a single commit message and returns a changelog ready form
-    pub fn parse_commit_message(&self, message: &str, oid: Option<Oid>) -> GitJournalResult<ParsedCommit> {
+    pub fn parse_commit_message(&self, message: &str, oid: Option<Oid>) -> Result<ParsedCommit> {
         // Every block is split by two newlines
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
-        let summary_line =
-            commit_parts.nth(0).ok_or_else(|| error("Summary line", "Commit message length too small."))?.trim();
+        let summary_line = commit_parts.nth(0)
+            .ok_or_else(|| "Summar line parsing: Commit message length too small.")?
+            .trim();
         let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
             (_, IResult::Done(_, parsed)) => parsed,
             _ => bail!("Summary parsing failed: '{}'", summary_line),
@@ -842,10 +869,14 @@ impl Parser {
             } else if RE_FOOTER.is_match(part) {
                 for cap in RE_FOOTER.captures_iter(part) {
                     parsed_footer.push(FooterElement {
-                        oid: oid,
-                        key: cap.at(1).ok_or_else(|| error("Footer parsing", part))?.to_owned(),
-                        value: cap.at(2).ok_or_else(|| error("Footer parsing", part))?.to_owned(),
-                    });
+                                           oid: oid,
+                                           key: cap.at(1)
+                                               .ok_or_else(|| part)?
+                                               .to_owned(),
+                                           value: cap.at(2)
+                                               .ok_or_else(|| part)?
+                                               .to_owned(),
+                                       });
                 }
 
                 // Parse all list items
@@ -863,10 +894,10 @@ impl Parser {
             } else if RE_PARAGRAPH.is_match(part) {
                 let (parsed_tags, parsed_text) = Self::parse_and_consume_tags(part.as_bytes());
                 parsed_body.push(BodyElement::Paragraph(ParagraphElement {
-                    oid: oid,
-                    text: parsed_text.trim().to_owned(),
-                    tags: parsed_tags,
-                }));
+                                                            oid: oid,
+                                                            text: parsed_text.trim().to_owned(),
+                                                            tags: parsed_tags,
+                                                        }));
 
                 // Nothing matched, this should not happen at all
             } else {
@@ -875,16 +906,16 @@ impl Parser {
         }
 
         Ok(ParsedCommit {
-            oid: oid,
-            summary: parsed_summary,
-            body: parsed_body,
-            footer: parsed_footer,
-        })
+               oid: oid,
+               summary: parsed_summary,
+               body: parsed_body,
+               footer: parsed_footer,
+           })
     }
 
     /// Prints the commits without any template
-    pub fn print(&self, compact: &bool, template: Option<&str>) -> GitJournalResult<Vec<u8>> {
-        let mut term = term::stdout().ok_or_else(|| error("Terminal", "Could not print to terminal"))?;
+    pub fn print(&self, compact: &bool, template: Option<&str>) -> Result<Vec<u8>> {
+        let mut term = term::stdout().ok_or_else(|| "Could not print to terminal")?;
         let mut vec = vec![];
 
         // Print every tag
@@ -955,10 +986,10 @@ mod tests {
             assert_eq!(commit.body.len(), 1);
             assert_eq!(commit.body[0],
                        BodyElement::Paragraph(ParagraphElement {
-                           text: "Some paragraph".to_owned(),
-                           tags: vec![],
-                           oid: None,
-                       }));
+                                                  text: "Some paragraph".to_owned(),
+                                                  tags: vec![],
+                                                  oid: None,
+                                              }));
             assert_eq!(commit.footer.len(), 0);
             assert_eq!(commit.summary.prefix, "JIRA-1234");
             assert_eq!(commit.summary.category, "Changed");
@@ -966,17 +997,16 @@ mod tests {
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
-                .is_ok());
+                        .is_ok());
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), Some("tag"))
-                .is_ok());
+                        .is_ok());
         }
     }
 
     #[test]
     fn parse_commit_ok_2() {
-        let commit = get_parser()
-            .parse_commit_message("Changed my commit summary\n\n- List item 1\n- List item 2\n- List item 3",
-                                  None);
+        let commit = get_parser().parse_commit_message("Changed my commit summary\n\n- List item 1\n- List item 2\n- List item 3",
+                                                       None);
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 1);
@@ -987,9 +1017,9 @@ mod tests {
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
-                .is_ok());
+                        .is_ok());
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), Some("tag"))
-                .is_ok());
+                        .is_ok());
         }
     }
 
@@ -1010,19 +1040,21 @@ mod tests {
                        vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
             let mut t = term::stdout().unwrap();
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
-                .is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), Some("tag3"))
-                .is_ok());
+                        .is_ok());
+            assert!(commit.print_to_term_and_write_to_vector(&mut t,
+                                                             &mut vec![],
+                                                             &config::Config::new(),
+                                                             Some("tag3"))
+                        .is_ok());
         }
     }
 
 
     #[test]
     fn parse_commit_ok_4() {
-        let commit = get_parser()
-            .parse_commit_message("Added my :1234: commit 💖 summary :some tag:\n\nParagraph\n\n- List \
+        let commit = get_parser().parse_commit_message("Added my :1234: commit 💖 summary :some tag:\n\nParagraph\n\n- List \
                                    Item\n\nReviewed-by: Me",
-                                  None);
+                                                       None);
         assert!(commit.is_ok());
         if let Ok(commit) = commit {
             assert_eq!(commit.body.len(), 2);
@@ -1034,12 +1066,12 @@ mod tests {
                        vec!["1234".to_owned(), "some tag".to_owned()]);
             let mut t = term::stdout().unwrap();
             assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
-                .is_ok());
+                        .is_ok());
             assert!(commit.print_to_term_and_write_to_vector(&mut t,
-                                                   &mut vec![],
-                                                   &config::Config::new(),
-                                                   Some("some tag"))
-                .is_ok());
+                                                             &mut vec![],
+                                                             &config::Config::new(),
+                                                             Some("some tag"))
+                        .is_ok());
         }
     }
 

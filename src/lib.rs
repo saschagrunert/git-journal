@@ -30,6 +30,9 @@ extern crate term;
 extern crate toml;
 
 #[macro_use]
+extern crate error_chain;
+
+#[macro_use]
 extern crate serde_derive;
 
 #[macro_use]
@@ -54,11 +57,11 @@ use rayon::prelude::*;
 use toml::Value;
 
 pub use config::Config;
-pub use errors::{GitJournalResult, error};
+use errors::*;
 use parser::{Parser, ParsedTag, Tags};
 
 #[macro_use]
-mod errors;
+pub mod errors;
 mod parser;
 pub mod config;
 
@@ -87,7 +90,7 @@ impl GitJournal {
     /// When not providing a path with a valid git repository ('.git' folder or the initial parsing
     /// of the git tags failed.
     ///
-    pub fn new(path: &str) -> GitJournalResult<Self> {
+    pub fn new(path: &str) -> Result<Self> {
         // Setup the logger if not already set
         if mowl::init_with_level(LogLevel::Info).is_err() {
             warn!("Logger already set.");
@@ -120,7 +123,9 @@ impl GitJournal {
             let name = name.ok_or_else(|| git2::Error::from_str("Could not receive tag name"))?;
             let obj = repo.revparse_single(name)?;
             if let Ok(tag) = obj.into_tag() {
-                let tag_name = tag.name().ok_or_else(|| git2::Error::from_str("Could not parse tag name"))?.to_owned();
+                let tag_name = tag.name()
+                    .ok_or_else(|| git2::Error::from_str("Could not parse tag name"))?
+                    .to_owned();
                 new_tags.push((tag.target_id(), tag_name));
             }
         }
@@ -144,11 +149,11 @@ impl GitJournal {
 
         // Return the git journal object
         Ok(GitJournal {
-            config: new_config,
-            parser: new_parser,
-            path: path_buf.to_str().unwrap_or("").to_owned(),
-            tags: new_tags,
-        })
+               config: new_config,
+               parser: new_parser,
+               path: path_buf.to_str().unwrap_or("").to_owned(),
+               tags: new_tags,
+           })
     }
 
     /// Does the setup on the target git repository.
@@ -208,7 +213,7 @@ impl GitJournal {
     /// - When the writing of the default configuration fails.
     /// - When installation of the commit message (preparation) hook fails.
     ///
-    pub fn setup(&self) -> GitJournalResult<()> {
+    pub fn setup(&self) -> Result<()> {
         // Save the default config
         let output_file = Config::new().save_default_config(&self.path)?;
         info!("Defaults written to '{}' file.", output_file);
@@ -222,7 +227,7 @@ impl GitJournal {
         Ok(())
     }
 
-    fn install_git_hook(&self, name: &str, content: &str) -> GitJournalResult<()> {
+    fn install_git_hook(&self, name: &str, content: &str) -> Result<()> {
         let mut hook_path = PathBuf::from(&self.path);
         hook_path.push(".git/hooks");
         hook_path.push(name);
@@ -232,7 +237,9 @@ impl GitJournal {
             warn!("There is already a hook available in '{}'. Please verifiy \
                    the hook by hand after the installation.",
                   hook_path.display());
-            hook_file = OpenOptions::new().read(true).append(true).open(&hook_path)?;
+            hook_file = OpenOptions::new().read(true)
+                .append(true)
+                .open(&hook_path)?;
             let mut hook_content = String::new();
             hook_file.read_to_string(&mut hook_content)?;
             if hook_content.contains(content) {
@@ -251,14 +258,14 @@ impl GitJournal {
     }
 
     #[cfg(unix)]
-    fn chmod(&self, path: &Path, perms: u32) -> GitJournalResult<()> {
+    fn chmod(&self, path: &Path, perms: u32) -> Result<()> {
         use std::os::unix::prelude::PermissionsExt;
         fs::set_permissions(path, fs::Permissions::from_mode(perms))?;
         Ok(())
     }
 
     #[cfg(windows)]
-    fn chmod(&self, _path: &Path, _perms: u32) -> GitJournalResult<()> {
+    fn chmod(&self, _path: &Path, _perms: u32) -> Result<()> {
         Ok(())
     }
 
@@ -278,7 +285,7 @@ impl GitJournal {
     /// # Errors
     /// When the path is not available or writing the commit message fails.
     ///
-    pub fn prepare(&self, path: &str, commit_type: Option<&str>) -> GitJournalResult<()> {
+    pub fn prepare(&self, path: &str, commit_type: Option<&str>) -> Result<()> {
         // If the message is not valid, assume a new commit and provide the template.
         if let Err(error) = self.verify(path) {
             // But if the message is provided via the cli with `-m`, then abort since
@@ -298,14 +305,14 @@ impl GitJournal {
             let mut file = OpenOptions::new().write(true).open(path)?;
             let mut old_msg_vec = commit_message.lines()
                 .filter_map(|line| if !line.is_empty() {
-                    if line.starts_with('#') {
-                        Some(line.to_owned())
-                    } else {
-                        Some("# ".to_owned() + line)
-                    }
-                } else {
-                    None
-                })
+                                if line.starts_with('#') {
+                                    Some(line.to_owned())
+                                } else {
+                                    Some("# ".to_owned() + line)
+                                }
+                            } else {
+                                None
+                            })
                 .collect::<Vec<_>>();
             if !old_msg_vec.is_empty() {
                 old_msg_vec.insert(0, "# The provided commit message:".to_owned());
@@ -338,7 +345,7 @@ impl GitJournal {
     /// # Errors
     /// When the commit message is not valid due to RFC0001 or opening of the given file failed.
     ///
-    pub fn verify(&self, path: &str) -> GitJournalResult<()> {
+    pub fn verify(&self, path: &str) -> Result<()> {
         // Open the file and read to string
         let mut file = File::open(path)?;
         let mut commit_message = String::new();
@@ -389,7 +396,7 @@ impl GitJournal {
                      max_tags_count: &u32,
                      all: &bool,
                      skip_unreleased: &bool)
-                     -> GitJournalResult<()> {
+                     -> Result<()> {
 
         let repo = Repository::open(&self.path)?;
         let mut revwalk = repo.revwalk()?;
@@ -427,9 +434,10 @@ impl GitJournal {
         'revloop: for (index, id) in revwalk.enumerate() {
             let oid = id?;
             let commit = repo.find_commit(oid)?;
-            for tag in self.tags
-                .iter()
-                .filter(|tag| tag.0.as_bytes() == oid.as_bytes() && !tag.1.contains(tag_skip_pattern)) {
+            for tag in self.tags.iter().filter(|tag| {
+                                                   tag.0.as_bytes() == oid.as_bytes() &&
+                                                   !tag.1.contains(tag_skip_pattern)
+                                               }) {
 
                 // Parsing entries of the last tag done
                 if !current_tag.message_ids.is_empty() {
@@ -473,12 +481,13 @@ impl GitJournal {
         }
 
         // Process with the full CPU power
-        worker_vec.par_iter_mut().for_each(|&mut (ref message, ref oid, ref mut result)| match self.parser
-            .parse_commit_message(message, Some(*oid)) {
-            Ok(parsed_message) => {
-                *result = Some(parsed_message);
+        worker_vec.par_iter_mut().for_each(|&mut (ref message, ref oid, ref mut result)| {
+            match self.parser.parse_commit_message(message, Some(*oid)) {
+                Ok(parsed_message) => {
+                    *result = Some(parsed_message);
+                }
+                Err(e) => warn!("Skipping commit: {}", e),
             }
-            Err(e) => warn!("Skipping commit: {}", e),
         });
 
         // Assemble results together via the message_id
@@ -523,7 +532,7 @@ impl GitJournal {
     /// # Errors
     /// If the generation of the template was impossible.
     ///
-    pub fn generate_template(&self) -> GitJournalResult<()> {
+    pub fn generate_template(&self) -> Result<()> {
         let mut tags = vec![parser::TOML_DEFAULT_KEY.to_owned()];
 
         // Get all the tags
@@ -590,7 +599,7 @@ impl GitJournal {
     /// # Errors
     /// If some commit message could not be print.
     ///
-    pub fn print_log(&self, compact: bool, template: Option<&str>, output: Option<&str>) -> GitJournalResult<()> {
+    pub fn print_log(&self, compact: bool, template: Option<&str>, output: Option<&str>) -> Result<()> {
 
         // Choose the template
         let mut default_template = PathBuf::from(&self.path);
@@ -620,7 +629,9 @@ impl GitJournal {
 
         // Print the log to the file if necessary
         if let Some(output) = output {
-            let mut output_file = OpenOptions::new().create(true).append(true).open(output)?;
+            let mut output_file = OpenOptions::new().create(true)
+                .append(true)
+                .open(output)?;
             output_file.write_all(&output_vec)?;
             info!("Output written to '{}'.", output);
         }

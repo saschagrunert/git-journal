@@ -8,7 +8,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::io::prelude::*;
 
-use errors::{GitJournalResult, error};
+use errors::*;
 
 /// The configuration structure for git-journal.
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -89,14 +89,14 @@ impl Config {
     /// # Errors
     /// When toml encoding or file creation failed.
     ///
-    pub fn save_default_config(&self, path: &str) -> GitJournalResult<String> {
+    pub fn save_default_config(&self, path: &str) -> Result<String> {
         // Serialize self to toml
         let toml_string = toml::to_string(&self).unwrap();
         info!("{:?}", toml_string);
 
         // Get the correct path
         let path_buf = self.get_path_with_filename(path);
-        let path_string = path_buf.to_str().ok_or_else(|| error("IO", "Cannot convert path to string"))?;
+        let path_string = path_buf.to_str().ok_or_else(|| "Cannot convert path to string")?;
 
         // Write the path to string
         let mut file = File::create(&path_buf)?;
@@ -116,7 +116,7 @@ impl Config {
     /// # Errors
     /// When toml decoding or file opening failed.
     ///
-    pub fn load(&mut self, path: &str) -> GitJournalResult<()> {
+    pub fn load(&mut self, path: &str) -> Result<()> {
         let path_buf = self.get_path_with_filename(path);
         let mut file = File::open(&path_buf)?;
         let mut toml_string = String::new();

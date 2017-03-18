@@ -1,6 +1,6 @@
 [package]
 name = "git-journal"
-version = "1.4.1"
+version = "1.4.2"
 license = "MIT"
 readme = "README.md"
 keywords = ["parser", "git", "log", "changelog", "journal"]
@@ -21,13 +21,14 @@ name = "gitjournal"
 [dependencies]
 chrono = "0"
 clap = { version = "2", features = ["yaml"] }
+error-chain = "0"
 git2 = "0"
 lazy_static = "0"
 log = "0"
 mowl = "1"
 nom = { version = "2", features = ["regexp_macros"] }
-regex = "0.1"
 rayon = "0"
+regex = "0.1"
 serde = "0"
 serde_derive = "0"
 term = "0"
