@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Config","The configuration structure for git-journal."]]});

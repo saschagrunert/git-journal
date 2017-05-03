@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["config","Everything related to the git-journal configuration. The configuration files are stored in toml format with the file name `.gitjournal.toml`."],["errors","Basic error handling mechanisms"]],"struct":[["GitJournal","The main structure of git-journal."]]});

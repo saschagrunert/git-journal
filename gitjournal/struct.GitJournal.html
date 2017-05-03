@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `GitJournal` struct in crate `gitjournal`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, GitJournal">
+
+    <title>gitjournal::GitJournal - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>gitjournal</a></p><script>window.sidebarCurrent = {name: 'GitJournal', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>gitjournal</a>::<wbr><a class="struct" href=''>GitJournal</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/gitjournal/lib.rs.html#69-75' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct GitJournal {
+    pub config: <a class="struct" href="../gitjournal/config/struct.Config.html" title="struct gitjournal::config::Config">Config</a>,
+    // some fields omitted
+}</pre><div class='docblock'><p>The main structure of git-journal.</p>
+</div><h2 class='fields'>Fields</h2><span id='structfield.config' class="structfield">
+                           <span id='config.v' class='invisible'>
+                           <code>config: <a class="struct" href="../gitjournal/config/struct.Config.html" title="struct gitjournal::config::Config">Config</a></code>
+                           </span></span><div class='docblock'><p>The configuration structure</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl <a class="struct" href="../gitjournal/struct.GitJournal.html" title="struct gitjournal::GitJournal">GitJournal</a></code></span><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/gitjournal/lib.rs.html#77-641' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><code>fn <a href='#method.new' class='fnname'>new</a>(path: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>) -&gt; <a class="type" href="../gitjournal/errors/type.Result.html" title="type gitjournal::errors::Result">Result</a>&lt;Self&gt;</code></span></h4>
+<div class='docblock'><p>Constructs a new <code>GitJournal</code>. Searches upwards if the given path does not contain the
+<code>.git</code> directory.</p>
+
+<h1 id='examples' class='section-header'><a href='#examples'>Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">gitjournal</span>::<span class="ident">GitJournal</span>;
+
+<span class="kw">let</span> <span class="ident">journal</span> <span class="op">=</span> <span class="ident">GitJournal</span>::<span class="ident">new</span>(<span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();</pre>
+
+<h1 id='errors' class='section-header'><a href='#errors'>Errors</a></h1>
+<p>When not providing a path with a valid git repository (&#39;.git&#39; folder or the initial parsing
+of the git tags failed.</p>
+</div><h4 id='method.setup' class="method"><span id='setup.v' class='invisible'><code>fn <a href='#method.setup' class='fnname'>setup</a>(&amp;self) -&gt; <a class="type" href="../gitjournal/errors/type.Result.html" title="type gitjournal::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">()</a>&gt;</code></span></h4>
+<div class='docblock'><p>Does the setup on the target git repository.</p>
+
+<h1 id='examples-1' class='section-header'><a href='#examples-1'>Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">gitjournal</span>::<span class="ident">GitJournal</span>;
+
+<span class="kw">let</span> <span class="ident">journal</span> <span class="op">=</span> <span class="ident">GitJournal</span>::<span class="ident">new</span>(<span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">journal</span>.<span class="ident">setup</span>().<span class="ident">expect</span>(<span class="string">&quot;Setup error&quot;</span>);</pre>
+
+<p>Creates a <code>.gitjournal</code> file with the default values inside the given path, which looks
+like:</p>
+
+<pre><code class="language-toml"># Specifies the available categories for the commit message, allowed regular expressions.
+categories = [&quot;Added&quot;, &quot;Changed&quot;, &quot;Fixed&quot;, &quot;Improved&quot;, &quot;Removed&quot;]
+
+# Set the characters where the categories are wrapped in
+category_delimiters = [&quot;[&quot;, &quot;]&quot;]
+
+# Set to false if the output should not be colored
+colored_output = true
+
+# Specifies the default template. Will be used for tag validation and printing. Can be
+# removed from the configuration file as well.
+default_template = &quot;CHANGELOG.toml&quot;
+
+# Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
+enable_debug = true
+
+# Excluded tags in an array, e.g. &quot;internal&quot;
+excluded_commit_tags = []
+
+# Enable or disable the output and accumulation of commit footers.
+enable_footers = false
+
+# Show or hide the commit hash for every entry
+show_commit_hash = false
+
+# Show or hide the commit message prefix, e.g. JIRA-1234
+show_prefix = false
+
+# Sort the commits during the output by &quot;date&quot; (default) or &quot;name&quot;
+sort_by = &quot;date&quot;
+
+# Commit message template prefix which will be added during commit preparation.
+template_prefix = &quot;JIRA-1234&quot;
+</code></pre>
+
+<p>It also creates a symlinks for the commit message validation and preparation hook inside
+the given git repository.</p>
+
+<h1 id='errors-1' class='section-header'><a href='#errors-1'>Errors</a></h1>
+<ul>
+<li>When the writing of the default configuration fails.</li>
+<li>When installation of the commit message (preparation) hook fails.</li>
+</ul>
+</div><h4 id='method.prepare' class="method"><span id='prepare.v' class='invisible'><code>fn <a href='#method.prepare' class='fnname'>prepare</a>(&amp;self, path: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>, commit_type: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>&gt;) -&gt; <a class="type" href="../gitjournal/errors/type.Result.html" title="type gitjournal::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">()</a>&gt;</code></span></h4>
+<div class='docblock'><p>Prepare a commit message before the user edits it. This includes also a verification of the
+commit message, e.g. for amended commits.</p>
+
+<h1 id='examples-2' class='section-header'><a href='#examples-2'>Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">gitjournal</span>::<span class="ident">GitJournal</span>;
+
+<span class="kw">let</span> <span class="ident">journal</span> <span class="op">=</span> <span class="ident">GitJournal</span>::<span class="ident">new</span>(<span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">journal</span>.<span class="ident">prepare</span>(<span class="string">&quot;./tests/commit_messages/success_1&quot;</span>, <span class="prelude-val">None</span>)
+       .<span class="ident">expect</span>(<span class="string">&quot;Commit message preparation error&quot;</span>);</pre>
+
+<h1 id='errors-2' class='section-header'><a href='#errors-2'>Errors</a></h1>
+<p>When the path is not available or writing the commit message fails.</p>
+</div><h4 id='method.verify' class="method"><span id='verify.v' class='invisible'><code>fn <a href='#method.verify' class='fnname'>verify</a>(&amp;self, path: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>) -&gt; <a class="type" href="../gitjournal/errors/type.Result.html" title="type gitjournal::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">()</a>&gt;</code></span></h4>
+<div class='docblock'><p>Verify a given commit message against the parsing rules of
+<a href="https://github.com/saschagrunert/git-journal/blob/master/rfc/0001-commit-msg.md">RFC0001</a></p>
+
+<h1 id='examples-3' class='section-header'><a href='#examples-3'>Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">gitjournal</span>::<span class="ident">GitJournal</span>;
+
+<span class="kw">let</span> <span class="ident">journal</span> <span class="op">=</span> <span class="ident">GitJournal</span>::<span class="ident">new</span>(<span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">journal</span>.<span class="ident">verify</span>(<span class="string">&quot;tests/commit_messages/success_1&quot;</span>).<span class="ident">expect</span>(<span class="string">&quot;Commit message verification error&quot;</span>);</pre>
+
+<h1 id='errors-3' class='section-header'><a href='#errors-3'>Errors</a></h1>
+<p>When the commit message is not valid due to RFC0001 or opening of the given file failed.</p>
+</div><h4 id='method.parse_log' class="method"><span id='parse_log.v' class='invisible'><code>fn <a href='#method.parse_log' class='fnname'>parse_log</a>(&amp;mut self,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; revision_range: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tag_skip_pattern: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; max_tags_count: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u32.html">u32</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; all: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; skip_unreleased: &amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -&gt; <a class="type" href="../gitjournal/errors/type.Result.html" title="type gitjournal::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">()</a>&gt;</code></span></h4>
+<div class='docblock'><p>Parses a revision range for a <code>GitJournal</code>.</p>
+
+<h1 id='examples-4' class='section-header'><a href='#examples-4'>Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">gitjournal</span>::<span class="ident">GitJournal</span>;
+
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">journal</span> <span class="op">=</span> <span class="ident">GitJournal</span>::<span class="ident">new</span>(<span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">journal</span>.<span class="ident">parse_log</span>(<span class="string">&quot;HEAD&quot;</span>, <span class="string">&quot;rc&quot;</span>, <span class="kw-2">&amp;</span><span class="number">1</span>, <span class="kw-2">&amp;</span><span class="bool-val">false</span>, <span class="kw-2">&amp;</span><span class="bool-val">false</span>);</pre>
+
+<h1 id='errors-4' class='section-header'><a href='#errors-4'>Errors</a></h1>
+<p>When something during the parsing fails, for example if the revision range is invalid.</p>
+</div><h4 id='method.generate_template' class="method"><span id='generate_template.v' class='invisible'><code>fn <a href='#method.generate_template' class='fnname'>generate_template</a>(&amp;self) -&gt; <a class="type" href="../gitjournal/errors/type.Result.html" title="type gitjournal::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">()</a>&gt;</code></span></h4>
+<div class='docblock'><p>Generates an output template from the current parsing results.</p>
+
+<h1 id='examples-5' class='section-header'><a href='#examples-5'>Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">gitjournal</span>::<span class="ident">GitJournal</span>;
+
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">journal</span> <span class="op">=</span> <span class="ident">GitJournal</span>::<span class="ident">new</span>(<span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">journal</span>.<span class="ident">parse_log</span>(<span class="string">&quot;HEAD&quot;</span>, <span class="string">&quot;rc&quot;</span>, <span class="kw-2">&amp;</span><span class="number">1</span>, <span class="kw-2">&amp;</span><span class="bool-val">false</span>, <span class="kw-2">&amp;</span><span class="bool-val">false</span>);
+<span class="ident">journal</span>.<span class="ident">generate_template</span>().<span class="ident">expect</span>(<span class="string">&quot;Template generation failed.&quot;</span>);</pre>
+
+<h1 id='errors-5' class='section-header'><a href='#errors-5'>Errors</a></h1>
+<p>If the generation of the template was impossible.</p>
+</div><h4 id='method.print_log' class="method"><span id='print_log.v' class='invisible'><code>fn <a href='#method.print_log' class='fnname'>print_log</a>(&amp;self,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; compact: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; template: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>&gt;,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; output: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.str.html">str</a>&gt;)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -&gt; <a class="type" href="../gitjournal/errors/type.Result.html" title="type gitjournal::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">()</a>&gt;</code></span></h4>
+<div class='docblock'><p>Prints the resulting log in a short or detailed variant. Will use the template as an output
+formatter if provided.</p>
+
+<h1 id='examples-6' class='section-header'><a href='#examples-6'>Examples</a></h1>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">gitjournal</span>::<span class="ident">GitJournal</span>;
+
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">journal</span> <span class="op">=</span> <span class="ident">GitJournal</span>::<span class="ident">new</span>(<span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">journal</span>.<span class="ident">parse_log</span>(<span class="string">&quot;HEAD&quot;</span>, <span class="string">&quot;rc&quot;</span>, <span class="kw-2">&amp;</span><span class="number">1</span>, <span class="kw-2">&amp;</span><span class="bool-val">false</span>, <span class="kw-2">&amp;</span><span class="bool-val">false</span>);
+<span class="ident">journal</span>.<span class="ident">print_log</span>(<span class="bool-val">true</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>).<span class="ident">expect</span>(<span class="string">&quot;Could not print short log.&quot;</span>);
+<span class="ident">journal</span>.<span class="ident">print_log</span>(<span class="bool-val">false</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>).<span class="ident">expect</span>(<span class="string">&quot;Could not print detailed log.&quot;</span>);</pre>
+
+<h1 id='errors-6' class='section-header'><a href='#errors-6'>Errors</a></h1>
+<p>If some commit message could not be print.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "gitjournal";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

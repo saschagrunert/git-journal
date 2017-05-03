@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `gitjournal` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, gitjournal">
+
+    <title>gitjournal - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'></p><script>window.sidebarCurrent = {name: 'gitjournal', ty: 'mod', relpath: '../'};</script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>gitjournal</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/gitjournal/lib.rs.html#1-882' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'>
+<h1 id='the-git-commit-message-and-changelog-generation-framework' class='section-header'><a href='#the-git-commit-message-and-changelog-generation-framework'>The Git Commit Message and Changelog Generation Framework</a></h1>
+<p>This crate contains the library for the
+<a href="https://github.com/saschagrunert/git-journal"><code>git-journal</code></a> executable. It handles all the
+parsing and commit message modification stuff which is provided by the executable.</p>
+
+<h3 id='example-usage' class='section-header'><a href='#example-usage'>Example usage</a></h3>
+<pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">gitjournal</span>::<span class="ident">GitJournal</span>;
+<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">journal</span> <span class="op">=</span> <span class="ident">GitJournal</span>::<span class="ident">new</span>(<span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
+<span class="ident">journal</span>.<span class="ident">parse_log</span>(<span class="string">&quot;HEAD&quot;</span>, <span class="string">&quot;rc&quot;</span>, <span class="kw-2">&amp;</span><span class="number">1</span>, <span class="kw-2">&amp;</span><span class="bool-val">false</span>, <span class="kw-2">&amp;</span><span class="bool-val">true</span>);
+<span class="ident">journal</span>.<span class="ident">print_log</span>(<span class="bool-val">true</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>).<span class="ident">expect</span>(<span class="string">&quot;Could not print short log.&quot;</span>);</pre>
+
+<p>Simply create a new git-journal struct from a given path (<code>.</code> in this example). Then parse the
+log between a given commit range or a single commit. In this example we want to retrieve
+everything included in the last git tag, which does not represent a release candidate (contains
+<code>&quot;rc&quot;</code>). After that parsing the log will be printed in the shortest possible format.</p>
+</div><h2 id='reexports' class='section-header'><a href="#reexports">Reexports</a></h2>
+<table><tr><td><code>pub use config::<a class="struct" href="../gitjournal/config/struct.Config.html" title="struct gitjournal::config::Config">Config</a>;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="config/index.html"
+                                  title='mod gitjournal::config'>config</a></td>
+                           <td class='docblock-short'>
+                                <p>Everything related to the git-journal configuration. The configuration files are stored in
+<a href="https://github.com/toml-lang/toml">toml</a> format with the file name <code>.gitjournal.toml</code>.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="errors/index.html"
+                                  title='mod gitjournal::errors'>errors</a></td>
+                           <td class='docblock-short'>
+                                <p>Basic error handling mechanisms</p>
+                           </td>
+                       </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.GitJournal.html"
+                                  title='struct gitjournal::GitJournal'>GitJournal</a></td>
+                           <td class='docblock-short'>
+                                <p>The main structure of git-journal.</p>
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "gitjournal";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
