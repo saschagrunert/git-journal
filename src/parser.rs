@@ -13,15 +13,15 @@ use std::{iter, str};
 use config::Config;
 use errors::*;
 
-pub static TOML_DEFAULT_KEY: &'static str = "default";
-pub static TOML_FOOTERS_KEY: &'static str = "footers";
-pub static TOML_NAME_KEY: &'static str = "name";
-pub static TOML_TAG: &'static str = "tag";
+pub static TOML_DEFAULT_KEY: &str = "default";
+pub static TOML_FOOTERS_KEY: &str = "footers";
+pub static TOML_NAME_KEY: &str = "name";
+pub static TOML_TAG: &str = "tag";
 
-pub static TOML_TEXT_KEY: &'static str = "text";
-pub static TOML_ONCE_KEY: &'static str = "once";
-pub static TOML_HEADER_KEY: &'static str = "header";
-pub static TOML_FOOTER_KEY: &'static str = "footer";
+pub static TOML_TEXT_KEY: &str = "text";
+pub static TOML_ONCE_KEY: &str = "once";
+pub static TOML_HEADER_KEY: &str = "header";
+pub static TOML_FOOTER_KEY: &str = "footer";
 
 #[derive(PartialEq)]
 pub enum Printed {
@@ -226,7 +226,8 @@ impl ParsedTag {
 
                 for commit in &self.commits {
                     if *compact {
-                        commit.summary.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None)?;
+                        commit.summary
+                            .print_to_term_and_write_to_vector(&mut term, &mut vec, config, None)?;
                     } else {
                         commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, None)?;
                     }
@@ -305,7 +306,8 @@ impl ParsedTag {
             // Print commits for this tag
             for commit in &self.commits {
                 if *compact {
-                    commit.summary.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag))?;
+                    commit.summary
+                        .print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag))?;
                 } else {
                     commit.print_to_term_and_write_to_vector(&mut term, &mut vec, config, Some(tag))?;
                 }
@@ -362,7 +364,10 @@ impl ParsedTag {
                         value = format!("{} ({:.7})", value, oid);
                     }
                 }
-                footer_tree.entry(footer.key).or_insert_with(|| vec![]).push(value);
+                footer_tree
+                    .entry(footer.key)
+                    .or_insert_with(|| vec![])
+                    .push(value);
             }
         }
 
@@ -591,7 +596,11 @@ impl Print for BodyElement {
 
     fn contains_untagged_elements(&self) -> bool {
         match *self {
-            BodyElement::List(ref vec) => vec.iter().filter(|x| x.contains_untagged_elements()).count() > 0,
+            BodyElement::List(ref vec) => {
+                vec.iter()
+                    .filter(|x| x.contains_untagged_elements())
+                    .count() > 0
+            }
             BodyElement::Paragraph(ref paragraph) => paragraph.contains_untagged_elements(),
         }
     }
@@ -752,10 +761,10 @@ pub struct FooterElement {
 
 lazy_static! {
     static ref RE_TAGS: Regex = Regex::new(r"[ \n]:(.*?):").unwrap();
-    static ref RE_FOOTER: Regex = RegexBuilder::new(r"^([\w-]+):\s(.*)$").multi_line(true).compile().unwrap();
-    static ref RE_LIST: Regex = RegexBuilder::new(r"^-\s.*$(\n^\s+-\s.*)*").multi_line(true).compile().unwrap();
-    static ref RE_PARAGRAPH: Regex = RegexBuilder::new(r"^\w").multi_line(true).compile().unwrap();
-    static ref RE_COMMENT: Regex = RegexBuilder::new(r"^#.*").multi_line(true).compile().unwrap();
+    static ref RE_FOOTER: Regex = RegexBuilder::new(r"^([\w-]+):\s(.*)$").multi_line(true).build().unwrap();
+    static ref RE_LIST: Regex = RegexBuilder::new(r"^-\s.*$(\n^\s+-\s.*)*").multi_line(true).build().unwrap();
+    static ref RE_PARAGRAPH: Regex = RegexBuilder::new(r"^\w").multi_line(true).build().unwrap();
+    static ref RE_COMMENT: Regex = RegexBuilder::new(r"^#.*").multi_line(true).build().unwrap();
 }
 
 #[derive(Clone)]
@@ -819,20 +828,21 @@ impl Parser {
         let string = str::from_utf8(input).unwrap_or("");
         let mut tags = vec![];
         for cap in RE_TAGS.captures_iter(string) {
-            tags.extend(cap.at(1)
-                            .unwrap_or("")
-                            .split(',')
-                            .filter_map(|x| {
-                // Ignore tags containing dots.
-                if !x.contains('.') {
-                    Some(x.trim().to_owned())
-                } else {
-                    None
-                }
-            })
-                            .collect::<Vec<String>>());
+            if let Some(tag) = cap.get(1) {
+                tags.extend(tag.as_str()
+                                .split(',')
+                                .filter_map(|x| {
+                                                // Ignore tags containing dots.
+                                                if !x.contains('.') {
+                                                    Some(x.trim().to_owned())
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                .collect::<Vec<String>>());
+            }
         }
-        let mut text = RE_TAGS.replace_all(string, "");
+        let mut text = RE_TAGS.replace_all(string, "").into_owned();
         if let Some('.') = text.chars().rev().nth(0) {
             text.pop();
         }
@@ -845,7 +855,8 @@ impl Parser {
         let mut commit_parts = message.split("\n\n");
 
         // Parse the summary line
-        let summary_line = commit_parts.nth(0)
+        let summary_line = commit_parts
+            .nth(0)
             .ok_or_else(|| "Summar line parsing: Commit message length too small.")?
             .trim();
         let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
@@ -868,14 +879,18 @@ impl Parser {
                 // Parse the footer
             } else if RE_FOOTER.is_match(part) {
                 for cap in RE_FOOTER.captures_iter(part) {
+                    let key = cap.get(1)
+                        .map(|k| k.as_str())
+                        .unwrap_or(part)
+                        .to_owned();
+                    let value = cap.get(2)
+                        .map(|k| k.as_str())
+                        .unwrap_or(part)
+                        .to_owned();
                     parsed_footer.push(FooterElement {
                                            oid: oid,
-                                           key: cap.at(1)
-                                               .ok_or_else(|| part)?
-                                               .to_owned(),
-                                           value: cap.at(2)
-                                               .ok_or_else(|| part)?
-                                               .to_owned(),
+                                           key: key,
+                                           value: value,
                                        });
                 }
 
@@ -996,9 +1011,14 @@ mod tests {
             assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
+            assert!(commit
+                        .print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
                         .is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), Some("tag"))
+            assert!(commit
+                        .print_to_term_and_write_to_vector(&mut t,
+                                                           &mut vec![],
+                                                           &config::Config::new(),
+                                                           Some("tag"))
                         .is_ok());
         }
     }
@@ -1016,9 +1036,14 @@ mod tests {
             assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
+            assert!(commit
+                        .print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
                         .is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), Some("tag"))
+            assert!(commit
+                        .print_to_term_and_write_to_vector(&mut t,
+                                                           &mut vec![],
+                                                           &config::Config::new(),
+                                                           Some("tag"))
                         .is_ok());
         }
     }
@@ -1039,12 +1064,14 @@ mod tests {
             assert_eq!(commit.summary.tags,
                        vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
+            assert!(commit
+                        .print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
                         .is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t,
-                                                             &mut vec![],
-                                                             &config::Config::new(),
-                                                             Some("tag3"))
+            assert!(commit
+                        .print_to_term_and_write_to_vector(&mut t,
+                                                           &mut vec![],
+                                                           &config::Config::new(),
+                                                           Some("tag3"))
                         .is_ok());
         }
     }
@@ -1065,12 +1092,14 @@ mod tests {
             assert_eq!(commit.summary.tags,
                        vec!["1234".to_owned(), "some tag".to_owned()]);
             let mut t = term::stdout().unwrap();
-            assert!(commit.print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
+            assert!(commit
+                        .print_to_term_and_write_to_vector(&mut t, &mut vec![], &config::Config::new(), None)
                         .is_ok());
-            assert!(commit.print_to_term_and_write_to_vector(&mut t,
-                                                             &mut vec![],
-                                                             &config::Config::new(),
-                                                             Some("some tag"))
+            assert!(commit
+                        .print_to_term_and_write_to_vector(&mut t,
+                                                           &mut vec![],
+                                                           &config::Config::new(),
+                                                           Some("some tag"))
                         .is_ok());
         }
     }

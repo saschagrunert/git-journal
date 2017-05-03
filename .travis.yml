@@ -1,30 +1,43 @@
+dist: trusty
 language: rust
 rust:
   - stable
   - beta
   - nightly
+
 matrix:
   allow_failures:
     - rust: nightly
+
+before_install:
+  - export OPENSSL_INCLUDE_DIR=`brew --prefix openssl`/include
+  - export OPENSSL_LIB_DIR=`brew --prefix openssl`/lib
+
 before_script:
   - pip install 'travis-cargo<0.2' --user --verbose
   - export PATH=$HOME/.local/bin:$PATH
   - export PATH=$HOME/Library/Python/2.7/bin:$PATH
   - cargo install cargo-kcov
+
 script:
   - export CARGO_TARGET_DIR=`pwd`/target
   - travis-cargo build
   - travis-cargo test
   - cargo doc --no-deps
+
 after_success:
   - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then travis-cargo doc-upload; fi
-  - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo kcov --print-install-kcov-sh | sh; fi
-  - if [[ "$TRAVIS_RUST_VERSION" == "stable" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo kcov --coveralls --kcov ./kcov-33/build/src/kcov; fi
+  - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo kcov --print-install-kcov-sh | sh; fi
+  - if [[ "$TRAVIS_RUST_VERSION" == "nightly" ]] && [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo kcov --coveralls --kcov ./kcov-33/build/src/kcov; fi
+
 notifications:
   email:
     on_success: never
+
 os:
   - linux
+  - osx
+
 addons:
   apt:
     sources:
@@ -32,6 +45,7 @@ addons:
     packages:
       - cmake
       - libcurl4-openssl-dev
+      - libiberty-dev
       - libelf-dev
       - libdw-dev
       - binutils-dev

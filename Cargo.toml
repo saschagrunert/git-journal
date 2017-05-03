@@ -28,9 +28,9 @@ log = "0"
 mowl = "1"
 nom = { version = "2", features = ["regexp_macros"] }
 rayon = "0"
-regex = "0.1"
-serde = "0"
-serde_derive = "0"
+regex = "0"
+serde = "1"
+serde_derive = "1"
 term = "0"
 toml = "0"
 
