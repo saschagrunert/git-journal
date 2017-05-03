@@ -875,9 +875,10 @@ impl Parser {
             // Do nothing on comments and empty parts
             if RE_COMMENT.is_match(part) || part.is_empty() {
                 continue;
+            }
 
-                // Parse the footer
-            } else if RE_FOOTER.is_match(part) {
+            // Parse the footer
+            if RE_FOOTER.is_match(part) {
                 for cap in RE_FOOTER.captures_iter(part) {
                     let key = cap.get(1)
                         .map(|k| k.as_str())

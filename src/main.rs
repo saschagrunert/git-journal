@@ -14,7 +14,7 @@ use clap::{App, Shell};
 use gitjournal::GitJournal;
 use gitjournal::errors::*;
 
-fn error_and_exit(string: &str, error: Error) {
+fn error_and_exit(string: &str, error: &Error) {
     error!("{}: {}", string, error);
     exit(1);
 }
@@ -33,7 +33,7 @@ fn is_program_in_path(program: &str) -> bool {
 
 fn main() {
     if let Err(error) = run() {
-        error_and_exit("Main", error);
+        error_and_exit("Main", &error);
     }
 }
 
@@ -55,7 +55,7 @@ fn run() -> Result<()> {
                 match journal.prepare(sub_matches.value_of("message").ok_or_else(|| "No CLI 'message' provided")?,
                                       sub_matches.value_of("type")) {
                     Ok(()) => info!("Commit message prepared."),
-                    Err(error) => error_and_exit("Commit message preparation failed", error),
+                    Err(error) => error_and_exit("Commit message preparation failed", &error),
                 }
             }
         }
@@ -82,7 +82,7 @@ fn run() -> Result<()> {
             if let Some(sub_matches) = matches.subcommand_matches("verify") {
                 match journal.verify(sub_matches.value_of("message").ok_or_else(|| "No CLI 'message' provided")?) {
                     Ok(()) => info!("Commit message valid."),
-                    Err(error) => error_and_exit("Commit message invalid", error),
+                    Err(error) => error_and_exit("Commit message invalid", &error),
                 }
             }
         }
@@ -100,7 +100,7 @@ fn run() -> Result<()> {
                                                   &max_tags,
                                                   &matches.is_present("all"),
                                                   &matches.is_present("skip_unreleased")) {
-                error_and_exit("Log parsing error", error);
+                error_and_exit("Log parsing error", &error);
             }
 
             // Generate the template or print the log
