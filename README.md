@@ -119,7 +119,7 @@ be done:
 ```terminal
 > git journal v1
 > git journal v2
-> git journal v1...HEAD^
+> git journal v1..HEAD^
 ```
 
 It is also possible to print all releases (git tags) with `-a`, the past `n` releases via `-n <COUNT>`:
