@@ -1,4 +1,5 @@
-use chrono::{Date, UTC, Datelike};
+use chrono::{Date, Datelike};
+use chrono::offset::Utc;
 use git2::Oid;
 use nom::{IResult, alpha, digit, space, rest};
 use regex::{Regex, RegexBuilder};
@@ -115,7 +116,7 @@ pub trait Tags {
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub struct ParsedTag {
     pub name: String,
-    pub date: Date<UTC>,
+    pub date: Date<Utc>,
     pub commits: Vec<ParsedCommit>,
     pub message_ids: Vec<usize>,
 }

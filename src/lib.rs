@@ -50,7 +50,8 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-use chrono::{UTC, TimeZone};
+use chrono::TimeZone;
+use chrono::offset::Utc;
 use git2::{ObjectType, Oid, Repository};
 use log::LogLevel;
 use rayon::prelude::*;
@@ -91,11 +92,6 @@ impl GitJournal {
     /// of the git tags failed.
     ///
     pub fn new(path: &str) -> Result<Self> {
-        // Setup the logger if not already set
-        if mowl::init_with_level(LogLevel::Info).is_err() {
-            warn!("Logger already set.");
-        };
-
         // Search upwards for the .git directory
         let mut path_buf = if path != "." {
             PathBuf::from(path)
@@ -133,7 +129,18 @@ impl GitJournal {
         // Search for config in path and load
         let mut new_config = Config::new();
         if let Err(e) = new_config.load(path) {
-            warn!("Can't load configuration file, using default one: {}", e);
+            println!("Can't load configuration file, using default one: {}", e);
+        }
+
+        // Setup the logger if not already set
+        if new_config.colored_output {
+            if mowl::init_with_level(LogLevel::Info).is_err() {
+                warn!("Logger already set.");
+            };
+        } else {
+            if mowl::init_with_level_and_without_colors(LogLevel::Info).is_err() {
+                warn!("Logger already set.");
+            };
         }
 
         // Create a new parser with empty results
@@ -426,7 +433,7 @@ impl GitJournal {
         let unreleased_str = "Unreleased";
         let mut current_tag = ParsedTag {
             name: unreleased_str.to_owned(),
-            date: UTC::today(),
+            date: Utc::today(),
             commits: vec![],
             message_ids: vec![],
         };
@@ -451,7 +458,7 @@ impl GitJournal {
 
                 // Format the tag and set as current
                 num_parsed_tags += 1;
-                let date = UTC.timestamp(commit.time().seconds(), 0).date();
+                let date = Utc.timestamp(commit.time().seconds(), 0).date();
                 current_tag = ParsedTag {
                     name: tag.1.clone(),
                     date: date,
