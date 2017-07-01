@@ -1,6 +1,6 @@
 [package]
 name = "git-journal"
-version = "1.4.2"
+version = "1.4.3"
 license = "MIT"
 readme = "README.md"
 keywords = ["parser", "git", "log", "changelog", "journal"]
