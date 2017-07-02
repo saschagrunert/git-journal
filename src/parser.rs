@@ -523,7 +523,9 @@ impl Print for SummaryElement {
                     write!(t, " ({:.7})", oid)?;
                 }
             }
-            c3(t)?;
+            if config.colored_output {
+                c3(t)?;
+            }
         }
         Ok(Printed::Something)
     }
@@ -668,7 +670,9 @@ impl Print for ListElement {
                     write!(t, " ({:.7})", oid)?;
                 }
             }
-            c3(t)?;
+            if config.colored_output {
+                c3(t)?;
+            }
         }
 
         Ok(Printed::Something)
