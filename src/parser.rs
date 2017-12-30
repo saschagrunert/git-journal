@@ -331,8 +331,8 @@ impl ParsedTag {
     }
 
     fn print_footers(&self,
-                     mut term: &mut Box<term::StdoutTerminal>,
-                     mut vec: &mut Vec<u8>,
+                     term: &mut Box<term::StdoutTerminal>,
+                     vec: &mut Vec<u8>,
                      footer_keys: Option<&[Value]>,
                      config: &Config)
                      -> Result<()> {
