@@ -17,6 +17,7 @@ Table of contents:
 ---
 
 <img src="./.github/example.jpg" align="right" width="500px">
+
 ## TL;DR
 [tldr]: #tldr
 
