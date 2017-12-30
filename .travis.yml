@@ -12,6 +12,7 @@ matrix:
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]];then export OPENSSL_INCLUDE_DIR=`brew --prefix openssl`/include; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]];then export OPENSSL_LIB_DIR=`brew --prefix openssl`/lib; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]];then sudo easy_install pip; fi
 
 before_script:
   - pip install 'travis-cargo<0.2' --user --verbose
