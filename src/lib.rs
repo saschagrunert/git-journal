@@ -407,11 +407,11 @@ impl GitJournal {
 
         let repo = Repository::open(&self.path)?;
         let mut revwalk = repo.revwalk()?;
-        revwalk.set_sorting(git2::SORT_TIME);
+        revwalk.set_sorting(git2::Sort::TIME);
 
         // Fill the revwalk with the selected revisions.
         let revspec = repo.revparse(revision_range)?;
-        if revspec.mode().contains(git2::REVPARSE_SINGLE) {
+        if revspec.mode().contains(git2::RevparseMode::SINGLE) {
             // A single commit was given
             let from = revspec.from().ok_or_else(|| git2::Error::from_str("Could not set revision range start"))?;
             revwalk.push(from.id())?;
@@ -420,7 +420,7 @@ impl GitJournal {
             let from = revspec.from().ok_or_else(|| git2::Error::from_str("Could not set revision range start"))?;
             let to = revspec.to().ok_or_else(|| git2::Error::from_str("Could not set revision range end"))?;
             revwalk.push(to.id())?;
-            if revspec.mode().contains(git2::REVPARSE_MERGE_BASE) {
+            if revspec.mode().contains(git2::RevparseMode::MERGE_BASE) {
                 let base = repo.merge_base(from.id(), to.id())?;
                 let o = repo.find_object(base, Some(ObjectType::Commit))?;
                 revwalk.push(o.id())?;
