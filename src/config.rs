@@ -1,14 +1,11 @@
-//! Everything related to the git-journal configuration. The configuration files are stored in
-//! [toml](https://github.com/toml-lang/toml) format with the file name `.gitjournal.toml`.
+//! Everything related to the git-journal configuration. The configuration
+//! files are stored in [toml](https://github.com/toml-lang/toml) format with the file name `.gitjournal.toml`.
 //!
 
 use toml;
 
-use std::fs::File;
-use std::path::PathBuf;
-use std::io::prelude::*;
-
-use errors::*;
+use failure::Error;
+use std::{fs::File, io::prelude::*, path::PathBuf};
 
 /// The configuration structure for git-journal.
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -22,7 +19,8 @@ pub struct Config {
     /// Set to false if the output should not be colored
     pub colored_output: bool,
 
-    /// Specifies the default template. Will be used for tag validation and printing.
+    /// Specifies the default template. Will be used for tag validation and
+    /// printing.
     pub default_template: Option<String>,
 
     /// Show or hide the debug messages like `[OKAY] ...` or `[INFO] ...`
@@ -43,7 +41,8 @@ pub struct Config {
     /// Sort the commits during the output by "date" (default) or "name"
     pub sort_by: String,
 
-    /// Commit message template prefix which will be added during commit preparation
+    /// Commit message template prefix which will be added during commit
+    /// preparation
     pub template_prefix: String,
 }
 
@@ -74,7 +73,13 @@ impl Config {
     }
 
     fn get_default_categories() -> Vec<String> {
-        vec!["Added".to_owned(), "Changed".to_owned(), "Fixed".to_owned(), "Improved".to_owned(), "Removed".to_owned()]
+        vec![
+            "Added".to_owned(),
+            "Changed".to_owned(),
+            "Fixed".to_owned(),
+            "Improved".to_owned(),
+            "Removed".to_owned(),
+        ]
     }
 
     /// Save the default configuration file in a certain path.
@@ -89,14 +94,16 @@ impl Config {
     /// # Errors
     /// When toml encoding or file creation failed.
     ///
-    pub fn save_default_config(&self, path: &str) -> Result<String> {
+    pub fn save_default_config(&self, path: &str) -> Result<String, Error> {
         // Serialize self to toml
         let toml_string = toml::to_string(&self).unwrap();
         info!("{:?}", toml_string);
 
         // Get the correct path
         let path_buf = self.get_path_with_filename(path);
-        let path_string = path_buf.to_str().ok_or_else(|| "Cannot convert path to string")?;
+        let path_string = path_buf
+            .to_str()
+            .ok_or_else(|| format_err!("Cannot convert path to string"))?;
 
         // Write the path to string
         let mut file = File::create(&path_buf)?;
@@ -116,7 +123,7 @@ impl Config {
     /// # Errors
     /// When toml decoding or file opening failed.
     ///
-    pub fn load(&mut self, path: &str) -> Result<()> {
+    pub fn load(&mut self, path: &str) -> Result<(), Error> {
         let path_buf = self.get_path_with_filename(path);
         let mut file = File::open(&path_buf)?;
         let mut toml_string = String::new();
@@ -164,7 +171,6 @@ mod tests {
         assert!(config.load(".").is_ok());
         assert_eq!(config.is_default_config(), true);
     }
-
 
     #[test]
     fn config_save_err() {
