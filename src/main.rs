@@ -2,7 +2,7 @@ extern crate gitjournal;
 
 #[macro_use]
 extern crate clap;
-extern crate env_logger;
+extern crate mowl;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -26,8 +26,6 @@ fn is_program_in_path(program: &str) -> bool {
 }
 
 fn main() -> Result<(), Error> {
-    env_logger::init();
-
     // Load the CLI parameters from the yaml file
     let yaml = load_yaml!("cli.yaml");
     let mut app = App::from_yaml(yaml).version(crate_version!());

@@ -32,6 +32,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 extern crate git2;
+extern crate mowl;
 #[macro_use]
 extern crate nom;
 extern crate rayon;
@@ -46,6 +47,7 @@ use chrono::{offset::Utc, TimeZone};
 pub use config::Config;
 use failure::Error;
 use git2::{ObjectType, Oid, Repository};
+use log::LevelFilter;
 use parser::{ParsedTag, Parser, Tags};
 use rayon::prelude::*;
 use std::{
@@ -127,13 +129,18 @@ impl GitJournal {
             println!("Can't load configuration file, using default one: {}", e);
         }
 
-        // TODO
         // Setup the logger if not already set
-        if new_config.colored_output {
-        } else {
+        if new_config.enable_debug {
+            if new_config.colored_output {
+                if mowl::init_with_level(LevelFilter::Info).is_err() {
+                    warn!("Logger already set.");
+                };
+            } else {
+                if mowl::init_with_level_and_without_colors(LevelFilter::Info).is_err() {
+                    warn!("Logger already set.");
+                };
+            }
         }
-        // Shut down the logger if the user does not want debug output
-        if !new_config.enable_debug {}
 
         // Create a new parser with empty results
         let new_parser = Parser {
