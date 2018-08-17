@@ -18,6 +18,6 @@ fn parse(b: &mut Bencher) {
     let mut journal = GitJournal::new(".").unwrap();
     journal.config.enable_debug = false;
     b.iter(|| {
-        journal.parse_log("HEAD", "rc", &0, &true, &false).is_ok();
+        journal.parse_log("HEAD", "rc", &0, &true, &false, None).is_ok();
     });
 }
