@@ -48,7 +48,7 @@ pub use config::Config;
 use failure::Error;
 use git2::{ObjectType, Oid, Repository};
 use log::LevelFilter;
-use parser::{ParsedTag, Parser, Tags};
+use parser::{ParsedTag, Parser, Print, Tags};
 use rayon::prelude::*;
 use std::{
     collections::BTreeMap,
@@ -413,6 +413,7 @@ impl GitJournal {
         max_tags_count: &u32,
         all: &bool,
         skip_unreleased: &bool,
+        ignore_tags: Option<Vec<&str>>,
     ) -> Result<(), Error> {
         let repo = Repository::open(&self.path)?;
         let mut revwalk = repo.revwalk()?;
@@ -510,9 +511,15 @@ impl GitJournal {
             .par_iter_mut()
             .for_each(|&mut (ref message, ref oid, ref mut result)| {
                 match self.parser.parse_commit_message(message, Some(*oid)) {
-                    Ok(parsed_message) => {
-                        *result = Some(parsed_message);
-                    }
+                    Ok(parsed_message) => match ignore_tags {
+                        Some(ref tags) => for tag in tags {
+                            // Filter out ignored tags
+                            if !parsed_message.contains_tag(Some(tag)) {
+                                *result = Some(parsed_message.clone())
+                            }
+                        },
+                        _ => *result = Some(parsed_message),
+                    },
                     Err(e) => warn!("Skipping commit: {}", e),
                 }
             });

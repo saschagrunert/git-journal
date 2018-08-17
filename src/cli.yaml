@@ -1,3 +1,4 @@
+---
 name: git-journal
 bin_name: git journal
 author: Sascha Grunert <mail@saschagrunert.de>
@@ -43,7 +44,8 @@ args:
       long: tags-count
       value_name: number of tags
       default_value: '1'
-      help: The number of tags until the parser stops when a single revision is given.
+      help: The number of tags until the parser stops when a single revision is
+        given.
   - tag_skip_pattern:
       short: e
       value_name: exclude git tag pattern
@@ -58,6 +60,11 @@ args:
       short: o
       long: output
       help: The output file for the changelog.
+      takes_value: true
+  - ignore_tags:
+      short: i
+      long: ignore
+      help: Ignore the given comma separated list of :tags:, like "internal"
       takes_value: true
 
 subcommands:
