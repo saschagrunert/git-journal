@@ -399,7 +399,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", &1, &false, &false);
+    /// journal.parse_log("HEAD", "rc", &1, &false, &false, None);
     /// ```
     ///
     /// # Errors
@@ -560,7 +560,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", &1, &false, &false);
+    /// journal.parse_log("HEAD", "rc", &1, &false, &false, None);
     /// journal.generate_template().expect("Template generation failed.");
     /// ```
     ///
