@@ -1,5 +1,4 @@
 #![feature(test)]
-extern crate gitjournal;
 extern crate test;
 
 use gitjournal::GitJournal;
@@ -9,7 +8,9 @@ use test::Bencher;
 fn verify_huge_message(b: &mut Bencher) {
     let journal = GitJournal::new(".").unwrap();
     b.iter(|| {
-        journal.verify("./tests/commit_messages/success_huge").is_ok();
+        journal
+            .verify("./tests/commit_messages/success_huge")
+            .is_ok();
     });
 }
 
@@ -18,6 +19,8 @@ fn parse(b: &mut Bencher) {
     let mut journal = GitJournal::new(".").unwrap();
     journal.config.enable_debug = false;
     b.iter(|| {
-        journal.parse_log("HEAD", "rc", &0, &true, &false, None).is_ok();
+        journal
+            .parse_log("HEAD", "rc", &0, &true, &false, None)
+            .is_ok();
     });
 }

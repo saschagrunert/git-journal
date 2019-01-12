@@ -10,6 +10,7 @@ homepage = "https://github.com/saschagrunert/git-journal"
 documentation = "https://docs.rs/git-journal"
 description = "The Git Commit Message and Changelog Generation Framework"
 categories = ["command-line-utilities"]
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "saschagrunert/git-journal", branch = "master" }
