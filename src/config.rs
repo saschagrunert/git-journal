@@ -1,10 +1,11 @@
 //! Everything related to the git-journal configuration. The configuration
 //! files are stored in [toml](https://github.com/toml-lang/toml) format with the file name `.gitjournal.toml`.
-//!
 
 use toml;
 
-use failure::Error;
+use failure::{format_err, Error};
+use log::info;
+use serde_derive::{Deserialize, Serialize};
 use std::{fs::File, io::prelude::*, path::PathBuf};
 
 /// The configuration structure for git-journal.
@@ -55,7 +56,6 @@ impl Config {
     /// use gitjournal::Config;
     /// let config = Config::new();
     /// ```
-    ///
     pub fn new() -> Self {
         Config {
             categories: Self::get_default_categories(),
@@ -88,12 +88,13 @@ impl Config {
     ///
     /// ```
     /// use gitjournal::Config;
-    /// Config::new().save_default_config(".").expect("Could not save config.");
+    /// Config::new()
+    ///     .save_default_config(".")
+    ///     .expect("Could not save config.");
     /// ```
     ///
     /// # Errors
     /// When toml encoding or file creation failed.
-    ///
     pub fn save_default_config(&self, path: &str) -> Result<String, Error> {
         // Serialize self to toml
         let toml_string = toml::to_string(&self).unwrap();
@@ -122,7 +123,6 @@ impl Config {
     ///
     /// # Errors
     /// When toml decoding or file opening failed.
-    ///
     pub fn load(&mut self, path: &str) -> Result<(), Error> {
         let path_buf = self.get_path_with_filename(path);
         let mut file = File::open(&path_buf)?;
@@ -132,8 +132,9 @@ impl Config {
         // Deserialize the toml string
         *self = toml::from_str(&toml_string)?;
 
-        // If the categories are not found within the toml it will return an empty array
-        // which will break the parser. So use the default ones instead.
+        // If the categories are not found within the toml it will return an
+        // empty array which will break the parser. So use the default
+        // ones instead.
         if self.categories.is_empty() {
             self.categories = Self::get_default_categories();
         }
@@ -148,7 +149,6 @@ impl Config {
     /// use gitjournal::Config;
     /// assert_eq!(Config::new().is_default_config(), true);
     /// ```
-    ///
     pub fn is_default_config(&self) -> bool {
         *self == Config::new()
     }

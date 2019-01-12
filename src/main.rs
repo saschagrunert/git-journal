@@ -1,16 +1,7 @@
-extern crate gitjournal;
-
-#[macro_use]
-extern crate clap;
-extern crate mowl;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate failure;
-
-use clap::{App, Shell};
-use failure::Error;
+use clap::{crate_version, load_yaml, App, Shell};
+use failure::{bail, format_err, Error};
 use gitjournal::GitJournal;
+use log::info;
 use std::{env, fs};
 
 fn is_program_in_path(program: &str) -> bool {
@@ -43,13 +34,15 @@ fn main() -> Result<(), Error> {
             // Prepare a commit message before editing by the user
             if let Some(sub_matches) = matches.subcommand_matches("prepare") {
                 match journal.prepare(
-                    sub_matches
-                        .value_of("message")
-                        .ok_or_else(|| format_err!("No CLI 'message' provided"))?,
+                    sub_matches.value_of("message").ok_or_else(|| {
+                        format_err!("No CLI 'message' provided")
+                    })?,
                     sub_matches.value_of("type"),
                 ) {
                     Ok(()) => info!("Commit message prepared."),
-                    Err(error) => bail!("Commit message preparation failed {}", &error),
+                    Err(error) => {
+                        bail!("Commit message preparation failed {}", &error)
+                    }
                 }
             }
         }
@@ -75,9 +68,9 @@ fn main() -> Result<(), Error> {
             // Verify a commit message
             if let Some(sub_matches) = matches.subcommand_matches("verify") {
                 match journal.verify(
-                    sub_matches
-                        .value_of("message")
-                        .ok_or_else(|| format_err!("No CLI 'message' provided"))?,
+                    sub_matches.value_of("message").ok_or_else(|| {
+                        format_err!("No CLI 'message' provided")
+                    })?,
                 ) {
                     Ok(()) => info!("Commit message valid."),
                     Err(error) => bail!("Commit message invalid {}", &error),
@@ -86,17 +79,21 @@ fn main() -> Result<(), Error> {
         }
         _ => {
             // Get all values of the given CLI parameters with default values
-            let revision_range = matches
-                .value_of("revision_range")
-                .ok_or_else(|| format_err!("No CLI 'revision_range' provided"))?;
-            let tag_skip_pattern = matches
-                .value_of("tag_skip_pattern")
-                .ok_or_else(|| format_err!("No CLI 'task_skip_pattern' provided"))?;
+            let revision_range =
+                matches.value_of("revision_range").ok_or_else(|| {
+                    format_err!("No CLI 'revision_range' provided")
+                })?;
+            let tag_skip_pattern =
+                matches.value_of("tag_skip_pattern").ok_or_else(|| {
+                    format_err!("No CLI 'task_skip_pattern' provided")
+                })?;
             let tags_count = matches
                 .value_of("tags_count")
                 .ok_or_else(|| format_err!("No CLI 'tags_count' provided"))?;
             let max_tags = tags_count.parse::<u32>()?;
-            let ignore_tags: Option<Vec<&str>> = matches.value_of("ignore_tags").map(|s| s.split(",").collect());
+            let ignore_tags: Option<Vec<&str>> = matches
+                .value_of("ignore_tags")
+                .map(|s| s.split(",").collect());
 
             // Parse the log
             if let Err(error) = journal.parse_log(
