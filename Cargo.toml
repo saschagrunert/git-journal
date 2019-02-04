@@ -31,7 +31,7 @@ nom = { version = "4.2.0", features = ["regexp_macros"] }
 rayon = "1.0.3"
 regex = "1.1.0"
 serde = "1.0.87"
-serde_derive = "1.0.85"
+serde_derive = "1.0.87"
 term = "0.5.1"
 toml = "0.4.10"
 
