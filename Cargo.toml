@@ -27,7 +27,7 @@ git2 = "0.8.0"
 lazy_static = "1.3.0"
 log = "0.4.6"
 mowl = "2.0.0"
-nom = { version = "4.2.0", features = ["regexp_macros"] }
+nom = { version = "4.2.1", features = ["regexp_macros"] }
 rayon = "1.0.3"
 regex = "1.1.0"
 serde = "1.0.88"
