@@ -33,13 +33,12 @@ use git2::{ObjectType, Oid, Repository};
 use log::{info, warn, LevelFilter};
 use rayon::prelude::*;
 use std::{
-    collections::BTreeMap,
     env,
     fs::{self, File, OpenOptions},
     io::prelude::*,
     path::{Path, PathBuf},
 };
-use toml::Value;
+use toml::{map::Map, Value};
 
 pub mod config;
 mod parser;
@@ -588,11 +587,11 @@ impl GitJournal {
         }
 
         // Create the toml representation
-        let mut toml_map = BTreeMap::new();
+        let mut toml_map = Map::new();
         let toml_tags = tags
             .iter()
             .map(|tag| {
-                let mut map = BTreeMap::new();
+                let mut map = Map::new();
                 map.insert(
                     parser::TOML_TAG.to_owned(),
                     Value::String(tag.to_owned()),
@@ -610,7 +609,7 @@ impl GitJournal {
             .collect::<Vec<Value>>();
         toml_map.insert("tags".to_owned(), Value::Array(toml_tags));
 
-        let mut header_footer_map = BTreeMap::new();
+        let mut header_footer_map = Map::new();
         header_footer_map
             .insert(parser::TOML_ONCE_KEY.to_owned(), Value::Boolean(false));
         header_footer_map.insert(
