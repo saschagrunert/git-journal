@@ -4,9 +4,8 @@ use failure::{bail, format_err, Error};
 use git2::Oid;
 use lazy_static::lazy_static;
 use nom::{
-    alpha, call, call_m, char, digit, do_parse, error_position, many0, map,
-    map_res, method, opt, re_bytes_find, rest, separated_pair, space, tag,
-    tuple_parser,
+    alpha, call_m, char, digit, do_parse, many0, map, map_res, method, opt,
+    re_bytes_find, rest, separated_pair, space, tag,
 };
 use regex::{Regex, RegexBuilder};
 use std::{collections::BTreeMap, fs::File, io::prelude::*, iter, str};
