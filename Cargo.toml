@@ -20,7 +20,7 @@ appveyor = { repository = "saschagrunert/git-journal", branch = "master", servic
 name = "gitjournal"
 
 [dependencies]
-chrono = "0.4.8"
+chrono = "0.4.9"
 clap = { version = "2.33.0", features = ["yaml"] }
 failure = "0.1.5"
 git2 = "0.10.0"
