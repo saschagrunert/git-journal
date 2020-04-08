@@ -90,6 +90,9 @@ fn main() -> Result<(), Error> {
             let ignore_tags: Option<Vec<&str>> = matches
                 .value_of("ignore_tags")
                 .map(|s| s.split(',').collect());
+            let path_spec: Vec<&str> = matches
+                .values_of("PATH_SPEC").map(|ps| ps.collect())
+                .unwrap_or_else(Vec::new);
 
             // Parse the log
             if let Err(error) = journal.parse_log(
@@ -99,6 +102,7 @@ fn main() -> Result<(), Error> {
                 matches.is_present("all"),
                 matches.is_present("skip_unreleased"),
                 ignore_tags,
+                &path_spec,
             ) {
                 bail!("Log parsing error {}", &error);
             }
