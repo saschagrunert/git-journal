@@ -41,7 +41,7 @@ fn main() -> Result<(), Error> {
                 ) {
                     Ok(()) => info!("Commit message prepared."),
                     Err(error) => {
-                        bail!("Commit message preparation failed {}", &error)
+                        bail!("Commit message preparation failed {}", error)
                     }
                 }
             }
@@ -93,15 +93,15 @@ fn main() -> Result<(), Error> {
             let max_tags = tags_count.parse::<u32>()?;
             let ignore_tags: Option<Vec<&str>> = matches
                 .value_of("ignore_tags")
-                .map(|s| s.split(",").collect());
+                .map(|s| s.split(',').collect());
 
             // Parse the log
             if let Err(error) = journal.parse_log(
                 revision_range,
                 tag_skip_pattern,
-                &max_tags,
-                &matches.is_present("all"),
-                &matches.is_present("skip_unreleased"),
+                max_tags,
+                matches.is_present("all"),
+                matches.is_present("skip_unreleased"),
                 ignore_tags,
             ) {
                 bail!("Log parsing error {}", &error);

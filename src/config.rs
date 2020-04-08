@@ -1,9 +1,8 @@
 //! Everything related to the git-journal configuration. The configuration
 //! files are stored in [toml](https://github.com/toml-lang/toml) format with the file name `.gitjournal.toml`.
 
-use toml;
-
 use failure::{format_err, Error};
+use lazy_static::lazy_static;
 use log::info;
 use serde_derive::{Deserialize, Serialize};
 use std::{fs::File, io::prelude::*, path::PathBuf};
@@ -57,7 +56,7 @@ impl Config {
     /// let config = Config::new();
     /// ```
     pub fn new() -> Self {
-        Config {
+        Self {
             categories: Self::get_default_categories(),
             category_delimiters: vec!["[".to_owned(), "]".to_owned()],
             colored_output: true,
@@ -150,7 +149,11 @@ impl Config {
     /// assert_eq!(Config::new().is_default_config(), true);
     /// ```
     pub fn is_default_config(&self) -> bool {
-        *self == Config::new()
+        lazy_static! {
+            static ref DEFAULT_CONFIG: Config = Config::new();
+        }
+
+        *self == *DEFAULT_CONFIG
     }
 
     fn get_path_with_filename(&self, path: &str) -> PathBuf {

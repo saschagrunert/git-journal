@@ -9,7 +9,6 @@ use nom::{
 };
 use regex::{Regex, RegexBuilder};
 use std::{collections::BTreeMap, fs::File, io::prelude::*, iter, str};
-use term;
 use toml::{self, Value};
 
 pub static TOML_DEFAULT_KEY: &str = "default";
@@ -26,6 +25,7 @@ pub static TOML_FOOTER_KEY: &str = "footer";
 pub enum Printed {
     Nothing,
     Something,
+
 }
 
 pub trait Print {
@@ -55,7 +55,7 @@ pub trait Print {
 
     fn print_default_term(
         &self,
-        mut t: &mut Box<term::StdoutTerminal>,
+        mut t: &mut term::StdoutTerminal,
         config: &Config,
         tag: Option<&str>,
     ) -> Result<(), Error> {
@@ -98,12 +98,12 @@ pub trait Print {
 
     fn print_to_term_and_write_to_vector(
         &self,
-        mut term: &mut Box<term::StdoutTerminal>,
+        term: &mut term::StdoutTerminal,
         mut vec: &mut Vec<u8>,
         config: &Config,
         tag: Option<&str>,
     ) -> Result<(), Error> {
-        self.print_default_term(&mut term, config, tag)?;
+        self.print_default_term(term, config, tag)?;
         self.print_default(&mut vec, config, tag)?;
         Ok(())
     }
@@ -177,7 +177,7 @@ impl ParsedTag {
 
     fn print_default_term(
         &self,
-        mut t: &mut Box<term::StdoutTerminal>,
+        mut t: &mut term::StdoutTerminal,
         config: &Config,
     ) -> Result<(), Error> {
         self.print(
@@ -201,9 +201,9 @@ impl ParsedTag {
 
     fn print_to_term_and_write_to_vector(
         &self,
-        mut term: &mut Box<term::StdoutTerminal>,
+        term: &mut term::StdoutTerminal,
         mut vec: &mut Vec<u8>,
-        compact: &bool,
+        compact: bool,
         config: &Config,
         template: Option<&str>,
         index_len: (usize, usize),
@@ -239,13 +239,13 @@ impl ParsedTag {
                 }
 
                 // Print the tags
-                self.print_default_term(&mut term, config)?;
+                self.print_default_term(term, config)?;
                 self.print_default(&mut vec, config)?;
 
                 // Print commits
                 if let Some(main_table) = toml.as_table() {
                     self.print_commits_in_table(
-                        &mut term, &mut vec, main_table, &mut 1, config,
+                        term, &mut vec, main_table, &mut 1, config,
                         compact,
                     )?;
                 }
@@ -273,24 +273,24 @@ impl ParsedTag {
                 }
             }
             None => {
-                self.print_default_term(&mut term, config)?;
+                self.print_default_term(term, config)?;
                 self.print_default(&mut vec, config)?;
 
                 for commit in &self.commits {
-                    if *compact {
+                    if compact {
                         commit.summary.print_to_term_and_write_to_vector(
-                            &mut term, &mut vec, config, None,
+                            term, &mut vec, config, None,
                         )?;
                     } else {
                         commit.print_to_term_and_write_to_vector(
-                            &mut term, &mut vec, config, None,
+                            term, &mut vec, config, None,
                         )?;
                     }
                 }
-                writeln!(term, "")?;
-                writeln!(vec, "")?;
-                if !*compact && config.enable_footers {
-                    self.print_footers(&mut term, &mut vec, None, config)?;
+                writeln!(term)?;
+                writeln!(vec)?;
+                if !compact && config.enable_footers {
+                    self.print_footers(term, &mut vec, None, config)?;
                 }
             }
         }
@@ -300,12 +300,12 @@ impl ParsedTag {
 
     fn print_commits_in_table(
         &self,
-        mut term: &mut Box<term::StdoutTerminal>,
+        term: &mut term::StdoutTerminal,
         mut vec: &mut Vec<u8>,
         table: &toml::value::Table,
         level: &mut usize,
         config: &Config,
-        compact: &bool,
+        compact: bool,
     ) -> Result<(), Error> {
         for value in table {
             if let Value::Array(ref array) = *value.1 {
@@ -331,7 +331,7 @@ impl ParsedTag {
             None => tag,
         };
 
-        if (*compact
+        if (compact
             && ((self
                 .commits
                 .iter()
@@ -346,7 +346,7 @@ impl ParsedTag {
                         .filter(|c| c.summary.contains_untagged_elements())
                         .count()
                         > 0)))
-            || (!*compact
+            || (!compact
                 && ((self
                     .commits
                     .iter()
@@ -372,16 +372,16 @@ impl ParsedTag {
 
             // Print commits for this tag
             for commit in &self.commits {
-                if *compact {
+                if compact {
                     commit.summary.print_to_term_and_write_to_vector(
-                        &mut term,
+                        term,
                         &mut vec,
                         config,
                         Some(tag),
                     )?;
                 } else {
                     commit.print_to_term_and_write_to_vector(
-                        &mut term,
+                        term,
                         &mut vec,
                         config,
                         Some(tag),
@@ -389,8 +389,8 @@ impl ParsedTag {
                 }
             }
 
-            writeln!(term, "")?;
-            writeln!(vec, "")?;
+            writeln!(term)?;
+            writeln!(vec)?;
 
             // Print footers if specified in the template
             if let Some(footers) = table.get(TOML_FOOTERS_KEY) {
@@ -407,7 +407,7 @@ impl ParsedTag {
 
     fn print_footers(
         &self,
-        term: &mut Box<term::StdoutTerminal>,
+        term: &mut term::StdoutTerminal,
         vec: &mut Vec<u8>,
         footer_keys: Option<&[Value]>,
         config: &Config,
@@ -446,7 +446,7 @@ impl ParsedTag {
                 }
                 footer_tree
                     .entry(footer.key)
-                    .or_insert_with(|| vec![])
+                    .or_default()
                     .push(value);
             }
         }
@@ -581,7 +581,7 @@ impl Print for SummaryElement {
             .iter()
             .filter(|x| config.excluded_commit_tags.contains(x))
             .count()
-            > 0usize
+            > 0_usize
         {
             return Ok(Printed::Nothing);
         }
@@ -664,12 +664,12 @@ impl Print for BodyElement {
         H: Fn(&mut T) -> Result<(), Error>,
     {
         match *self {
-            BodyElement::List(ref vec) => {
+            Self::List(ref vec) => {
                 for list_item in vec {
                     list_item.print(t, config, tag, c1, c2, c3)?;
                 }
             }
-            BodyElement::Paragraph(ref paragraph) => {
+            Self::Paragraph(ref paragraph) => {
                 paragraph.print(t, config, tag, c1, c2, c3)?;
             }
         }
@@ -678,10 +678,10 @@ impl Print for BodyElement {
 
     fn contains_tag(&self, tag: Option<&str>) -> bool {
         match *self {
-            BodyElement::List(ref vec) => {
+            Self::List(ref vec) => {
                 vec.iter().filter(|x| x.contains_tag(tag)).count() > 0
             }
-            BodyElement::Paragraph(ref paragraph) => {
+            Self::Paragraph(ref paragraph) => {
                 paragraph.contains_tag(tag)
             }
         }
@@ -689,13 +689,13 @@ impl Print for BodyElement {
 
     fn contains_untagged_elements(&self) -> bool {
         match *self {
-            BodyElement::List(ref vec) => {
+            Self::List(ref vec) => {
                 vec.iter()
                     .filter(|x| x.contains_untagged_elements())
                     .count()
                     > 0
             }
-            BodyElement::Paragraph(ref paragraph) => {
+            Self::Paragraph(ref paragraph) => {
                 paragraph.contains_untagged_elements()
             }
         }
@@ -705,12 +705,12 @@ impl Print for BodyElement {
 impl Tags for BodyElement {
     fn get_tags(&self, mut vec: Vec<String>) -> Vec<String> {
         match *self {
-            BodyElement::List(ref list_vec) => {
+            Self::List(ref list_vec) => {
                 for list_item in list_vec {
                     vec = list_item.get_tags(vec);
                 }
             }
-            BodyElement::Paragraph(ref paragraph) => {
+            Self::Paragraph(ref paragraph) => {
                 vec.extend(paragraph.tags.clone())
             }
         }
@@ -739,7 +739,7 @@ impl Print for ListElement {
             .iter()
             .filter(|x| config.excluded_commit_tags.contains(x))
             .count()
-            > 0usize
+            > 0_usize
         {
             return Ok(Printed::Nothing);
         }
@@ -819,7 +819,7 @@ impl Print for ParagraphElement {
             .iter()
             .filter(|x| config.excluded_commit_tags.contains(x))
             .count()
-            > 0usize
+            > 0_usize
         {
             return Ok(Printed::Nothing);
         }
@@ -918,7 +918,7 @@ impl Parser {
                 oid: None,
                 category: p_category.unwrap_or("").to_owned(),
                 tags: p_tags_rest.0.clone(),
-                text: p_tags_rest.1.clone(),
+                text: p_tags_rest.1,
             })
         )
     );
@@ -938,7 +938,7 @@ impl Parser {
                 }),
                 category: p_category.to_owned(),
                 tags: p_tags_rest.0.clone(),
-                text: p_tags_rest.1.clone(),
+                text: p_tags_rest.1,
             })
         )
     );
@@ -953,10 +953,10 @@ impl Parser {
                         .split(',')
                         .filter_map(|x| {
                             // Ignore tags containing dots.
-                            if !x.contains('.') {
-                                Some(x.trim().to_owned())
-                            } else {
+                            if x.contains('.') {
                                 None
+                            } else {
+                                Some(x.trim().to_owned())
                             }
                         })
                         .collect::<Vec<String>>(),
@@ -964,7 +964,7 @@ impl Parser {
             }
         }
         let mut text = RE_TAGS.replace_all(string, "").into_owned();
-        if let Some('.') = text.chars().rev().nth(0) {
+        if let Some('.') = text.chars().rev().next() {
             text.pop();
         }
         (tags, text)
@@ -981,7 +981,7 @@ impl Parser {
 
         // Parse the summary line
         let summary_line = commit_parts
-            .nth(0)
+            .next()
             .ok_or_else(|| {
                 format_err!(
                     "Summar line parsing: Commit message length too small."
@@ -1062,7 +1062,7 @@ impl Parser {
     /// Prints the commits without any template
     pub fn print(
         &self,
-        compact: &bool,
+        compact: bool,
         template: Option<&str>,
     ) -> Result<Vec<u8>, Error> {
         let mut term = term::stdout()
@@ -1072,7 +1072,7 @@ impl Parser {
         // Print every tag
         for (index, tag) in self.result.iter().enumerate() {
             tag.print_to_term_and_write_to_vector(
-                &mut term,
+                term.as_mut(),
                 &mut vec,
                 compact,
                 &self.config,
@@ -1081,7 +1081,7 @@ impl Parser {
             )?;
         }
 
-        writeln!(term, "")?;
+        writeln!(term)?;
         Ok(vec)
     }
 

@@ -11,7 +11,7 @@
 //! ```
 //! use gitjournal::GitJournal;
 //! let mut journal = GitJournal::new(".").unwrap();
-//! journal.parse_log("HEAD", "rc", &1, &false, &true, None);
+//! journal.parse_log("HEAD", "rc", 1, false, true, None);
 //! journal
 //!     .print_log(true, None, None)
 //!     .expect("Could not print short log.");
@@ -69,10 +69,10 @@ impl GitJournal {
     /// the initial parsing of the git tags failed.
     pub fn new(path: &str) -> Result<Self, Error> {
         // Search upwards for the .git directory
-        let mut path_buf = if path != "." {
-            PathBuf::from(path)
-        } else {
+        let mut path_buf = if path == "." {
             env::current_dir()?
+        } else {
+            PathBuf::from(path)
         };
         'git_search: loop {
             for dir in fs::read_dir(&path_buf)? {
@@ -119,13 +119,9 @@ impl GitJournal {
                 if mowl::init_with_level(LevelFilter::Info).is_err() {
                     warn!("Logger already set.");
                 };
-            } else {
-                if mowl::init_with_level_and_without_colors(LevelFilter::Info)
-                    .is_err()
-                {
-                    warn!("Logger already set.");
-                };
-            }
+            } else if mowl::init_with_level_and_without_colors(LevelFilter::Info).is_err() {
+                warn!("Logger already set.");
+            };
         }
 
         // Create a new parser with empty results
@@ -135,7 +131,7 @@ impl GitJournal {
         };
 
         // Return the git journal object
-        Ok(GitJournal {
+        Ok(Self {
             config: new_config,
             parser: new_parser,
             path: path_buf.to_str().unwrap_or("").to_owned(),
@@ -302,14 +298,10 @@ impl GitJournal {
             let mut old_msg_vec = commit_message
                 .lines()
                 .filter_map(|line| {
-                    if !line.is_empty() {
-                        if line.starts_with('#') {
-                            Some(line.to_owned())
-                        } else {
-                            Some("# ".to_owned() + line)
-                        }
-                    } else {
-                        None
+                    match line {
+                        "" => None,
+                        l if l.starts_with('#') => Some(l.to_string()),
+                        l=> Some("# ".to_string() + l)
                     }
                 })
                 .collect::<Vec<_>>();
@@ -317,11 +309,10 @@ impl GitJournal {
                 old_msg_vec
                     .insert(0, "# The provided commit message:".to_owned());
             }
-            let prefix = if self.config.template_prefix.is_empty() {
-                "".to_owned()
-            } else {
-                self.config.template_prefix.clone() + " "
-            };
+            let mut prefix = self.config.template_prefix.clone();
+            if !prefix.is_empty() {
+                prefix.push(' ');
+            }
             let new_content = prefix
                 + &self.config.categories[0]
                 + " ...\n\n# Add a more detailed description if needed\n\n# - "
@@ -396,7 +387,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", &1, &false, &false, None);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None);
     /// ```
     ///
     /// # Errors
@@ -406,14 +397,14 @@ impl GitJournal {
         &mut self,
         revision_range: &str,
         tag_skip_pattern: &str,
-        max_tags_count: &u32,
-        all: &bool,
-        skip_unreleased: &bool,
+        max_tags_count: u32,
+        all: bool,
+        skip_unreleased: bool,
         ignore_tags: Option<Vec<&str>>,
     ) -> Result<(), Error> {
         let repo = Repository::open(&self.path)?;
         let mut revwalk = repo.revwalk()?;
-        revwalk.set_sorting(git2::Sort::TIME);
+        revwalk.set_sorting(git2::Sort::TIME)?;
 
         // Fill the revwalk with the selected revisions.
         let revspec = repo.revparse(revision_range)?;
@@ -463,7 +454,7 @@ impl GitJournal {
                 }
 
                 // If a single revision is given stop at the first seen tag
-                if !all && index > 0 && num_parsed_tags > *max_tags_count {
+                if !all && index > 0 && num_parsed_tags > max_tags_count {
                     break 'revloop;
                 }
 
@@ -480,7 +471,7 @@ impl GitJournal {
 
             // Do not parse if we want to skip commits which do not belong to
             // any release
-            if *skip_unreleased && current_tag.name == unreleased_str {
+            if skip_unreleased && current_tag.name == unreleased_str {
                 continue;
             }
 
@@ -564,7 +555,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", &1, &false, &false, None);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None);
     /// journal
     ///     .generate_template()
     ///     .expect("Template generation failed.");
@@ -647,7 +638,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", &1, &false, &false, None);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None);
     /// journal
     ///     .print_log(true, None, None)
     ///     .expect("Could not print short log.");
@@ -693,7 +684,7 @@ impl GitJournal {
         };
 
         // Print the log
-        let output_vec = self.parser.print(&compact, used_template)?;
+        let output_vec = self.parser.print(compact, used_template)?;
 
         // Print the log to the file if necessary
         if let Some(output) = output {
@@ -821,7 +812,7 @@ mod tests {
         assert_eq!(journal.config.show_commit_hash, false);
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal
-            .parse_log("HEAD", "rc", &0, &true, &false, None)
+            .parse_log("HEAD", "rc", 0, true, false, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
         assert_eq!(journal.parser.result[0].commits.len(), 15);
@@ -849,7 +840,7 @@ mod tests {
     fn parse_and_print_log_2() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", &1, &false, &false, None)
+            .parse_log("HEAD", "rc", 1, false, false, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 2);
         assert_eq!(journal.parser.result[0].name, "Unreleased");
@@ -876,7 +867,7 @@ mod tests {
     fn parse_and_print_log_3() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", &1, &false, &true, None)
+            .parse_log("HEAD", "rc", 1, false, true, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 1);
         assert_eq!(journal.parser.result[0].name, "v2");
@@ -902,7 +893,7 @@ mod tests {
     fn parse_and_print_log_4() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", &2, &false, &true, None)
+            .parse_log("HEAD", "rc", 2, false, true, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 2);
         assert_eq!(journal.parser.result[0].name, "v2");
@@ -929,7 +920,7 @@ mod tests {
     fn parse_and_print_log_5() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("v1..v2", "rc", &0, &true, &false, None)
+            .parse_log("v1..v2", "rc", 0, true, false, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 1);
         assert_eq!(journal.parser.result[0].name, "v2");
@@ -955,7 +946,7 @@ mod tests {
     fn parse_and_print_log_6() {
         let mut journal = GitJournal::new("./tests/test_repo2").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", &0, &true, &false, None)
+            .parse_log("HEAD", "rc", 0, true, false, None)
             .is_ok());
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
     }
@@ -1018,7 +1009,7 @@ mod tests {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal.generate_template().is_ok());
         assert!(journal
-            .parse_log("HEAD", "rc", &0, &true, &false, None)
+            .parse_log("HEAD", "rc", 0, true, false, None)
             .is_ok());
         assert!(journal.generate_template().is_ok());
     }

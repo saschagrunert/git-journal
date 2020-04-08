@@ -20,7 +20,7 @@ fn parse(b: &mut Bencher) {
     journal.config.enable_debug = false;
     b.iter(|| {
         journal
-            .parse_log("HEAD", "rc", &0, &true, &false, None)
+            .parse_log("HEAD", "rc", 0, true, false, None)
             .is_ok();
     });
 }
