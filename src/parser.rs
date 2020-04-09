@@ -4,8 +4,8 @@ use failure::{bail, format_err, Error};
 use git2::Oid;
 use lazy_static::lazy_static;
 use nom::{
-    alpha, call_m, char, digit, do_parse, many0, map, map_res, method, opt,
-    re_bytes_find, rest, separated_pair, space, tag,
+    alpha, call_m, char, digit, do_parse, many0, map, map_res, method, opt, re_bytes_find, rest,
+    separated_pair, space, tag,
 };
 use regex::{Regex, RegexBuilder};
 use std::{collections::BTreeMap, fs::File, io::prelude::*, iter, str};
@@ -25,7 +25,6 @@ pub static TOML_FOOTER_KEY: &str = "footer";
 pub enum Printed {
     Nothing,
     Something,
-
 }
 
 pub trait Print {
@@ -85,9 +84,7 @@ pub trait Print {
 
     fn matches_default_tag(&self, tag: Option<&str>) -> bool {
         match tag {
-            Some(tag) => {
-                tag == TOML_DEFAULT_KEY && self.contains_untagged_elements()
-            }
+            Some(tag) => tag == TOML_DEFAULT_KEY && self.contains_untagged_elements(),
             None => false,
         }
     }
@@ -166,11 +163,7 @@ impl ParsedTag {
         Ok(Printed::Something)
     }
 
-    fn print_default<T: Write>(
-        &self,
-        t: &mut T,
-        config: &Config,
-    ) -> Result<(), Error> {
+    fn print_default<T: Write>(&self, t: &mut T, config: &Config) -> Result<(), Error> {
         self.print(t, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(()))?;
         Ok(())
     }
@@ -217,21 +210,13 @@ impl ParsedTag {
                 let toml: Value = toml::from_str(&toml_string)?;
 
                 // Print header in template if exists
-                if let Some(&Value::Table(ref header_table)) =
-                    toml.get(TOML_HEADER_KEY)
-                {
+                if let Some(&Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
                     let mut print_once = false;
-                    if let Some(&Value::Boolean(ref once)) =
-                        header_table.get(TOML_ONCE_KEY)
-                    {
+                    if let Some(&Value::Boolean(ref once)) = header_table.get(TOML_ONCE_KEY) {
                         print_once = *once;
                     }
-                    if let Some(&Value::String(ref header)) =
-                        header_table.get(TOML_TEXT_KEY)
-                    {
-                        if (index_len.0 == 0 || !print_once)
-                            && !header.is_empty()
-                        {
+                    if let Some(&Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
+                        if (index_len.0 == 0 || !print_once) && !header.is_empty() {
                             writeln!(term, "\n{}", header)?;
                             writeln!(vec, "\n{}", header)?;
                         }
@@ -245,27 +230,18 @@ impl ParsedTag {
                 // Print commits
                 if let Some(main_table) = toml.as_table() {
                     self.print_commits_in_table(
-                        term, &mut vec, main_table, &mut 1, config,
-                        compact,
+                        term, &mut vec, main_table, &mut 1, config, compact,
                     )?;
                 }
 
                 // Print footer in template if exists
-                if let Some(&Value::Table(ref footer_table)) =
-                    toml.get(TOML_FOOTER_KEY)
-                {
+                if let Some(&Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
                     let mut print_once = false;
-                    if let Some(&Value::Boolean(ref once)) =
-                        footer_table.get(TOML_ONCE_KEY)
-                    {
+                    if let Some(&Value::Boolean(ref once)) = footer_table.get(TOML_ONCE_KEY) {
                         print_once = *once;
                     }
-                    if let Some(&Value::String(ref footer)) =
-                        footer_table.get(TOML_TEXT_KEY)
-                    {
-                        if (index_len.0 == index_len.1 - 1 || !print_once)
-                            && !footer.is_empty()
-                        {
+                    if let Some(&Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
+                        if (index_len.0 == index_len.1 - 1 || !print_once) && !footer.is_empty() {
                             writeln!(term, "\n{}", footer)?;
                             writeln!(vec, "\n{}", footer)?;
                         }
@@ -278,13 +254,11 @@ impl ParsedTag {
 
                 for commit in &self.commits {
                     if compact {
-                        commit.summary.print_to_term_and_write_to_vector(
-                            term, &mut vec, config, None,
-                        )?;
+                        commit
+                            .summary
+                            .print_to_term_and_write_to_vector(term, &mut vec, config, None)?;
                     } else {
-                        commit.print_to_term_and_write_to_vector(
-                            term, &mut vec, config, None,
-                        )?;
+                        commit.print_to_term_and_write_to_vector(term, &mut vec, config, None)?;
                     }
                 }
                 writeln!(term)?;
@@ -312,9 +286,7 @@ impl ParsedTag {
                 for item in array {
                     if let Value::Table(ref table) = *item {
                         *level += 1;
-                        self.print_commits_in_table(
-                            term, vec, table, level, config, compact,
-                        )?;
+                        self.print_commits_in_table(term, vec, table, level, config, compact)?;
                         *level -= 1;
                     }
                 }
@@ -380,12 +352,7 @@ impl ParsedTag {
                         Some(tag),
                     )?;
                 } else {
-                    commit.print_to_term_and_write_to_vector(
-                        term,
-                        &mut vec,
-                        config,
-                        Some(tag),
-                    )?;
+                    commit.print_to_term_and_write_to_vector(term, &mut vec, config, Some(tag))?;
                 }
             }
 
@@ -435,19 +402,14 @@ impl ParsedTag {
             .flat_map(|commit| commit.footer.clone())
             .collect::<Vec<FooterElement>>()
         {
-            if valid_footer_keys.is_empty()
-                || valid_footer_keys.contains(&footer.key)
-            {
+            if valid_footer_keys.is_empty() || valid_footer_keys.contains(&footer.key) {
                 let mut value = footer.value;
                 if config.show_commit_hash {
                     if let Some(oid) = footer.oid {
                         value = format!("{} ({:.7})", value, oid);
                     }
                 }
-                footer_tree
-                    .entry(footer.key)
-                    .or_default()
-                    .push(value);
+                footer_tree.entry(footer.key).or_default().push(value);
             }
         }
 
@@ -678,12 +640,8 @@ impl Print for BodyElement {
 
     fn contains_tag(&self, tag: Option<&str>) -> bool {
         match *self {
-            Self::List(ref vec) => {
-                vec.iter().filter(|x| x.contains_tag(tag)).count() > 0
-            }
-            Self::Paragraph(ref paragraph) => {
-                paragraph.contains_tag(tag)
-            }
+            Self::List(ref vec) => vec.iter().filter(|x| x.contains_tag(tag)).count() > 0,
+            Self::Paragraph(ref paragraph) => paragraph.contains_tag(tag),
         }
     }
 
@@ -695,9 +653,7 @@ impl Print for BodyElement {
                     .count()
                     > 0
             }
-            Self::Paragraph(ref paragraph) => {
-                paragraph.contains_untagged_elements()
-            }
+            Self::Paragraph(ref paragraph) => paragraph.contains_untagged_elements(),
         }
     }
 }
@@ -710,9 +666,7 @@ impl Tags for BodyElement {
                     vec = list_item.get_tags(vec);
                 }
             }
-            Self::Paragraph(ref paragraph) => {
-                vec.extend(paragraph.tags.clone())
-            }
+            Self::Paragraph(ref paragraph) => vec.extend(paragraph.tags.clone()),
         }
         vec
     }
@@ -880,10 +834,8 @@ lazy_static! {
         .multi_line(true)
         .build()
         .unwrap();
-    static ref RE_PARAGRAPH: Regex =
-        RegexBuilder::new(r"^\w").multi_line(true).build().unwrap();
-    static ref RE_COMMENT: Regex =
-        RegexBuilder::new(r"^#.*").multi_line(true).build().unwrap();
+    static ref RE_PARAGRAPH: Regex = RegexBuilder::new(r"^\w").multi_line(true).build().unwrap();
+    static ref RE_COMMENT: Regex = RegexBuilder::new(r"^#.*").multi_line(true).build().unwrap();
 }
 
 #[derive(Clone)]
@@ -982,17 +934,12 @@ impl Parser {
         // Parse the summary line
         let summary_line = commit_parts
             .next()
-            .ok_or_else(|| {
-                format_err!(
-                    "Summar line parsing: Commit message length too small."
-                )
-            })?
+            .ok_or_else(|| format_err!("Summar line parsing: Commit message length too small."))?
             .trim();
-        let mut parsed_summary =
-            match self.clone().parse_summary(summary_line.as_bytes()) {
-                (_, Ok(parsed)) => parsed.1,
-                _ => bail!("Summary parsing failed: '{}'", summary_line),
-            };
+        let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
+            (_, Ok(parsed)) => parsed.1,
+            _ => bail!("Summary parsing failed: '{}'", summary_line),
+        };
         parsed_summary.oid = oid;
 
         // Parse the body and the footer, the summary is already consumed
@@ -1009,16 +956,8 @@ impl Parser {
             // Parse the footer
             if RE_FOOTER.is_match(part) {
                 for cap in RE_FOOTER.captures_iter(part) {
-                    let key = cap
-                        .get(1)
-                        .map(|k| k.as_str())
-                        .unwrap_or(part)
-                        .to_owned();
-                    let value = cap
-                        .get(2)
-                        .map(|k| k.as_str())
-                        .unwrap_or(part)
-                        .to_owned();
+                    let key = cap.get(1).map(|k| k.as_str()).unwrap_or(part).to_owned();
+                    let value = cap.get(2).map(|k| k.as_str()).unwrap_or(part).to_owned();
                     parsed_footer.push(FooterElement { oid, key, value });
                 }
 
@@ -1026,8 +965,7 @@ impl Parser {
             } else if RE_LIST.is_match(part) {
                 let mut list = vec![];
                 for list_item in part.lines() {
-                    if let (_, Ok(mut result)) =
-                        self.clone().parse_list_item(list_item.as_bytes())
+                    if let (_, Ok(mut result)) = self.clone().parse_list_item(list_item.as_bytes())
                     {
                         result.1.oid = oid;
                         list.push(result.1);
@@ -1037,8 +975,7 @@ impl Parser {
 
             // Nothing of tbe above items matched, check for a Paragraph element
             } else if RE_PARAGRAPH.is_match(part) {
-                let (parsed_tags, parsed_text) =
-                    Self::parse_and_consume_tags(part.as_bytes());
+                let (parsed_tags, parsed_text) = Self::parse_and_consume_tags(part.as_bytes());
                 parsed_body.push(BodyElement::Paragraph(ParagraphElement {
                     oid,
                     text: parsed_text.trim().to_owned(),
@@ -1060,13 +997,8 @@ impl Parser {
     }
 
     /// Prints the commits without any template
-    pub fn print(
-        &self,
-        compact: bool,
-        template: Option<&str>,
-    ) -> Result<Vec<u8>, Error> {
-        let mut term = term::stdout()
-            .ok_or_else(|| format_err!("Could not print to terminal"))?;
+    pub fn print(&self, compact: bool, template: Option<&str>) -> Result<Vec<u8>, Error> {
+        let mut term = term::stdout().ok_or_else(|| format_err!("Could not print to terminal"))?;
         let mut vec = vec![];
 
         // Print every tag
