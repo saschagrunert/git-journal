@@ -632,28 +632,25 @@ impl GitJournal {
         output: Option<&str>,
     ) -> Result<(), Error> {
         // Choose the template
-        let mut default_template = PathBuf::from(&self.path);
-        let used_template = match self.config.default_template {
-            Some(ref default_template_file) => {
-                default_template.push(default_template_file);
+        let default_template = self.config.default_template.as_ref().map(|f| {
+            let mut path = PathBuf::from(&self.path);
+            path.push(f);
+            path
+        });
 
-                match template {
-                    None => {
-                        if default_template.exists() {
-                            info!("Using default template '{}'.", default_template.display());
-                            default_template.to_str()
-                        } else {
-                            warn!(
-                                "The default template '{}' does not exist.",
-                                default_template.display()
-                            );
-                            None
-                        }
-                    }
-                    Some(t) => Some(t),
-                }
+        let used_template = match (&template, &default_template) {
+            (Some(_), _) | (_, None) => template,
+            (_, Some(ref default_template)) if default_template.exists() => {
+                info!("Using default template '{}'.", default_template.display());
+                default_template.to_str()
             }
-            None => template,
+            (_, Some(ref default_template)) => {
+                warn!(
+                    "The default template '{}' does not exist.",
+                    default_template.display()
+                );
+                None
+            }
         };
 
         // Print the log
