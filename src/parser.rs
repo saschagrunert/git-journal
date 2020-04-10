@@ -1089,7 +1089,7 @@ mod tests {
             let mut t = term::stdout().unwrap();
             assert!(commit
                 .print_to_term_and_write_to_vector(
-                    &mut t,
+                    t.as_mut(),
                     &mut vec![],
                     &config::Config::new(),
                     None
@@ -1097,7 +1097,7 @@ mod tests {
                 .is_ok());
             assert!(commit
                 .print_to_term_and_write_to_vector(
-                    &mut t,
+                    t.as_mut(),
                     &mut vec![],
                     &config::Config::new(),
                     Some("tag")
@@ -1124,7 +1124,7 @@ mod tests {
             let mut t = term::stdout().unwrap();
             assert!(commit
                 .print_to_term_and_write_to_vector(
-                    &mut t,
+                    t.as_mut(),
                     &mut vec![],
                     &config::Config::new(),
                     None
@@ -1132,7 +1132,7 @@ mod tests {
                 .is_ok());
             assert!(commit
                 .print_to_term_and_write_to_vector(
-                    &mut t,
+                    t.as_mut(),
                     &mut vec![],
                     &config::Config::new(),
                     Some("tag")
@@ -1162,7 +1162,7 @@ mod tests {
             let mut t = term::stdout().unwrap();
             assert!(commit
                 .print_to_term_and_write_to_vector(
-                    &mut t,
+                    t.as_mut(),
                     &mut vec![],
                     &config::Config::new(),
                     None
@@ -1170,7 +1170,7 @@ mod tests {
                 .is_ok());
             assert!(commit
                 .print_to_term_and_write_to_vector(
-                    &mut t,
+                    t.as_mut(),
                     &mut vec![],
                     &config::Config::new(),
                     Some("tag3")
@@ -1200,7 +1200,7 @@ mod tests {
             let mut t = term::stdout().unwrap();
             assert!(commit
                 .print_to_term_and_write_to_vector(
-                    &mut t,
+                    t.as_mut(),
                     &mut vec![],
                     &config::Config::new(),
                     None
@@ -1208,7 +1208,7 @@ mod tests {
                 .is_ok());
             assert!(commit
                 .print_to_term_and_write_to_vector(
-                    &mut t,
+                    t.as_mut(),
                     &mut vec![],
                     &config::Config::new(),
                     Some("some tag")
