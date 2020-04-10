@@ -11,7 +11,7 @@
 //! ```
 //! use gitjournal::GitJournal;
 //! let mut journal = GitJournal::new(".").unwrap();
-//! journal.parse_log("HEAD", "rc", &1, &false, &true, None);
+//! journal.parse_log("HEAD", "rc", 1, false, true, None);
 //! journal
 //!     .print_log(true, None, None)
 //!     .expect("Could not print short log.");
@@ -69,10 +69,10 @@ impl GitJournal {
     /// the initial parsing of the git tags failed.
     pub fn new(path: &str) -> Result<Self, Error> {
         // Search upwards for the .git directory
-        let mut path_buf = if path != "." {
-            PathBuf::from(path)
-        } else {
+        let mut path_buf = if path == "." {
             env::current_dir()?
+        } else {
+            PathBuf::from(path)
         };
         'git_search: loop {
             for dir in fs::read_dir(&path_buf)? {
@@ -92,16 +92,12 @@ impl GitJournal {
         // Get all available tags in some vector of tuples
         let mut new_tags = vec![];
         for name in repo.tag_names(None)?.iter() {
-            let name = name.ok_or_else(|| {
-                git2::Error::from_str("Could not receive tag name")
-            })?;
+            let name = name.ok_or_else(|| git2::Error::from_str("Could not receive tag name"))?;
             let obj = repo.revparse_single(name)?;
             if let Ok(tag) = obj.into_tag() {
                 let tag_name = tag
                     .name()
-                    .ok_or_else(|| {
-                        git2::Error::from_str("Could not parse tag name")
-                    })?
+                    .ok_or_else(|| git2::Error::from_str("Could not parse tag name"))?
                     .to_owned();
                 new_tags.push((tag.target_id(), tag_name));
             }
@@ -119,13 +115,9 @@ impl GitJournal {
                 if mowl::init_with_level(LevelFilter::Info).is_err() {
                     warn!("Logger already set.");
                 };
-            } else {
-                if mowl::init_with_level_and_without_colors(LevelFilter::Info)
-                    .is_err()
-                {
-                    warn!("Logger already set.");
-                };
-            }
+            } else if mowl::init_with_level_and_without_colors(LevelFilter::Info).is_err() {
+                warn!("Logger already set.");
+            };
         }
 
         // Create a new parser with empty results
@@ -135,7 +127,7 @@ impl GitJournal {
         };
 
         // Return the git journal object
-        Ok(GitJournal {
+        Ok(Self {
             config: new_config,
             parser: new_parser,
             path: path_buf.to_str().unwrap_or("").to_owned(),
@@ -232,9 +224,7 @@ impl GitJournal {
             let mut hook_content = String::new();
             hook_file.read_to_string(&mut hook_content)?;
             if hook_content.contains(content) {
-                info!(
-                    "Hook already installed, nothing changed in existing hook."
-                );
+                info!("Hook already installed, nothing changed in existing hook.");
                 return Ok(());
             }
         } else {
@@ -276,11 +266,7 @@ impl GitJournal {
     ///
     /// # Errors
     /// When the path is not available or writing the commit message fails.
-    pub fn prepare(
-        &self,
-        path: &str,
-        commit_type: Option<&str>,
-    ) -> Result<(), Error> {
+    pub fn prepare(&self, path: &str, commit_type: Option<&str>) -> Result<(), Error> {
         // If the message is not valid, assume a new commit and provide the
         // template.
         if let Err(error) = self.verify(path) {
@@ -301,27 +287,19 @@ impl GitJournal {
             let mut file = OpenOptions::new().write(true).open(path)?;
             let mut old_msg_vec = commit_message
                 .lines()
-                .filter_map(|line| {
-                    if !line.is_empty() {
-                        if line.starts_with('#') {
-                            Some(line.to_owned())
-                        } else {
-                            Some("# ".to_owned() + line)
-                        }
-                    } else {
-                        None
-                    }
+                .filter_map(|line| match line {
+                    "" => None,
+                    l if l.starts_with('#') => Some(l.to_string()),
+                    l => Some("# ".to_string() + l),
                 })
                 .collect::<Vec<_>>();
             if !old_msg_vec.is_empty() {
-                old_msg_vec
-                    .insert(0, "# The provided commit message:".to_owned());
+                old_msg_vec.insert(0, "# The provided commit message:".to_owned());
             }
-            let prefix = if self.config.template_prefix.is_empty() {
-                "".to_owned()
-            } else {
-                self.config.template_prefix.clone() + " "
-            };
+            let mut prefix = self.config.template_prefix.clone();
+            if !prefix.is_empty() {
+                prefix.push(' ');
+            }
             let new_content = prefix
                 + &self.config.categories[0]
                 + " ...\n\n# Add a more detailed description if needed\n\n# - "
@@ -357,8 +335,7 @@ impl GitJournal {
         file.read_to_string(&mut commit_message)?;
 
         // Parse the commit and extract the tags
-        let parsed_commit =
-            self.parser.parse_commit_message(&commit_message, None)?;
+        let parsed_commit = self.parser.parse_commit_message(&commit_message, None)?;
         let tags = parsed_commit.get_tags_unique(vec![]);
 
         // Check if the tags within the commit also occur in the default
@@ -396,7 +373,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", &1, &false, &false, None);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None);
     /// ```
     ///
     /// # Errors
@@ -406,31 +383,31 @@ impl GitJournal {
         &mut self,
         revision_range: &str,
         tag_skip_pattern: &str,
-        max_tags_count: &u32,
-        all: &bool,
-        skip_unreleased: &bool,
+        max_tags_count: u32,
+        all: bool,
+        skip_unreleased: bool,
         ignore_tags: Option<Vec<&str>>,
     ) -> Result<(), Error> {
         let repo = Repository::open(&self.path)?;
         let mut revwalk = repo.revwalk()?;
-        revwalk.set_sorting(git2::Sort::TIME);
+        revwalk.set_sorting(git2::Sort::TIME)?;
 
         // Fill the revwalk with the selected revisions.
         let revspec = repo.revparse(revision_range)?;
         if revspec.mode().contains(git2::RevparseMode::SINGLE) {
             // A single commit was given
-            let from = revspec.from().ok_or_else(|| {
-                git2::Error::from_str("Could not set revision range start")
-            })?;
+            let from = revspec
+                .from()
+                .ok_or_else(|| git2::Error::from_str("Could not set revision range start"))?;
             revwalk.push(from.id())?;
         } else {
             // A specific commit range was given
-            let from = revspec.from().ok_or_else(|| {
-                git2::Error::from_str("Could not set revision range start")
-            })?;
-            let to = revspec.to().ok_or_else(|| {
-                git2::Error::from_str("Could not set revision range end")
-            })?;
+            let from = revspec
+                .from()
+                .ok_or_else(|| git2::Error::from_str("Could not set revision range start"))?;
+            let to = revspec
+                .to()
+                .ok_or_else(|| git2::Error::from_str("Could not set revision range end"))?;
             revwalk.push(to.id())?;
             if revspec.mode().contains(git2::RevparseMode::MERGE_BASE) {
                 let base = repo.merge_base(from.id(), to.id())?;
@@ -454,8 +431,7 @@ impl GitJournal {
             let oid = id?;
             let commit = repo.find_commit(oid)?;
             for tag in self.tags.iter().filter(|tag| {
-                tag.0.as_bytes() == oid.as_bytes()
-                    && !tag.1.contains(tag_skip_pattern)
+                tag.0.as_bytes() == oid.as_bytes() && !tag.1.contains(tag_skip_pattern)
             }) {
                 // Parsing entries of the last tag done
                 if !current_tag.message_ids.is_empty() {
@@ -463,7 +439,7 @@ impl GitJournal {
                 }
 
                 // If a single revision is given stop at the first seen tag
-                if !all && index > 0 && num_parsed_tags > *max_tags_count {
+                if !all && index > 0 && num_parsed_tags > max_tags_count {
                     break 'revloop;
                 }
 
@@ -480,15 +456,15 @@ impl GitJournal {
 
             // Do not parse if we want to skip commits which do not belong to
             // any release
-            if *skip_unreleased && current_tag.name == unreleased_str {
+            if skip_unreleased && current_tag.name == unreleased_str {
                 continue;
             }
 
             // Add the commit message to the parser work to be done, the `id`
             // represents the index within the worker vector
-            let message = commit.message().ok_or_else(|| {
-                git2::Error::from_str("Commit message error.")
-            })?;
+            let message = commit
+                .message()
+                .ok_or_else(|| git2::Error::from_str("Commit message error."))?;
             let id = worker_vec.len();
 
             // The worker_vec contains the commit message and the parsed commit
@@ -498,15 +474,14 @@ impl GitJournal {
         }
 
         // Add the last element as well if needed
-        if !current_tag.message_ids.is_empty()
-            && !self.parser.result.contains(&current_tag)
-        {
+        if !current_tag.message_ids.is_empty() && !self.parser.result.contains(&current_tag) {
             self.parser.result.push(current_tag);
         }
 
         // Process with the full CPU power
-        worker_vec.par_iter_mut().for_each(
-            |&mut (ref message, ref oid, ref mut result)| {
+        worker_vec
+            .par_iter_mut()
+            .for_each(|&mut (ref message, ref oid, ref mut result)| {
                 match self.parser.parse_commit_message(message, Some(*oid)) {
                     Ok(parsed_message) => match ignore_tags {
                         Some(ref tags) => {
@@ -521,8 +496,7 @@ impl GitJournal {
                     },
                     Err(e) => warn!("Skipping commit: {}", e),
                 }
-            },
-        );
+            });
 
         // Assemble results together via the message_id
         self.parser.result = self
@@ -540,9 +514,9 @@ impl GitJournal {
                     None
                 } else {
                     if self.config.sort_by == "name" {
-                        parsed_tag.commits.sort_by(|l, r| {
-                            l.summary.category.cmp(&r.summary.category)
-                        });
+                        parsed_tag
+                            .commits
+                            .sort_by(|l, r| l.summary.category.cmp(&r.summary.category));
                     }
                     Some(parsed_tag)
                 }
@@ -564,7 +538,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", &1, &false, &false, None);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None);
     /// journal
     ///     .generate_template()
     ///     .expect("Template generation failed.");
@@ -592,26 +566,19 @@ impl GitJournal {
             .iter()
             .map(|tag| {
                 let mut map = Map::new();
-                map.insert(
-                    parser::TOML_TAG.to_owned(),
-                    Value::String(tag.to_owned()),
-                );
+                map.insert(parser::TOML_TAG.to_owned(), Value::String(tag.to_owned()));
                 map.insert(
                     parser::TOML_NAME_KEY.to_owned(),
                     Value::String(tag.to_owned()),
                 );
-                map.insert(
-                    parser::TOML_FOOTERS_KEY.to_owned(),
-                    Value::Array(vec![]),
-                );
+                map.insert(parser::TOML_FOOTERS_KEY.to_owned(), Value::Array(vec![]));
                 Value::Table(map)
             })
             .collect::<Vec<Value>>();
         toml_map.insert("tags".to_owned(), Value::Array(toml_tags));
 
         let mut header_footer_map = Map::new();
-        header_footer_map
-            .insert(parser::TOML_ONCE_KEY.to_owned(), Value::Boolean(false));
+        header_footer_map.insert(parser::TOML_ONCE_KEY.to_owned(), Value::Boolean(false));
         header_footer_map.insert(
             parser::TOML_TEXT_KEY.to_owned(),
             Value::String(String::new()),
@@ -647,7 +614,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", &1, &false, &false, None);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None);
     /// journal
     ///     .print_log(true, None, None)
     ///     .expect("Could not print short log.");
@@ -665,40 +632,33 @@ impl GitJournal {
         output: Option<&str>,
     ) -> Result<(), Error> {
         // Choose the template
-        let mut default_template = PathBuf::from(&self.path);
-        let used_template = match self.config.default_template {
-            Some(ref default_template_file) => {
-                default_template.push(default_template_file);
+        let default_template = self.config.default_template.as_ref().map(|f| {
+            let mut path = PathBuf::from(&self.path);
+            path.push(f);
+            path
+        });
 
-                match template {
-                    None => {
-                        if default_template.exists() {
-                            info!(
-                                "Using default template '{}'.",
-                                default_template.display()
-                            );
-                            default_template.to_str()
-                        } else {
-                            warn!(
-                                "The default template '{}' does not exist.",
-                                default_template.display()
-                            );
-                            None
-                        }
-                    }
-                    Some(t) => Some(t),
-                }
+        let used_template = match (&template, &default_template) {
+            (Some(_), _) | (_, None) => template,
+            (_, Some(ref default_template)) if default_template.exists() => {
+                info!("Using default template '{}'.", default_template.display());
+                default_template.to_str()
             }
-            None => template,
+            (_, Some(ref default_template)) => {
+                warn!(
+                    "The default template '{}' does not exist.",
+                    default_template.display()
+                );
+                None
+            }
         };
 
         // Print the log
-        let output_vec = self.parser.print(&compact, used_template)?;
+        let output_vec = self.parser.print(compact, used_template)?;
 
         // Print the log to the file if necessary
         if let Some(output) = output {
-            let mut output_file =
-                OpenOptions::new().create(true).append(true).open(output)?;
+            let mut output_file = OpenOptions::new().create(true).append(true).open(output)?;
             output_file.write_all(&output_vec)?;
             info!("Output written to '{}'.", output);
         }
@@ -821,7 +781,7 @@ mod tests {
         assert_eq!(journal.config.show_commit_hash, false);
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal
-            .parse_log("HEAD", "rc", &0, &true, &false, None)
+            .parse_log("HEAD", "rc", 0, true, false, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
         assert_eq!(journal.parser.result[0].commits.len(), 15);
@@ -830,18 +790,10 @@ mod tests {
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal
-            .print_log(
-                false,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
         assert!(journal
-            .print_log(
-                true,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
     }
 
@@ -849,7 +801,7 @@ mod tests {
     fn parse_and_print_log_2() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", &1, &false, &false, None)
+            .parse_log("HEAD", "rc", 1, false, false, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 2);
         assert_eq!(journal.parser.result[0].name, "Unreleased");
@@ -857,18 +809,10 @@ mod tests {
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal
-            .print_log(
-                false,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
         assert!(journal
-            .print_log(
-                true,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
     }
 
@@ -876,25 +820,17 @@ mod tests {
     fn parse_and_print_log_3() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", &1, &false, &true, None)
+            .parse_log("HEAD", "rc", 1, false, true, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 1);
         assert_eq!(journal.parser.result[0].name, "v2");
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal
-            .print_log(
-                false,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
         assert!(journal
-            .print_log(
-                true,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
     }
 
@@ -902,7 +838,7 @@ mod tests {
     fn parse_and_print_log_4() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", &2, &false, &true, None)
+            .parse_log("HEAD", "rc", 2, false, true, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 2);
         assert_eq!(journal.parser.result[0].name, "v2");
@@ -910,18 +846,10 @@ mod tests {
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal
-            .print_log(
-                false,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
         assert!(journal
-            .print_log(
-                true,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
     }
 
@@ -929,25 +857,17 @@ mod tests {
     fn parse_and_print_log_5() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("v1..v2", "rc", &0, &true, &false, None)
+            .parse_log("v1..v2", "rc", 0, true, false, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 1);
         assert_eq!(journal.parser.result[0].name, "v2");
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
         assert!(journal
-            .print_log(
-                false,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(false, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
         assert!(journal
-            .print_log(
-                true,
-                Some("./tests/template.toml"),
-                Some("CHANGELOG.md")
-            )
+            .print_log(true, Some("./tests/template.toml"), Some("CHANGELOG.md"))
             .is_ok());
     }
 
@@ -955,7 +875,7 @@ mod tests {
     fn parse_and_print_log_6() {
         let mut journal = GitJournal::new("./tests/test_repo2").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", &0, &true, &false, None)
+            .parse_log("HEAD", "rc", 0, true, false, None)
             .is_ok());
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
     }
@@ -1018,7 +938,7 @@ mod tests {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal.generate_template().is_ok());
         assert!(journal
-            .parse_log("HEAD", "rc", &0, &true, &false, None)
+            .parse_log("HEAD", "rc", 0, true, false, None)
             .is_ok());
         assert!(journal.generate_template().is_ok());
     }
@@ -1027,5 +947,4 @@ mod tests {
     fn path_failure() {
         assert!(GitJournal::new("/etc/").is_err());
     }
-
 }
