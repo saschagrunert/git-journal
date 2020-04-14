@@ -11,7 +11,7 @@
 //! ```
 //! use gitjournal::GitJournal;
 //! let mut journal = GitJournal::new(".").unwrap();
-//! journal.parse_log("HEAD", "rc", 1, false, true, None, &[]);
+//! journal.parse_log("HEAD", "rc", 1, false, true, None, None);
 //! journal
 //!     .print_log(true, None, None)
 //!     .expect("Could not print short log.");
@@ -377,7 +377,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", 1, false, false, None, &[]);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None, None);
     /// ```
     ///
     /// # Errors
@@ -391,7 +391,7 @@ impl GitJournal {
         all: bool,
         skip_unreleased: bool,
         ignore_tags: Option<Vec<&str>>,
-        path_spec: &[&str],
+        path_spec: Option<&Vec<&str>>,
     ) -> Result<(), Error> {
         let repo = Repository::open(&self.path)?;
         let mut revwalk = repo.revwalk()?;
@@ -472,9 +472,10 @@ impl GitJournal {
                 .ok_or_else(|| git2::Error::from_str("Commit message error."))?;
             let id = worker_vec.len();
 
-
-            if skip_commit(&repo, &commit, path_spec)? {
-                continue;
+            if let Some(path_spec) = path_spec {
+                if skip_commit(&repo, &commit, path_spec.as_ref())? {
+                    continue;
+                }
             }
 
             // The worker_vec contains the commit message and the parsed commit
@@ -548,7 +549,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", 1, false, false, None, &[]);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None, None);
     /// journal
     ///     .generate_template()
     ///     .expect("Template generation failed.");
@@ -624,7 +625,7 @@ impl GitJournal {
     /// use gitjournal::GitJournal;
     ///
     /// let mut journal = GitJournal::new(".").unwrap();
-    /// journal.parse_log("HEAD", "rc", 1, false, false, None, &[]);
+    /// journal.parse_log("HEAD", "rc", 1, false, false, None, None);
     /// journal
     ///     .print_log(true, None, None)
     ///     .expect("Could not print short log.");
@@ -690,13 +691,14 @@ fn skip_commit(repo: &Repository, commit: &Commit, path_spec: &[&str]) -> Result
         diff_opts.pathspec(spec);
     }
 
-    let changed = commit.parents().try_fold(false, |acc, parent| -> Result<bool, Error> {
-        Ok(acc || diffs_from_parent(repo, commit, &parent, &mut diff_opts)?)
-    })?;
+    let changed = commit
+        .parents()
+        .try_fold(false, |acc, parent| -> Result<bool, Error> {
+            Ok(acc || diffs_from_parent(repo, commit, &parent, &mut diff_opts)?)
+        })?;
 
     Ok(!changed)
 }
-
 
 /// Checks if a commit has a diff from the specified parent commit
 ///
@@ -829,7 +831,7 @@ mod tests {
         assert_eq!(journal.config.show_commit_hash, false);
         assert_eq!(journal.config.excluded_commit_tags.len(), 0);
         assert!(journal
-            .parse_log("HEAD", "rc", 0, true, false, None, &[])
+            .parse_log("HEAD", "rc", 0, true, false, None, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), journal.tags.len() + 1);
         assert_eq!(journal.parser.result[0].commits.len(), 15);
@@ -849,7 +851,7 @@ mod tests {
     fn parse_and_print_log_2() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", 1, false, false, None, &[])
+            .parse_log("HEAD", "rc", 1, false, false, None, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 2);
         assert_eq!(journal.parser.result[0].name, "Unreleased");
@@ -868,7 +870,7 @@ mod tests {
     fn parse_and_print_log_3() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", 1, false, true, None, &[])
+            .parse_log("HEAD", "rc", 1, false, true, None, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 1);
         assert_eq!(journal.parser.result[0].name, "v2");
@@ -886,7 +888,7 @@ mod tests {
     fn parse_and_print_log_4() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", 2, false, true, None, &[])
+            .parse_log("HEAD", "rc", 2, false, true, None, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 2);
         assert_eq!(journal.parser.result[0].name, "v2");
@@ -905,7 +907,7 @@ mod tests {
     fn parse_and_print_log_5() {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal
-            .parse_log("v1..v2", "rc", 0, true, false, None, &[])
+            .parse_log("v1..v2", "rc", 0, true, false, None, None)
             .is_ok());
         assert_eq!(journal.parser.result.len(), 1);
         assert_eq!(journal.parser.result[0].name, "v2");
@@ -923,7 +925,7 @@ mod tests {
     fn parse_and_print_log_6() {
         let mut journal = GitJournal::new("./tests/test_repo2").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", 0, true, false, None, &[])
+            .parse_log("HEAD", "rc", 0, true, false, None, None)
             .is_ok());
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
     }
@@ -932,7 +934,7 @@ mod tests {
     fn parse_and_print_log_7() {
         let mut journal = GitJournal::new("./tests/test_repo2").unwrap();
         assert!(journal
-            .parse_log("HEAD", "rc", 0, true, false, None, &["tests"])
+            .parse_log("HEAD", "rc", 0, true, false, None, Some(&vec!["tests"]))
             .is_ok());
         assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
     }
@@ -995,7 +997,7 @@ mod tests {
         let mut journal = GitJournal::new("./tests/test_repo").unwrap();
         assert!(journal.generate_template().is_ok());
         assert!(journal
-            .parse_log("HEAD", "rc", 0, true, false, None, &[])
+            .parse_log("HEAD", "rc", 0, true, false, None, None)
             .is_ok());
         assert!(journal.generate_template().is_ok());
     }
