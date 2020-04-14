@@ -66,6 +66,11 @@ args:
       long: ignore
       help: Ignore the given comma separated list of :tags:, like "internal"
       takes_value: true
+  - PATH_SPEC:
+      help: Print only changes from the given paths.
+      takes_value: true
+      multiple: true
+      last: true
 
 subcommands:
   - prepare:
