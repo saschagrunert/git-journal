@@ -8,6 +8,7 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
+    - os: osx
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]];then export OPENSSL_INCLUDE_DIR=`brew --prefix openssl`/include; fi
