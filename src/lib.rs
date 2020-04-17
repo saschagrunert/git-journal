@@ -236,21 +236,21 @@ impl GitJournal {
             hook_file.write_all(b"#!/usr/bin/env sh\n")?;
         }
         hook_file.write_all(content.as_bytes())?;
-        self.chmod(&hook_path, 0o755)?;
+        Self::chmod(&hook_path, 0o755)?;
 
         info!("Git hook installed to '{}'.", hook_path.display());
         Ok(())
     }
 
     #[cfg(unix)]
-    fn chmod(&self, path: &Path, perms: u32) -> Result<(), Error> {
+    fn chmod(path: &Path, perms: u32) -> Result<(), Error> {
         use std::os::unix::prelude::PermissionsExt;
         fs::set_permissions(path, fs::Permissions::from_mode(perms))?;
         Ok(())
     }
 
     #[cfg(windows)]
-    fn chmod(&self, _path: &Path, _perms: u32) -> Result<(), Error> {
+    fn chmod(_path: &Path, _perms: u32) -> Result<(), Error> {
         Ok(())
     }
 

@@ -201,71 +201,66 @@ impl ParsedTag {
         template: Option<&str>,
         index_len: (usize, usize),
     ) -> Result<(), Error> {
-        match template {
-            Some(template) => {
-                // Try to parse the template
-                let mut file = File::open(template)?;
-                let mut toml_string = String::new();
-                file.read_to_string(&mut toml_string)?;
-                let toml: Value = toml::from_str(&toml_string)?;
+        if let Some(template) = template {
+            // Try to parse the template
+            let mut file = File::open(template)?;
+            let mut toml_string = String::new();
+            file.read_to_string(&mut toml_string)?;
+            let toml: Value = toml::from_str(&toml_string)?;
 
-                // Print header in template if exists
-                if let Some(&Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
-                    let mut print_once = false;
-                    if let Some(&Value::Boolean(ref once)) = header_table.get(TOML_ONCE_KEY) {
-                        print_once = *once;
-                    }
-                    if let Some(&Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
-                        if (index_len.0 == 0 || !print_once) && !header.is_empty() {
-                            writeln!(term, "\n{}", header)?;
-                            writeln!(vec, "\n{}", header)?;
-                        }
-                    }
+            // Print header in template if exists
+            if let Some(&Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
+                let mut print_once = false;
+                if let Some(&Value::Boolean(ref once)) = header_table.get(TOML_ONCE_KEY) {
+                    print_once = *once;
                 }
-
-                // Print the tags
-                self.print_default_term(term, config)?;
-                self.print_default(&mut vec, config)?;
-
-                // Print commits
-                if let Some(main_table) = toml.as_table() {
-                    self.print_commits_in_table(
-                        term, &mut vec, main_table, &mut 1, config, compact,
-                    )?;
-                }
-
-                // Print footer in template if exists
-                if let Some(&Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
-                    let mut print_once = false;
-                    if let Some(&Value::Boolean(ref once)) = footer_table.get(TOML_ONCE_KEY) {
-                        print_once = *once;
-                    }
-                    if let Some(&Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
-                        if (index_len.0 == index_len.1 - 1 || !print_once) && !footer.is_empty() {
-                            writeln!(term, "\n{}", footer)?;
-                            writeln!(vec, "\n{}", footer)?;
-                        }
+                if let Some(&Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
+                    if (index_len.0 == 0 || !print_once) && !header.is_empty() {
+                        writeln!(term, "\n{}", header)?;
+                        writeln!(vec, "\n{}", header)?;
                     }
                 }
             }
-            None => {
-                self.print_default_term(term, config)?;
-                self.print_default(&mut vec, config)?;
 
-                for commit in &self.commits {
-                    if compact {
-                        commit
-                            .summary
-                            .print_to_term_and_write_to_vector(term, &mut vec, config, None)?;
-                    } else {
-                        commit.print_to_term_and_write_to_vector(term, &mut vec, config, None)?;
+            // Print the tags
+            self.print_default_term(term, config)?;
+            self.print_default(&mut vec, config)?;
+
+            // Print commits
+            if let Some(main_table) = toml.as_table() {
+                self.print_commits_in_table(term, &mut vec, main_table, &mut 1, config, compact)?;
+            }
+
+            // Print footer in template if exists
+            if let Some(&Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
+                let mut print_once = false;
+                if let Some(&Value::Boolean(ref once)) = footer_table.get(TOML_ONCE_KEY) {
+                    print_once = *once;
+                }
+                if let Some(&Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
+                    if (index_len.0 == index_len.1 - 1 || !print_once) && !footer.is_empty() {
+                        writeln!(term, "\n{}", footer)?;
+                        writeln!(vec, "\n{}", footer)?;
                     }
                 }
-                writeln!(term)?;
-                writeln!(vec)?;
-                if !compact && config.enable_footers {
-                    self.print_footers(term, &mut vec, None, config)?;
+            }
+        } else {
+            self.print_default_term(term, config)?;
+            self.print_default(&mut vec, config)?;
+
+            for commit in &self.commits {
+                if compact {
+                    commit
+                        .summary
+                        .print_to_term_and_write_to_vector(term, &mut vec, config, None)?;
+                } else {
+                    commit.print_to_term_and_write_to_vector(term, &mut vec, config, None)?;
                 }
+            }
+            writeln!(term)?;
+            writeln!(vec)?;
+            if !compact && config.enable_footers {
+                self.print_footers(term, &mut vec, None, config)?;
             }
         }
 
@@ -956,8 +951,8 @@ impl Parser {
             // Parse the footer
             if RE_FOOTER.is_match(part) {
                 for cap in RE_FOOTER.captures_iter(part) {
-                    let key = cap.get(1).map(|k| k.as_str()).unwrap_or(part).to_owned();
-                    let value = cap.get(2).map(|k| k.as_str()).unwrap_or(part).to_owned();
+                    let key = cap.get(1).map_or(part, |k| k.as_str()).to_owned();
+                    let value = cap.get(2).map_or(part, |k| k.as_str()).to_owned();
                     parsed_footer.push(FooterElement { oid, key, value });
                 }
 
@@ -1046,7 +1041,6 @@ impl Parser {
 mod tests {
     use super::*;
     use crate::config::{self, Config};
-    use term;
 
     fn get_parser() -> Parser {
         Parser {

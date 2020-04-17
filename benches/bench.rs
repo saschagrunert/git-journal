@@ -10,7 +10,7 @@ fn verify_huge_message(b: &mut Bencher) {
     b.iter(|| {
         journal
             .verify("./tests/commit_messages/success_huge")
-            .is_ok();
+            .is_ok()
     });
 }
 
@@ -21,6 +21,6 @@ fn parse(b: &mut Bencher) {
     b.iter(|| {
         journal
             .parse_log("HEAD", "rc", 0, true, false, None, None)
-            .is_ok();
+            .is_ok()
     });
 }

@@ -55,6 +55,7 @@ impl Config {
     /// use gitjournal::Config;
     /// let config = Config::new();
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Self {
             categories: Self::get_default_categories(),
@@ -100,7 +101,7 @@ impl Config {
         info!("{:?}", toml_string);
 
         // Get the correct path
-        let path_buf = self.get_path_with_filename(path);
+        let path_buf = Self::get_path_with_filename(path);
         let path_string = path_buf
             .to_str()
             .ok_or_else(|| format_err!("Cannot convert path to string"))?;
@@ -123,7 +124,7 @@ impl Config {
     /// # Errors
     /// When toml decoding or file opening failed.
     pub fn load(&mut self, path: &str) -> Result<(), Error> {
-        let path_buf = self.get_path_with_filename(path);
+        let path_buf = Self::get_path_with_filename(path);
         let mut file = File::open(&path_buf)?;
         let mut toml_string = String::new();
         file.read_to_string(&mut toml_string)?;
@@ -148,6 +149,7 @@ impl Config {
     /// use gitjournal::Config;
     /// assert_eq!(Config::new().is_default_config(), true);
     /// ```
+    #[must_use]
     pub fn is_default_config(&self) -> bool {
         lazy_static! {
             static ref DEFAULT_CONFIG: Config = Config::new();
@@ -156,7 +158,8 @@ impl Config {
         *self == *DEFAULT_CONFIG
     }
 
-    fn get_path_with_filename(&self, path: &str) -> PathBuf {
+    #[must_use]
+    fn get_path_with_filename(path: &str) -> PathBuf {
         let mut path_buf = PathBuf::from(path);
         path_buf.push(".gitjournal.toml");
         path_buf
