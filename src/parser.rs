@@ -1034,22 +1034,12 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
-            let mut t = term::stdout().unwrap();
+            let mut t = Output::new_terminal();
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    None
-                )
+                .print_default(&mut t, &config::Config::new(), None)
                 .is_ok());
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    Some("tag")
-                )
+                .print_default(&mut t, &config::Config::new(), Some("tag"))
                 .is_ok());
         }
     }
@@ -1069,22 +1059,12 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
-            let mut t = term::stdout().unwrap();
+            let mut t = Output::new_terminal();
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    None
-                )
+                .print_default(&mut t, &config::Config::new(), None)
                 .is_ok());
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    Some("tag")
-                )
+                .print_default(&mut t, &config::Config::new(), Some("tag"))
                 .is_ok());
         }
     }
@@ -1107,22 +1087,12 @@ mod tests {
                 commit.summary.tags,
                 vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]
             );
-            let mut t = term::stdout().unwrap();
+            let mut t = Output::new_terminal();
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    None
-                )
+                .print_default(&mut t, &config::Config::new(), None)
                 .is_ok());
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    Some("tag3")
-                )
+                .print_default(&mut t, &config::Config::new(), Some("tag3"))
                 .is_ok());
         }
     }
@@ -1145,22 +1115,12 @@ mod tests {
                 commit.summary.tags,
                 vec!["1234".to_owned(), "some tag".to_owned()]
             );
-            let mut t = term::stdout().unwrap();
+            let mut t = Output::new_terminal();
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    None
-                )
+                .print_default(&mut t, &config::Config::new(), None)
                 .is_ok());
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    Some("some tag")
-                )
+                .print_default(&mut t, &config::Config::new(), Some("some tag"))
                 .is_ok());
         }
     }

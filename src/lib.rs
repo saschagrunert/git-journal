@@ -668,9 +668,9 @@ impl GitJournal {
 
         // Prints the log to either the file or the terminal
         let mut writer = if output.is_some() {
-            Output::buffered()
+            Output::new_buffer()
         } else {
-            Output::terminal()
+            Output::new_terminal()
         };
 
         self.parser.print(compact, used_template, &mut writer)?;

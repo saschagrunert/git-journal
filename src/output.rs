@@ -13,12 +13,12 @@ pub enum Output {
 
 impl Output {
     /// Creates an output that writes into a buffer
-    pub fn buffered() -> Self {
+    pub fn new_buffer() -> Self {
         Output::Buffer(Vec::new())
     }
 
     /// Creates an output that writes into the terminal
-    pub fn terminal() -> Self {
+    pub fn new_terminal() -> Self {
         if let Some(terminal) = term::stdout() {
             Self::Terminal(terminal)
         } else {
