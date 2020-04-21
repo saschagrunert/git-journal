@@ -26,6 +26,7 @@
 //! shortest possible format.
 
 pub use crate::config::Config;
+use crate::output::Output;
 use crate::parser::{ParsedTag, Parser, Print, Tags};
 use chrono::{offset::Utc, TimeZone};
 use failure::{bail, Error};
@@ -41,6 +42,7 @@ use std::{
 use toml::{map::Map, Value};
 
 pub mod config;
+mod output;
 mod parser;
 
 /// The main structure of git-journal.
@@ -664,13 +666,19 @@ impl GitJournal {
             }
         };
 
-        // Print the log
-        let output_vec = self.parser.print(compact, used_template)?;
+        // Prints the log to either the file or the terminal
+        let mut writer = if output.is_some() {
+            Output::buffered()
+        } else {
+            Output::terminal()
+        };
+
+        self.parser.print(compact, used_template, &mut writer)?;
 
         // Print the log to the file if necessary
-        if let Some(output) = output {
+        if let (Some(output), Output::Buffer(vec)) = (output, writer) {
             let mut output_file = OpenOptions::new().create(true).append(true).open(output)?;
-            output_file.write_all(&output_vec)?;
+            output_file.write_all(&vec)?;
             info!("Output written to '{}'.", output);
         }
 
