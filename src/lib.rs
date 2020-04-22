@@ -26,6 +26,7 @@
 //! shortest possible format.
 
 pub use crate::config::Config;
+use crate::output::Output;
 use crate::parser::{ParsedTag, Parser, Print, Tags};
 use chrono::{offset::Utc, TimeZone};
 use failure::{bail, Error};
@@ -41,6 +42,7 @@ use std::{
 use toml::{map::Map, Value};
 
 pub mod config;
+mod output;
 mod parser;
 
 /// The main structure of git-journal.
@@ -236,21 +238,21 @@ impl GitJournal {
             hook_file.write_all(b"#!/usr/bin/env sh\n")?;
         }
         hook_file.write_all(content.as_bytes())?;
-        self.chmod(&hook_path, 0o755)?;
+        Self::chmod(&hook_path, 0o755)?;
 
         info!("Git hook installed to '{}'.", hook_path.display());
         Ok(())
     }
 
     #[cfg(unix)]
-    fn chmod(&self, path: &Path, perms: u32) -> Result<(), Error> {
+    fn chmod(path: &Path, perms: u32) -> Result<(), Error> {
         use std::os::unix::prelude::PermissionsExt;
         fs::set_permissions(path, fs::Permissions::from_mode(perms))?;
         Ok(())
     }
 
     #[cfg(windows)]
-    fn chmod(&self, _path: &Path, _perms: u32) -> Result<(), Error> {
+    fn chmod(_path: &Path, _perms: u32) -> Result<(), Error> {
         Ok(())
     }
 
@@ -664,13 +666,19 @@ impl GitJournal {
             }
         };
 
-        // Print the log
-        let output_vec = self.parser.print(compact, used_template)?;
+        // Prints the log to either the file or the terminal
+        let mut writer = if output.is_some() {
+            Output::new_buffer()
+        } else {
+            Output::new_terminal()
+        };
+
+        self.parser.print(compact, used_template, &mut writer)?;
 
         // Print the log to the file if necessary
-        if let Some(output) = output {
+        if let (Some(output), Output::Buffer(vec)) = (output, writer) {
             let mut output_file = OpenOptions::new().create(true).append(true).open(output)?;
-            output_file.write_all(&output_vec)?;
+            output_file.write_all(&vec)?;
             info!("Output written to '{}'.", output);
         }
 

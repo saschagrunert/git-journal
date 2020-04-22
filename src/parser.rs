@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::output::Output;
 use chrono::{offset::Utc, Date, Datelike};
 use failure::{bail, format_err, Error};
 use git2::Oid;
@@ -42,19 +43,9 @@ pub trait Print {
         G: Fn(&mut T) -> Result<(), Error>,
         H: Fn(&mut T) -> Result<(), Error>;
 
-    fn print_default<T: Write>(
+    fn print_default(
         &self,
-        t: &mut T,
-        config: &Config,
-        tag: Option<&str>,
-    ) -> Result<(), Error> {
-        self.print(t, config, tag, &|_| Ok(()), &|_| Ok(()), &|_| Ok(()))?;
-        Ok(())
-    }
-
-    fn print_default_term(
-        &self,
-        mut t: &mut term::StdoutTerminal,
+        mut t: &mut Output,
         config: &Config,
         tag: Option<&str>,
     ) -> Result<(), Error> {
@@ -92,18 +83,6 @@ pub trait Print {
     fn should_be_printed(&self, tag: Option<&str>) -> bool {
         self.contains_tag(tag) || self.matches_default_tag(tag)
     }
-
-    fn print_to_term_and_write_to_vector(
-        &self,
-        term: &mut term::StdoutTerminal,
-        mut vec: &mut Vec<u8>,
-        config: &Config,
-        tag: Option<&str>,
-    ) -> Result<(), Error> {
-        self.print_default_term(term, config, tag)?;
-        self.print_default(&mut vec, config, tag)?;
-        Ok(())
-    }
 }
 
 pub trait Tags {
@@ -111,7 +90,7 @@ pub trait Tags {
     /// Transfers ownership of the vector back if done.
     fn get_tags(&self, vec: Vec<String>) -> Vec<String>;
 
-    /// Sort and uniq the tags as well.
+    /// Sort and unique the tags as well.
     /// Transfers ownership of the vector back if done.
     fn get_tags_unique(&self, mut vec: Vec<String>) -> Vec<String> {
         vec = self.get_tags(vec);
@@ -163,16 +142,7 @@ impl ParsedTag {
         Ok(Printed::Something)
     }
 
-    fn print_default<T: Write>(&self, t: &mut T, config: &Config) -> Result<(), Error> {
-        self.print(t, config, &|_| Ok(()), &|_| Ok(()), &|_| Ok(()))?;
-        Ok(())
-    }
-
-    fn print_default_term(
-        &self,
-        mut t: &mut term::StdoutTerminal,
-        config: &Config,
-    ) -> Result<(), Error> {
+    fn print_default(&self, mut t: &mut Output, config: &Config) -> Result<(), Error> {
         self.print(
             &mut t,
             config,
@@ -194,78 +164,65 @@ impl ParsedTag {
 
     fn print_to_term_and_write_to_vector(
         &self,
-        term: &mut term::StdoutTerminal,
-        mut vec: &mut Vec<u8>,
+        writer: &mut Output,
         compact: bool,
         config: &Config,
         template: Option<&str>,
         index_len: (usize, usize),
     ) -> Result<(), Error> {
-        match template {
-            Some(template) => {
-                // Try to parse the template
-                let mut file = File::open(template)?;
-                let mut toml_string = String::new();
-                file.read_to_string(&mut toml_string)?;
-                let toml: Value = toml::from_str(&toml_string)?;
+        if let Some(template) = template {
+            // Try to parse the template
+            let mut file = File::open(template)?;
+            let mut toml_string = String::new();
+            file.read_to_string(&mut toml_string)?;
+            let toml: Value = toml::from_str(&toml_string)?;
 
-                // Print header in template if exists
-                if let Some(&Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
-                    let mut print_once = false;
-                    if let Some(&Value::Boolean(ref once)) = header_table.get(TOML_ONCE_KEY) {
-                        print_once = *once;
-                    }
-                    if let Some(&Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
-                        if (index_len.0 == 0 || !print_once) && !header.is_empty() {
-                            writeln!(term, "\n{}", header)?;
-                            writeln!(vec, "\n{}", header)?;
-                        }
-                    }
+            // Print header in template if exists
+            if let Some(&Value::Table(ref header_table)) = toml.get(TOML_HEADER_KEY) {
+                let mut print_once = false;
+                if let Some(&Value::Boolean(ref once)) = header_table.get(TOML_ONCE_KEY) {
+                    print_once = *once;
                 }
-
-                // Print the tags
-                self.print_default_term(term, config)?;
-                self.print_default(&mut vec, config)?;
-
-                // Print commits
-                if let Some(main_table) = toml.as_table() {
-                    self.print_commits_in_table(
-                        term, &mut vec, main_table, &mut 1, config, compact,
-                    )?;
-                }
-
-                // Print footer in template if exists
-                if let Some(&Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
-                    let mut print_once = false;
-                    if let Some(&Value::Boolean(ref once)) = footer_table.get(TOML_ONCE_KEY) {
-                        print_once = *once;
-                    }
-                    if let Some(&Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
-                        if (index_len.0 == index_len.1 - 1 || !print_once) && !footer.is_empty() {
-                            writeln!(term, "\n{}", footer)?;
-                            writeln!(vec, "\n{}", footer)?;
-                        }
+                if let Some(&Value::String(ref header)) = header_table.get(TOML_TEXT_KEY) {
+                    if (index_len.0 == 0 || !print_once) && !header.is_empty() {
+                        writeln!(writer, "\n{}", header)?;
                     }
                 }
             }
-            None => {
-                self.print_default_term(term, config)?;
-                self.print_default(&mut vec, config)?;
 
-                for commit in &self.commits {
-                    if compact {
-                        commit
-                            .summary
-                            .print_to_term_and_write_to_vector(term, &mut vec, config, None)?;
-                    } else {
-                        commit.print_to_term_and_write_to_vector(term, &mut vec, config, None)?;
+            // Print the tags
+            self.print_default(writer, config)?;
+
+            // Print commits
+            if let Some(main_table) = toml.as_table() {
+                self.print_commits_in_table(writer, main_table, &mut 1, config, compact)?;
+            }
+
+            // Print footer in template if exists
+            if let Some(&Value::Table(ref footer_table)) = toml.get(TOML_FOOTER_KEY) {
+                let mut print_once = false;
+                if let Some(&Value::Boolean(ref once)) = footer_table.get(TOML_ONCE_KEY) {
+                    print_once = *once;
+                }
+                if let Some(&Value::String(ref footer)) = footer_table.get(TOML_TEXT_KEY) {
+                    if (index_len.0 == index_len.1 - 1 || !print_once) && !footer.is_empty() {
+                        writeln!(writer, "\n{}", footer)?;
                     }
                 }
-                writeln!(term)?;
-                writeln!(vec)?;
-                if !compact && config.enable_footers {
-                    self.print_footers(term, &mut vec, None, config)?;
+            }
+        } else {
+            self.print_default(writer, config)?;
+
+            for commit in &self.commits {
+                if compact {
+                    commit.summary.print_default(writer, config, None)?;
+                } else {
+                    commit.print_default(writer, config, None)?;
                 }
+            }
+            writeln!(writer)?;
+            if !compact && config.enable_footers {
+                self.print_footers(writer, None, config)?;
             }
         }
 
@@ -274,8 +231,7 @@ impl ParsedTag {
 
     fn print_commits_in_table(
         &self,
-        term: &mut term::StdoutTerminal,
-        mut vec: &mut Vec<u8>,
+        writer: &mut Output,
         table: &toml::value::Table,
         level: &mut usize,
         config: &Config,
@@ -286,7 +242,7 @@ impl ParsedTag {
                 for item in array {
                     if let Value::Table(ref table) = *item {
                         *level += 1;
-                        self.print_commits_in_table(term, vec, table, level, config, compact)?;
+                        self.print_commits_in_table(writer, table, level, config, compact)?;
                         *level -= 1;
                     }
                 }
@@ -335,35 +291,28 @@ impl ParsedTag {
                             > 0)))
         {
             if config.colored_output {
-                term.fg(term::color::BRIGHT_RED)?;
+                writer.fg(term::color::BRIGHT_RED)?;
             }
-            write!(term, "\n{} {}", header_lvl, name)?;
-            write!(vec, "\n{} {}", header_lvl, name)?;
+            write!(writer, "\n{} {}", header_lvl, name)?;
 
-            term.reset()?;
+            writer.reset()?;
 
             // Print commits for this tag
             for commit in &self.commits {
                 if compact {
-                    commit.summary.print_to_term_and_write_to_vector(
-                        term,
-                        &mut vec,
-                        config,
-                        Some(tag),
-                    )?;
+                    commit.summary.print_default(writer, config, Some(tag))?;
                 } else {
-                    commit.print_to_term_and_write_to_vector(term, &mut vec, config, Some(tag))?;
+                    commit.print_default(writer, config, Some(tag))?;
                 }
             }
 
-            writeln!(term)?;
-            writeln!(vec)?;
+            writeln!(writer)?;
 
             // Print footers if specified in the template
             if let Some(footers) = table.get(TOML_FOOTERS_KEY) {
                 if let Value::Array(ref array) = *footers {
                     if !array.is_empty() {
-                        self.print_footers(term, vec, Some(array), config)?;
+                        self.print_footers(writer, Some(array), config)?;
                     }
                 }
             }
@@ -374,8 +323,7 @@ impl ParsedTag {
 
     fn print_footers(
         &self,
-        term: &mut term::StdoutTerminal,
-        vec: &mut Vec<u8>,
+        writer: &mut Output,
         footer_keys: Option<&[Value]>,
         config: &Config,
     ) -> Result<(), Error> {
@@ -421,11 +369,10 @@ impl ParsedTag {
         // Print the mapped footers
         for (key, values) in &footer_tree {
             if config.colored_output {
-                term.fg(term::color::BRIGHT_RED)?;
+                writer.fg(term::color::BRIGHT_RED)?;
             }
-            writeln!(term, "\n{}:", key)?;
-            writeln!(vec, "\n{}:", key)?;
-            term.reset()?;
+            writeln!(writer, "\n{}:", key)?;
+            writer.reset()?;
             let footer_string = values.join(", ");
             let mut char_count = 0;
             let mut footer_lines = String::new();
@@ -438,8 +385,7 @@ impl ParsedTag {
                     char_count += 1;
                 }
             }
-            writeln!(term, "{}", footer_lines)?;
-            writeln!(vec, "{}", footer_lines)?;
+            writeln!(writer, "{}", footer_lines)?;
         }
         Ok(())
     }
@@ -956,8 +902,8 @@ impl Parser {
             // Parse the footer
             if RE_FOOTER.is_match(part) {
                 for cap in RE_FOOTER.captures_iter(part) {
-                    let key = cap.get(1).map(|k| k.as_str()).unwrap_or(part).to_owned();
-                    let value = cap.get(2).map(|k| k.as_str()).unwrap_or(part).to_owned();
+                    let key = cap.get(1).map_or(part, |k| k.as_str()).to_owned();
+                    let value = cap.get(2).map_or(part, |k| k.as_str()).to_owned();
                     parsed_footer.push(FooterElement { oid, key, value });
                 }
 
@@ -997,15 +943,16 @@ impl Parser {
     }
 
     /// Prints the commits without any template
-    pub fn print(&self, compact: bool, template: Option<&str>) -> Result<Vec<u8>, Error> {
-        let mut term = term::stdout().ok_or_else(|| format_err!("Could not print to terminal"))?;
-        let mut vec = vec![];
-
+    pub fn print(
+        &self,
+        compact: bool,
+        template: Option<&str>,
+        writer: &mut Output,
+    ) -> Result<(), Error> {
         // Print every tag
         for (index, tag) in self.result.iter().enumerate() {
             tag.print_to_term_and_write_to_vector(
-                term.as_mut(),
-                &mut vec,
+                writer,
                 compact,
                 &self.config,
                 template,
@@ -1013,8 +960,10 @@ impl Parser {
             )?;
         }
 
-        writeln!(term)?;
-        Ok(vec)
+        if !writer.is_buffered() {
+            writeln!(writer)?;
+        }
+        Ok(())
     }
 
     /// Returns all tags recursively from a toml table
@@ -1046,7 +995,6 @@ impl Parser {
 mod tests {
     use super::*;
     use crate::config::{self, Config};
-    use term;
 
     fn get_parser() -> Parser {
         Parser {
@@ -1086,22 +1034,12 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
-            let mut t = term::stdout().unwrap();
+            let mut t = Output::new_terminal();
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    None
-                )
+                .print_default(&mut t, &config::Config::new(), None)
                 .is_ok());
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    Some("tag")
-                )
+                .print_default(&mut t, &config::Config::new(), Some("tag"))
                 .is_ok());
         }
     }
@@ -1121,22 +1059,12 @@ mod tests {
             assert_eq!(commit.summary.category, "Changed");
             assert_eq!(commit.summary.text, "my commit summary");
             assert_eq!(commit.summary.tags.len(), 0);
-            let mut t = term::stdout().unwrap();
+            let mut t = Output::new_terminal();
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    None
-                )
+                .print_default(&mut t, &config::Config::new(), None)
                 .is_ok());
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    Some("tag")
-                )
+                .print_default(&mut t, &config::Config::new(), Some("tag"))
                 .is_ok());
         }
     }
@@ -1159,22 +1087,12 @@ mod tests {
                 commit.summary.tags,
                 vec!["tag1".to_owned(), "tag2".to_owned(), "tag3".to_owned()]
             );
-            let mut t = term::stdout().unwrap();
+            let mut t = Output::new_terminal();
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    None
-                )
+                .print_default(&mut t, &config::Config::new(), None)
                 .is_ok());
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    Some("tag3")
-                )
+                .print_default(&mut t, &config::Config::new(), Some("tag3"))
                 .is_ok());
         }
     }
@@ -1197,22 +1115,12 @@ mod tests {
                 commit.summary.tags,
                 vec!["1234".to_owned(), "some tag".to_owned()]
             );
-            let mut t = term::stdout().unwrap();
+            let mut t = Output::new_terminal();
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    None
-                )
+                .print_default(&mut t, &config::Config::new(), None)
                 .is_ok());
             assert!(commit
-                .print_to_term_and_write_to_vector(
-                    t.as_mut(),
-                    &mut vec![],
-                    &config::Config::new(),
-                    Some("some tag")
-                )
+                .print_default(&mut t, &config::Config::new(), Some("some tag"))
                 .is_ok());
         }
     }
