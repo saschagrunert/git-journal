@@ -4,11 +4,16 @@ use chrono::{offset::Utc, Date, Datelike};
 use failure::{bail, format_err, Error};
 use git2::Oid;
 use lazy_static::lazy_static;
+use nom::combinator::map_res;
 use nom::{
-    alpha, call_m, char, digit, do_parse, many0, map, map_res, method, opt, re_bytes_find, rest,
-    separated_pair, space, tag,
+    bytes::streaming::tag,
+    character::streaming::{alpha1, char, digit1, space0, space1},
+    combinator::{map, opt, rest},
+    regexp::bytes::re_find,
+    sequence::separated_pair,
+    IResult,
 };
-use regex::{Regex, RegexBuilder};
+use regex::{bytes, Regex, RegexBuilder};
 use std::{collections::BTreeMap, fs::File, io::prelude::*, iter, str};
 use toml::{self, Value};
 
@@ -784,6 +789,8 @@ lazy_static! {
     static ref RE_COMMENT: Regex = RegexBuilder::new(r"^#.*").multi_line(true).build().unwrap();
 }
 
+type ParserResult<'a, T> = IResult<&'a [u8], T>;
+
 #[derive(Clone)]
 pub struct Parser {
     pub config: Config,
@@ -791,58 +798,57 @@ pub struct Parser {
 }
 
 impl Parser {
-    method!(parse_category<Self, &[u8], &str>, self,
-        do_parse!(
-            opt!(tag!(self.config.category_delimiters[0].as_str())) >>
-            p_category: map_res!(
-                re_bytes_find!(&self.config.categories.join("|")),
-                str::from_utf8
-            ) >>
-            opt!(tag!(self.config.category_delimiters[1].as_str())) >>
+    fn parse_category<'a>(&self, input: &'a [u8]) -> ParserResult<'a, &'a str> {
+        let cat_finder = bytes::Regex::new(&self.config.categories.join("|")).unwrap();
 
-            (p_category)
-    ));
+        let (input, _) = opt(tag(self.config.category_delimiters[0].as_str()))(input)?;
+        let (input, p_category) = map_res(re_find(cat_finder), str::from_utf8)(input)?;
+        let (input, _) = opt(tag(self.config.category_delimiters[1].as_str()))(input)?;
+        Ok((input, p_category))
+    }
 
-    method!(parse_list_item<Self, &[u8], ListElement>, mut self,
-        do_parse!(
-            many0!(space) >>
-            tag!("-") >>
-            opt!(space) >>
-            p_category: opt!(call_m!(self.parse_category)) >>
-            opt!(space) >>
-            p_tags_rest: map!(rest, Self::parse_and_consume_tags) >>
+    fn parse_list_item<'a>(&mut self, input: &'a [u8]) -> ParserResult<'a, ListElement> {
+        let (input, _) = space0(input)?;
+        let (input, _) = tag("-")(input)?;
+        let (input, _) = space0(input)?;
+        let (input, p_category) = opt(|input| self.parse_category(input))(input)?;
+        let (input, _) = space0(input)?;
+        let (input, p_tags_rest) = map(rest, Self::parse_and_consume_tags)(input)?;
 
-            (ListElement {
+        Ok((
+            input,
+            ListElement {
                 oid: None,
                 category: p_category.unwrap_or("").to_owned(),
-                tags: p_tags_rest.0.clone(),
+                tags: p_tags_rest.0,
                 text: p_tags_rest.1,
-            })
-        )
-    );
+            },
+        ))
+    }
 
-    method!(parse_summary<Self, &[u8], SummaryElement>, mut self,
-        do_parse!(
-            p_prefix: opt!(separated_pair!(alpha, char!('-'), digit)) >>
-            opt!(space) >>
-            p_category: call_m!(self.parse_category) >>
-            space >>
-            p_tags_rest: map!(rest, Self::parse_and_consume_tags) >>
+    fn parse_summary<'a>(&mut self, input: &'a [u8]) -> ParserResult<'a, SummaryElement> {
+        let (input, p_prefix) = opt(separated_pair(alpha1, char('-'), digit1))(input)?;
+        let (input, _) = space0(input)?;
+        let (input, p_category) = self.parse_category(input)?;
+        let (input, _) = space1(input)?;
+        let (input, p_tags_rest) = map(rest, Self::parse_and_consume_tags)(input)?;
 
-            (SummaryElement {
+        Ok((
+            input,
+            SummaryElement {
                 oid: None,
                 prefix: p_prefix.map_or("".to_owned(), |p| {
-                    format!("{}-{}", str::from_utf8(p.0).unwrap_or(""), str::from_utf8(p.1).unwrap_or(""))
+                    format!("{}-{}", str_or_empty(p.0), str_or_empty(p.1))
                 }),
                 category: p_category.to_owned(),
-                tags: p_tags_rest.0.clone(),
+                tags: p_tags_rest.0,
                 text: p_tags_rest.1,
-            })
-        )
-    );
+            },
+        ))
+    }
 
     fn parse_and_consume_tags(input: &[u8]) -> (Vec<String>, String) {
-        let string = str::from_utf8(input).unwrap_or("");
+        let string = str_or_empty(input);
         let mut tags = vec![];
         for cap in RE_TAGS.captures_iter(string) {
             if let Some(tag) = cap.get(1) {
@@ -883,7 +889,7 @@ impl Parser {
             .ok_or_else(|| format_err!("Summar line parsing: Commit message length too small."))?
             .trim();
         let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
-            (_, Ok(parsed)) => parsed.1,
+            Ok((_, parsed)) => parsed,
             _ => bail!("Summary parsing failed: '{}'", summary_line),
         };
         parsed_summary.oid = oid;
@@ -911,10 +917,10 @@ impl Parser {
             } else if RE_LIST.is_match(part) {
                 let mut list = vec![];
                 for list_item in part.lines() {
-                    if let (_, Ok(mut result)) = self.clone().parse_list_item(list_item.as_bytes())
+                    if let Ok((_, mut result)) = self.clone().parse_list_item(list_item.as_bytes())
                     {
-                        result.1.oid = oid;
-                        list.push(result.1);
+                        result.oid = oid;
+                        list.push(result);
                     };
                 }
                 parsed_body.push(BodyElement::List(list));
@@ -989,6 +995,11 @@ impl Parser {
         }
         vec
     }
+}
+
+/// Get valid string from bytes or an empty string
+fn str_or_empty(input: &[u8]) -> &str {
+    str::from_utf8(input).unwrap_or("")
 }
 
 #[cfg(test)]
