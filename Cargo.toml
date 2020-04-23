@@ -23,7 +23,7 @@ name = "gitjournal"
 chrono = "0.4.11"
 clap = { version = "2.33.0", features = ["yaml"] }
 failure = "0.1.7"
-git2 = "0.13.3"
+git2 = "0.13.4"
 lazy_static = "1.4.0"
 log = "0.4.8"
 mowl = "2.1.0"
