@@ -404,7 +404,7 @@ dependencies = [
 [[package]]
 name = "nom"
 version = "6.0.0-alpha1"
-source = "git+https://github.com/Geal/nom#bf83d5d97898932427709bd2f86a40b0f06d8cef"
+source = "git+https://github.com/Geal/nom#2099a75d9f86b88608f4abe550148426a8c0c2c5"
 dependencies = [
  "lexical-core 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "memchr 2.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
