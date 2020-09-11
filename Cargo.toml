@@ -31,7 +31,7 @@ nom = { git = "https://github.com/Geal/nom", features = ["regexp"] }
 rayon = "1.4.0"
 regex = "1.3.9"
 serde = "1.0.116"
-serde_derive = "1.0.115"
+serde_derive = "1.0.116"
 term = "0.6.1"
 toml = "0.5.6"
 
