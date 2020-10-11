@@ -272,7 +272,7 @@ dependencies = [
  "serde 1.0.116 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.116 (registry+https://github.com/rust-lang/crates.io-index)",
  "term 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "toml 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "toml 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -689,7 +689,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "toml"
-version = "0.5.6"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde 1.0.116 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -868,7 +868,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum thread_local 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d40c6d1b69745a6ec6fb1ca717914848da4b44ae29d9b3080cbee91d72a69b14"
 "checksum time 0.1.44 (registry+https://github.com/rust-lang/crates.io-index)" = "6db9e6914ab8b1ae1c260a4ae7a49b6c5611b40328a735b21862567685e73255"
 "checksum tinyvec 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "238ce071d267c5710f9d31451efec16c5ee22de34df17cc05e56cbc92e967117"
-"checksum toml 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ffc92d160b1eef40665be3a05630d003936a3bc7da7421277846c2613e92c71a"
+"checksum toml 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)" = "75cf45bb0bef80604d001caaec0d09da99611b3c0fd39d3080468875cdb65645"
 "checksum unicode-bidi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "49f2bd0c6468a8230e1db229cff8029217cf623c767ea5d60bfbd42729ea54d5"
 "checksum unicode-normalization 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "6fb19cf769fa8c6a80a162df694621ebeb4dafb606470b2b2fce0be40a98a977"
 "checksum unicode-width 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "9337591893a19b88d8d87f2cec1e73fad5cdfd10e5a6f349f498ad6ea2ffb1e3"
