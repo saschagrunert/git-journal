@@ -428,7 +428,7 @@ dependencies = [
 [[package]]
 name = "nom"
 version = "6.0.0-alpha3"
-source = "git+https://github.com/Geal/nom#7d2addcd230d0a831089e8120e387372f4f7c5ed"
+source = "git+https://github.com/Geal/nom#8a4efe51e3c041a050c772298e02ed9bf937b3df"
 dependencies = [
  "bitvec 0.19.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "lexical-core 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)",
