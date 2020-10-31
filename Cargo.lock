@@ -486,8 +486,8 @@ dependencies = [
 
 [[package]]
 name = "nom"
-version = "6.0.0-beta3"
-source = "git+https://github.com/Geal/nom#0a6f4d59af3c04523e6b153a07b9ecec5d6225c2"
+version = "6.0.0-beta5"
+source = "git+https://github.com/Geal/nom#d20dd2165fc441744d5437700a13a993764bcc71"
 dependencies = [
  "bitvec",
  "lexical-core",
