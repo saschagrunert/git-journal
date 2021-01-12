@@ -32,7 +32,7 @@ rayon = "1.5.0"
 regex = "1.4.3"
 serde = "1.0.118"
 serde_derive = "1.0.118"
-term = "0.6.1"
+term = "0.7.0"
 toml = "0.5.8"
 
 [[bin]]
