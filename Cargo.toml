@@ -30,8 +30,8 @@ mowl = "2.1.0"
 nom = { git = "https://github.com/Geal/nom", features = ["regexp"] }
 rayon = "1.5.0"
 regex = "1.4.3"
-serde = "1.0.118"
-serde_derive = "1.0.118"
+serde = "1.0.119"
+serde_derive = "1.0.119"
 term = "0.7.0"
 toml = "0.5.8"
 
