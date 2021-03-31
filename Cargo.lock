@@ -473,7 +473,7 @@ dependencies = [
 [[package]]
 name = "nom"
 version = "6.1.2"
-source = "git+https://github.com/Geal/nom#0a499cd123cca25bd48d243c0109147c7627f155"
+source = "git+https://github.com/Geal/nom#d1aff18e3c6b03bf3a1b6ca2826417c48995f4c1"
 dependencies = [
  "bitvec",
  "funty",
