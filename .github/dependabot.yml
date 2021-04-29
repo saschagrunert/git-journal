@@ -1,0 +1,21 @@
+version: 2
+updates:
+- package-ecosystem: cargo
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "11:00"
+  open-pull-requests-limit: 10
+  allow:
+  - dependency-type: direct
+  - dependency-type: indirect
+  ignore:
+  - dependency-name: syn
+    versions:
+    - 1.0.70
+  - dependency-name: crossbeam-utils
+    versions:
+    - 0.8.3
+  - dependency-name: funty
+    versions:
+    - 1.2.0
