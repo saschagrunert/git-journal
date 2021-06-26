@@ -1011,6 +1011,20 @@ mod tests {
     }
 
     #[test]
+    fn output_correctly_categorized() {
+      let mut journal = GitJournal::new("./tests/test_repo3").unwrap();
+      assert!(journal
+          .parse_log("444b3a64355557844beb848d80051ada2c00176a..HEAD", "rc", 0, true, false, None, None)
+          .is_ok());
+      assert_eq!(journal.parser.result.len(), 4);
+      assert_eq!(journal.parser.result[0].name, "Unreleased");
+      assert_eq!(journal.parser.result[0].commits.len(), 3);
+      assert_eq!(journal.parser.result[0].commits[0].summary.tags.len(), 2);
+      assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
+      assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
+    }
+
+    #[test]
     fn path_failure() {
         assert!(GitJournal::new("/etc/").is_err());
     }
