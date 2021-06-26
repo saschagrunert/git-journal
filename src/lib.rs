@@ -1018,8 +1018,8 @@ mod tests {
           .is_ok());
       assert_eq!(journal.parser.result.len(), 4);
       assert_eq!(journal.parser.result[0].name, "Unreleased");
-      assert_eq!(journal.parser.result[0].commits.len(), 3);
-      assert_eq!(journal.parser.result[0].commits[0].summary.tags.len(), 2);
+      assert_eq!(journal.parser.result[0].commits.len(), 2);
+      assert_eq!(journal.parser.result[0].commits[0].summary.tags.len(), 1);
       assert!(journal.print_log(false, None, Some("CHANGELOG.md")).is_ok());
       assert!(journal.print_log(true, None, Some("CHANGELOG.md")).is_ok());
     }
