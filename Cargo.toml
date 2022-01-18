@@ -21,7 +21,7 @@ name = "gitjournal"
 
 [dependencies]
 chrono = "0.4.19"
-clap = { version = "2.34.0", features = ["yaml"] }
+clap = { version = "3.0.9", features = ["yaml"] }
 failure = "0.1.8"
 git2 = "0.13.25"
 lazy_static = "1.4.0"
