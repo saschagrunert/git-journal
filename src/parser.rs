@@ -776,7 +776,7 @@ pub struct FooterElement {
 }
 
 lazy_static! {
-    static ref RE_TAGS: Regex = Regex::new(r"[ \n]:(.*?):").unwrap();
+    static ref RE_TAGS: Regex = Regex::new(r"[ \n]*:(.*?):").unwrap();
     static ref RE_FOOTER: Regex = RegexBuilder::new(r"^([\w-]+):\s(.*)$")
         .multi_line(true)
         .build()
@@ -827,11 +827,24 @@ impl Parser {
     }
 
     fn parse_summary<'a>(&mut self, input: &'a [u8]) -> ParserResult<'a, SummaryElement> {
+        // Before we do anything, let's parse the entire summary line for tags so that we don't
+        // skip any tags that happen before, say, the category.
+        let entire_string = str_or_empty(input);
+        let mut tags = vec![];
+        for cap in RE_TAGS.captures_iter(entire_string) {
+          tags.push((&cap[1]).to_string());
+        }
+
         let (input, p_prefix) = opt(separated_pair(alpha1, char('-'), digit1))(input)?;
         let (input, _) = space0(input)?;
         let (input, p_category) = self.parse_category(input)?;
         let (input, _) = space1(input)?;
         let (input, p_tags_rest) = map(rest, Self::parse_and_consume_tags)(input)?;
+
+        let p_tags_rest_vec = p_tags_rest.0;
+        tags.extend(p_tags_rest_vec);
+        tags.sort();
+        tags.dedup();
 
         Ok((
             input,
@@ -841,7 +854,7 @@ impl Parser {
                     format!("{}-{}", str_or_empty(p.0), str_or_empty(p.1))
                 }),
                 category: p_category.to_owned(),
-                tags: p_tags_rest.0,
+                tags: tags,
                 text: p_tags_rest.1,
             },
         ))
@@ -850,6 +863,7 @@ impl Parser {
     fn parse_and_consume_tags(input: &[u8]) -> (Vec<String>, String) {
         let string = str_or_empty(input);
         let mut tags = vec![];
+
         for cap in RE_TAGS.captures_iter(string) {
             if let Some(tag) = cap.get(1) {
                 tags.extend(
@@ -888,6 +902,7 @@ impl Parser {
             .next()
             .ok_or_else(|| format_err!("Summar line parsing: Commit message length too small."))?
             .trim();
+
         let mut parsed_summary = match self.clone().parse_summary(summary_line.as_bytes()) {
             Ok((_, parsed)) => parsed,
             _ => bail!("Summary parsing failed: '{}'", summary_line),

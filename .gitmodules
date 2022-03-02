@@ -4,3 +4,6 @@
 [submodule "tests/test_repo2"]
 	path = tests/test_repo2
 	url = https://github.com/saschagrunert/test2
+[submodule "tests/test_repo3"]
+	path = tests/test_repo3
+	url = git@github.com:jwir3/ghp-release-cleaner
